@@ -12,7 +12,7 @@ if sys.version_info[:2] < (3, 4):
 
 setup(
     name='taskrunner',
-    version='1.0.0.dev0',
+    version='1.0a1',
     license='MIT',
     author='Wyatt Baldwin',
     author_email='self@wyattbaldwin.com',
