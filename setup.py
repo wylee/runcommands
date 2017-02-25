@@ -2,6 +2,11 @@ import sys
 
 from setuptools import find_packages, setup
 
+with open('taskrunner/__init__.py') as fp:
+    for line in fp:
+        if line.startswith('__version__'):
+            __version__ = line.split('=')[1].strip()[1:-1]
+
 with open('README.rst') as fp:
     long_description = fp.read().strip()
 
@@ -12,7 +17,7 @@ if sys.version_info[:2] < (3, 4):
 
 setup(
     name='taskrunner',
-    version='1.0.0.dev1',
+    version=__version__,
     license='MIT',
     author='Wyatt Baldwin',
     author_email='self@wyattbaldwin.com',
