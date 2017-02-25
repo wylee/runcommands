@@ -3,6 +3,7 @@ import os
 import sys
 import textwrap
 
+from . import __version__
 from .runner import TaskRunner, TaskRunnerError
 from .util import print_debug, print_error, print_warning
 
@@ -43,7 +44,18 @@ def main(argv=None):
     parser.add_argument('--no-echo', action='store_false', dest='echo', default=False)
     parser.add_argument('--hide', choices=('none', 'stdout', 'stderr', 'all'), default=None)
     parser.add_argument('-d', '--debug', action='store_true', default=False)
+    parser.add_argument('-v', '--version', action='store_true', default=False)
     args = parser.parse_args(command_args)
+
+    print_and_exit = any((
+        args.list_tasks,
+        args.list_tasks_short,
+        args.version,
+        not remaining_args,
+    ))
+
+    if print_and_exit or args.debug:
+        print('TaskRunner version:', __version__)
 
     if args.debug:
         print_debug('All args:', argv)
@@ -60,13 +72,15 @@ def main(argv=None):
         debug=args.debug,
     )
 
-    if args.list_tasks_short:
-        runner.print_usage(args.tasks_module, short=True)
-    elif args.list_tasks:
-        runner.print_usage(args.tasks_module)
-    elif not remaining_args:
-        print_warning('No tasks specified\n')
-        runner.print_usage(args.tasks_module)
+    if print_and_exit:
+        if args.list_tasks_short:
+            runner.print_usage(args.tasks_module, short=True)
+        elif args.list_tasks:
+            print()
+            runner.print_usage(args.tasks_module)
+        elif not remaining_args and not args.version:
+            print_warning('\nNo tasks specified\n')
+            runner.print_usage(args.tasks_module)
     else:
         try:
             runner.run(remaining_args)
