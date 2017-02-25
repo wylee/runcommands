@@ -19,7 +19,7 @@ def main(argv=None):
 
     When a task name is encountered in ``argv``, it will be considered
     the starting point of the next task *unless* the previous item in
-    ``arv`` was an option like ``--xyz`` that expects a value (i.e.,
+    ``argv`` was an option like ``--xyz`` that expects a value (i.e.,
     it's not a flag).
 
     To avoid ambiguity when an option value matches a task name, the
