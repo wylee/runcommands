@@ -4,7 +4,7 @@ import os
 import time
 from collections import OrderedDict
 
-from .util import Hide, cached_property, get_hr, print_debug, print_info
+from .util import Hide, cached_property, get_hr, printer
 
 
 __all__ = ['task']
@@ -72,9 +72,9 @@ class Task:
 
     def __call__(self, config, *args, **kwargs):
         if config.debug:
-            print_debug('Task called:', self.name)
-            print_debug('    Received positional args:', args)
-            print_debug('    Received keyword args:', kwargs)
+            printer.debug('Task called:', self.name)
+            printer.debug('    Received positional args:', args)
+            printer.debug('    Received keyword args:', kwargs)
 
         defaults = config._get_dotted(self.defaults_path, None)
         if defaults:
@@ -99,15 +99,15 @@ class Task:
             kwargs['hide'] = config._get_dotted('run.hide', 'none')
 
         if config.debug:
-            print_debug('Running task:', self.name)
-            print_debug('    Final positional args:', repr(args))
-            print_debug('    Final keyword args:', repr(kwargs))
+            printer.debug('Running task:', self.name)
+            printer.debug('    Final positional args:', repr(args))
+            printer.debug('    Final keyword args:', repr(kwargs))
 
         return self.implementation(config, *args, **kwargs)
 
     def parse_args(self, config, args):
         if config.debug:
-            print_debug('Parsing args for task `{self.name}`: {args}'.format(**locals()))
+            printer.debug('Parsing args for task `{self.name}`: {args}'.format(**locals()))
         parsed_args = self.get_arg_parser(config).parse_args(args)
         parsed_args = vars(parsed_args)
         return parsed_args
@@ -151,7 +151,7 @@ class Task:
         m = int(m)
         hr = get_hr()
         msg = '{hr}\nElapsed time for {self.name} task: {m:d}m {s:.3f}s\n{hr}'.format(**locals())
-        print_info(msg)
+        printer.info(msg)
 
     @cached_property
     def signature(self):

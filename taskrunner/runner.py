@@ -4,7 +4,7 @@ from itertools import chain
 
 from .config import Config, RawConfig
 from .task import Task
-from .util import get_hr, print_debug, print_header, print_info, print_warning
+from .util import get_hr, printer
 
 
 class TaskRunner:
@@ -90,7 +90,7 @@ class TaskRunner:
 
     def print_debug(self, *args, **kwargs):
         if self.debug:
-            print_debug(*args, **kwargs)
+            printer.debug(*args, **kwargs)
 
     def print_usage(self, tasks_module, short=False):
         tasks = self.load_tasks(tasks_module)
@@ -100,14 +100,14 @@ class TaskRunner:
                 print('Available tasks:', ', '.join(sorted_tasks))
             else:
                 hr = get_hr()
-                print_header('Available tasks:\n')
+                printer.header('Available tasks:\n')
                 for name in sorted_tasks:
                     task = tasks[name]
                     task_hr = hr[len(name) + 1:]
-                    print_info(name, task_hr)
+                    printer.info(name, task_hr)
                     print('\n', task.usage, '\n', sep='')
         else:
-            print_warning('No tasks available')
+            printer.warning('No tasks available')
 
 
 class TaskRunnerError(Exception):

@@ -5,7 +5,7 @@ from collections import Mapping, OrderedDict, Sequence
 from configparser import RawConfigParser
 
 from .task import task
-from .util import abs_path, print_error
+from .util import abs_path, printer
 
 
 __all__ = ['show_config']
@@ -142,7 +142,7 @@ def show_config(config, name=None, defaults=True, initial_level=0):
         try:
             value = config._get_dotted(name)
         except KeyError:
-            print_error('Unknown config key:', name)
+            printer.error('Unknown config key:', name)
         else:
             print(name, '=', value)
     else:

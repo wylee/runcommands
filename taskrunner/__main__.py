@@ -5,7 +5,7 @@ import textwrap
 
 from . import __version__
 from .runner import TaskRunner, TaskRunnerError
-from .util import print_debug, print_error, print_warning
+from .util import printer
 
 
 def main(argv=None):
@@ -58,9 +58,9 @@ def main(argv=None):
         print('TaskRunner version:', __version__)
 
     if args.debug:
-        print_debug('All args:', argv)
-        print_debug('Runtasks args:', command_args)
-        print_debug('All task args:', remaining_args)
+        printer.debug('All args:', argv)
+        printer.debug('Runtasks args:', command_args)
+        printer.debug('All task args:', remaining_args)
         args.echo = True
 
     runner = TaskRunner(
@@ -79,13 +79,13 @@ def main(argv=None):
             print()
             runner.print_usage(args.tasks_module)
         elif not remaining_args and not args.version:
-            print_warning('\nNo tasks specified\n')
+            printer.warning('\nNo tasks specified\n')
             runner.print_usage(args.tasks_module)
     else:
         try:
             runner.run(remaining_args)
         except TaskRunnerError as exc:
-            print_error(exc, file=sys.stderr)
+            printer.error(exc, file=sys.stderr)
             return 1
 
     return 0

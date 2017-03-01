@@ -3,7 +3,7 @@ import shlex
 import sys
 from subprocess import PIPE, Popen
 
-from ..util import Hide, print_info, print_hr
+from ..util import Hide, printer
 from .base import Runner
 from .exc import RunAborted, RunError
 from .result import Result
@@ -47,13 +47,13 @@ class LocalRunner(Runner):
             env['PATH'] = path
 
         if echo:
-            print_hr()
-            print_info('RUNNING:', cmd_str)
+            printer.hr()
+            printer.info('RUNNING:', cmd_str)
             if cwd:
-                print_info('    CWD:', cwd)
+                printer.info('    CWD:', cwd)
             if munge_path:
-                print_info('   PATH:', path)
-            print_hr()
+                printer.info('   PATH:', path)
+            printer.hr()
 
         try:
             with Popen(cmd, cwd=cwd, env=env, stdout=stdout, stderr=stderr, shell=shell) as proc:
