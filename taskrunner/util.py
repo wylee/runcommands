@@ -278,17 +278,17 @@ class Printer:
     def success(self, *args, color=color_map['success'], **kwargs):
         self.print(*args, color=color, **kwargs)
 
-    def warning(self, *args, color=color_map['warning'], **kwargs):
-        self.print(*args, color=color, **kwargs)
+    def warning(self, *args, color=color_map['warning'], file=sys.stderr, **kwargs):
+        self.print(*args, color=color, file=file, **kwargs)
 
-    def error(self, *args, color=color_map['error'], **kwargs):
-        self.print(*args, color=color, **kwargs)
+    def error(self, *args, color=color_map['error'], file=sys.stderr, **kwargs):
+        self.print(*args, color=color, file=file, **kwargs)
 
-    def danger(self, *args, color=color_map['danger'], **kwargs):
-        self.print(*args, color=color, **kwargs)
+    def danger(self, *args, color=color_map['danger'], file=sys.stderr, **kwargs):
+        self.print(*args, color=color, file=file, **kwargs)
 
-    def debug(self, *args, color=color_map['debug'], **kwargs):
-        self.print(*args, color=color, **kwargs)
+    def debug(self, *args, color=color_map['debug'], file=sys.stderr, **kwargs):
+        self.print(*args, color=color, file=file, **kwargs)
 
     def hr(self, color=color_map['info']):
         self.print(get_hr(), color=color)
