@@ -283,67 +283,6 @@ class Task:
     def __str__(self):
         return self.usage
 
-    def partition_args(self, args):
-        """Partition list of args into positionals & optionals.
-
-        Args:
-            args (list)
-
-        Returns:
-            (OrderedDict, OrderedDict)
-
-        Usage::
-
-            positionals, optionals = self.partition_args(args)
-            defaults = self.defaults
-            if defaults:
-                for name in self.positionals:
-                    if name not in positionals and name in defaults:
-                        args.append(defaults[name])
-
-        .. todo:: Remove this since it's unused.
-
-        """
-        i = 0
-        all_positionals = list(self.positionals.values())
-        positional_index = 0
-        force_positional = False
-        positionals = OrderedDict()
-        optionals = OrderedDict()
-        while i < len(args):
-            item = args[i]
-            positional = force_positional or not item.startswith('-')
-            if item == '--':
-                i += 1
-                force_positional = True
-            elif positional:
-                try:
-                    param = all_positionals[positional_index]
-                except IndexError:
-                    # Too many positionals; bail
-                    break
-                positionals[param.name] = item
-                positional_index += 1
-                i += 1
-            else:
-                if item == '--help':
-                    i += 1
-                else:
-                    try:
-                        param = self.arg_map[item]
-                    except KeyError:
-                        # Unknown optional; bail
-                        break
-                    optionals[param.name] = item
-                    if param.is_bool:
-                        i += 1
-                    else:
-                        if '=' in item:
-                            i += 1
-                        else:
-                            i += 2
-        return positionals, optionals
-
 
 task = Task.decorator
 
