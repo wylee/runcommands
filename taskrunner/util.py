@@ -13,6 +13,18 @@ class Hide(enum.Enum):
     stderr = 'stderr'
     all = 'all'
 
+    @classmethod
+    def hide_stdout(cls, value):
+        if value is None:
+            return False
+        return cls(value) in (cls.stdout, cls.all)
+
+    @classmethod
+    def hide_stderr(cls, value):
+        if value is None:
+            return False
+        return cls(value) in (cls.stderr, cls.all)
+
 
 class cached_property:
 

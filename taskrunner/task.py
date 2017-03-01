@@ -64,8 +64,7 @@ class Task:
 
         if self.timed:
             hide = kwargs.get('hide', config._get_dotted('run.hide', 'none'))
-            hide = Hide(hide) if hide is not None else Hide.none
-            if hide not in (Hide.stdout, Hide.all):
+            if not Hide.hide_stdout(hide):
                 self.print_elapsed_time(time.monotonic() - start_time)
 
         return result

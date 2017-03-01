@@ -26,12 +26,11 @@ class LocalRunner(Runner):
 
         cwd = os.path.normpath(os.path.abspath(cd)) if cd else None
 
-        hide = Hide(hide) if hide is not None else Hide.none
+        hide_stdout = Hide.hide_stdout(hide)
+        hide_stderr = Hide.hide_stderr(hide)
+        echo = echo and not hide_stdout
 
         stdout = stderr = PIPE
-
-        if hide in (Hide.stdout, Hide.all):
-            echo = False
 
         env = None
         munge_path = path or prepend_path or append_path
@@ -72,10 +71,10 @@ class LocalRunner(Runner):
         out = out.decode()
         err = err.decode()
 
-        if hide not in (Hide.stdout, Hide.all) and out:
+        if out and not hide_stdout:
             print(out, end='')
 
-        if hide not in (Hide.stderr, Hide.all) and err:
+        if err and not hide_stderr:
             print(err, end='', file=sys.stderr)
 
         if return_code:
