@@ -360,7 +360,3 @@ class Parameter:
 
     def __getattr__(self, name):
         return getattr(self._parameter, name)
-
-
-# Avoid circular import
-from .config import RawConfig
