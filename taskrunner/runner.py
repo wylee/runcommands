@@ -4,15 +4,16 @@ from itertools import chain
 
 from .config import Config, RawConfig
 from .task import Task
-from .util import get_hr, printer
+from .util import abs_path, get_hr, printer
 
 
 class TaskRunner:
 
-    def __init__(self, config_file=None, env=None, tasks_module='tasks.py', default_echo=False,
-                 default_hide=None, debug=False):
+    def __init__(self, config_file=None, env=None, options=None, tasks_module='tasks.py',
+                 default_echo=False, default_hide=None, debug=False):
         self.config_file = config_file
         self.env = env
+        self.options = options if options is not None else {}
         self.tasks_module = tasks_module
         self.default_echo = default_echo
         self.default_hide = default_hide
@@ -39,11 +40,15 @@ class TaskRunner:
             env=env or self.env,
             run=RawConfig(echo=self.default_echo, hide=self.default_hide),
             debug=self.debug,
+            _interpolate=False,
         )
+        config._update_dotted(self.options)
+        config._interpolate()
         return config
 
     def load_tasks(self, tasks_module):
         if tasks_module.endswith('.py'):
+            tasks_module = abs_path(tasks_module)
             module_loader = SourceFileLoader('tasks', tasks_module)
             module = module_loader.load_module()
         else:

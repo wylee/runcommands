@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import sys
 import textwrap
@@ -37,6 +38,7 @@ def main(argv=None):
 
     parser.add_argument('-c', '--config-file', type=config_file_type, default='tasks.cfg')
     parser.add_argument('-e', '--env', type=config_file_type, default=None)
+    parser.add_argument('-o', dest='options', action='append', default=[])
     parser.add_argument('-t', '--tasks-module', default='tasks.py')
     parser.add_argument('-l', dest='list_tasks_short', action='store_true', default=False)
     parser.add_argument('--list', dest='list_tasks', action='store_true', default=False)
@@ -63,9 +65,22 @@ def main(argv=None):
         printer.debug('All task args:', remaining_args)
         args.echo = True
 
+    if args.options:
+        options = {}
+        for item in args.options:
+            n, v = item.split('=', 1)
+            try:
+                v = json.loads(v)
+            except ValueError:
+                pass
+            options[n] = v
+    else:
+        options = {}
+
     runner = TaskRunner(
         config_file=args.config_file,
         env=args.env,
+        options=options,
         tasks_module=args.tasks_module,
         default_echo=args.echo,
         default_hide=args.hide,
@@ -94,7 +109,8 @@ def main(argv=None):
 def split_args(argv):
     command_args = []
 
-    options_with_values = {'-c', '--config-file', '-e', '--env', '-t', '--tasks-module', '--hide'}
+    options_with_values = {
+        '-c', '--config-file', '-e', '--env', '-o', '-t', '--tasks-module', '--hide'}
     option_value_expected = False
 
     for i, s in enumerate(argv):
