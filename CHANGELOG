@@ -1,8 +1,24 @@
 # TaskRunner
 
-## 1.0.0 - unreleased
+## 1.0a2 - 2017-03-02
 
-In progress...
+Second alpha version.
+
+- Attempt to fix buffering issues when running subprocesses via `LocalRunner`.
+  I say "attempt" because this is pretty complex and hard to get just right.
+- Allow arbitrary config options to passed via the command line via `-o`; these
+  options take precedence over config set via config file.
+- Improve (color) printer utility. Put the various color printing functions in
+  a class and create a default instance of that class so that this instance can
+  be imported instead of having to import the functions individually.
+- Print warning, error, and debug messages to stderr by default.
+- Make it easier to determine if stdout and/or stderr should be hidden by
+  adding some utility class methods to the `Hide` enum.
+- Only set the `hide` option for a task from the global config value if the
+  task's default is `hide=None`. TODO: Something similar for `echo`, but that's
+  a bit harder.
+- Remove unused imports, clean other lint, add `__all__` lists where
+  appropriate, etc.
 
 ## 1.0a1 - 2017-02-25
 
