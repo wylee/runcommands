@@ -1,7 +1,10 @@
 import os
 import shlex
 import sys
+import time
+from queue import Empty, Queue
 from subprocess import PIPE, Popen
+from threading import Thread
 
 from ..util import Hide, printer
 from .base import Runner
@@ -30,13 +33,12 @@ class LocalRunner(Runner):
         hide_stderr = Hide.hide_stderr(hide)
         echo = echo and not hide_stdout
 
-        stdout = stderr = PIPE
+        env = os.environ.copy()
+        env['PYTHONUNBUFFERED'] = '1'
 
-        env = None
         munge_path = path or prepend_path or append_path
 
         if munge_path:
-            env = os.environ.copy()
             path = [path] if path else [env['PATH']]
             if prepend_path:
                 path = [prepend_path] + path
@@ -55,29 +57,69 @@ class LocalRunner(Runner):
             printer.hr()
 
         try:
-            with Popen(cmd, cwd=cwd, env=env, stdout=stdout, stderr=stderr, shell=shell) as proc:
+            with Popen(cmd, bufsize=0, cwd=cwd, shell=shell, stdout=PIPE, stderr=PIPE) as proc:
                 try:
-                    out, err = proc.communicate(timeout=timeout)
-                except:
+                    out = NonBlockingStreamReader(proc.stdout, [], hide_stdout, sys.stdout)
+                    err = NonBlockingStreamReader(proc.stderr, [], hide_stderr, sys.stderr)
+                    while proc.poll() is None:
+                        out.consume()
+                        err.consume()
+                        time.sleep(0.1)
+                    out.consume()
+                    err.consume()
+                    return_code = proc.wait(timeout=timeout)
+                except KeyboardInterrupt:
+                    proc.kill()
+                    proc.wait()
+                    raise RunAborted('\nAborted')
+                except Exception:
                     proc.kill()
                     proc.wait()
                     raise
-                return_code = proc.poll()
         except FileNotFoundError:
             raise RunAborted('Command not found: {exe}'.format(exe=exe))
-        except Exception:
-            raise RunAborted('Could not run command')
 
-        out = out.decode()
-        err = err.decode()
-
-        if out and not hide_stdout:
-            print(out, end='')
-
-        if err and not hide_stderr:
-            print(err, end='', file=sys.stderr)
+        out_str = out.get_string()
+        err_str = err.get_string()
 
         if return_code:
-            raise RunError(return_code, out, err)
+            raise RunError(return_code, out_str, err_str)
 
-        return Result(return_code, out, err)
+        return Result(return_code, out_str, err_str)
+
+
+class NonBlockingStreamReader(Thread):
+
+    def __init__(self, stream, buffer, hide, file):
+        super().__init__(daemon=True)
+        self.stream = stream
+        self.buffer = buffer
+        self.hide = hide
+        self.file = file
+        self.queue = Queue()
+        self.start()
+
+    def run(self):
+        bytes_ = self.stream.read(128)
+        while bytes_:
+            self.queue.put(bytes_)
+            self.stream.flush()
+            bytes_ = self.stream.read(128)
+
+    def consume(self):
+        while True:
+            try:
+                bytes_ = self.queue.get_nowait()
+            except Empty:
+                return None
+            else:
+                # TODO: Get encoding from env
+                text = bytes_.decode('utf-8')
+                self.buffer.append(text)
+                if not self.hide:
+                    self.file.write(text)
+                    self.file.flush()
+                self.queue.task_done()
+
+    def get_string(self):
+        return ''.join(self.buffer)
