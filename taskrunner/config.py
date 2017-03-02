@@ -63,6 +63,19 @@ class RawConfig(OrderedDict):
             obj = obj[segment]
         obj[last_segment] = value
 
+    def _update_dotted(self, *args, **kwargs):
+        if args:
+            items, *rest = args
+            if rest:
+                raise TypeError('Expected at most 1 argument; got {n}'.format(n=len(args)))
+            if isinstance(items, Mapping):
+                items = items.items()
+            for name, value in items:
+                self._set_dotted(name, value)
+        if kwargs:
+            for name, value in kwargs.items():
+                self._set_dotted(name, value)
+
     def _read_from_file(self, file_name, env=None):
         file_name = abs_path(file_name)
         parser = ConfigParser()
