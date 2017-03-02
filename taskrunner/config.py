@@ -110,12 +110,13 @@ class Config(RawConfig):
 
     """Config that adds defaults and does interpolation on values."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, _interpolate=True, **kwargs):
         kwargs.setdefault('cwd', os.getcwd())
         kwargs.setdefault('current_user', getpass.getuser())
         kwargs.setdefault('version', 'X.Y.Z')
         super().__init__(*args, **kwargs)
-        self._interpolate()
+        if _interpolate:
+            self._interpolate()
 
     def _interpolate(self):
         interpolated = []
