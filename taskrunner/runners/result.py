@@ -1,3 +1,5 @@
+from ..util import cached_property
+
 
 class Result:
 
@@ -7,5 +9,11 @@ class Result:
         self.stderr = stderr
         self.succeeded = self.return_code == 0
         self.failed = not self.succeeded
-        self.stdout_lines = stdout.splitlines() if stdout else []
-        self.stderr_lines = stderr.splitlines() if stderr else []
+
+    @cached_property
+    def stdout_lines(self):
+        return self.stdout.splitlines() if self.stdout else []
+
+    @cached_property
+    def stderr_lines(self):
+        return self.stderr.splitlines() if self.stderr else []
