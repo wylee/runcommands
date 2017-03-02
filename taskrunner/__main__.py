@@ -1,10 +1,12 @@
 import argparse
+import json
 import os
 import sys
 import textwrap
 
+from . import __version__
 from .runner import TaskRunner, TaskRunnerError
-from .util import print_debug, print_error, print_warning
+from .util import printer
 
 
 def main(argv=None):
@@ -18,7 +20,7 @@ def main(argv=None):
 
     When a task name is encountered in ``argv``, it will be considered
     the starting point of the next task *unless* the previous item in
-    ``arv`` was an option like ``--xyz`` that expects a value (i.e.,
+    ``argv`` was an option like ``--xyz`` that expects a value (i.e.,
     it's not a flag).
 
     To avoid ambiguity when an option value matches a task name, the
@@ -36,6 +38,7 @@ def main(argv=None):
 
     parser.add_argument('-c', '--config-file', type=config_file_type, default='tasks.cfg')
     parser.add_argument('-e', '--env', type=config_file_type, default=None)
+    parser.add_argument('-o', dest='options', action='append', default=[])
     parser.add_argument('-t', '--tasks-module', default='tasks.py')
     parser.add_argument('-l', dest='list_tasks_short', action='store_true', default=False)
     parser.add_argument('--list', dest='list_tasks', action='store_true', default=False)
@@ -43,35 +46,61 @@ def main(argv=None):
     parser.add_argument('--no-echo', action='store_false', dest='echo', default=False)
     parser.add_argument('--hide', choices=('none', 'stdout', 'stderr', 'all'), default=None)
     parser.add_argument('-d', '--debug', action='store_true', default=False)
+    parser.add_argument('-v', '--version', action='store_true', default=False)
     args = parser.parse_args(command_args)
 
+    print_and_exit = any((
+        args.list_tasks,
+        args.list_tasks_short,
+        args.version,
+        not remaining_args,
+    ))
+
+    if print_and_exit or args.debug:
+        print('TaskRunner version:', __version__)
+
     if args.debug:
-        print_debug('All args:', argv)
-        print_debug('Runtasks args:', command_args)
-        print_debug('All task args:', remaining_args)
+        printer.debug('All args:', argv)
+        printer.debug('Runtasks args:', command_args)
+        printer.debug('All task args:', remaining_args)
         args.echo = True
+
+    if args.options:
+        options = {}
+        for item in args.options:
+            n, v = item.split('=', 1)
+            try:
+                v = json.loads(v)
+            except ValueError:
+                pass
+            options[n] = v
+    else:
+        options = {}
 
     runner = TaskRunner(
         config_file=args.config_file,
         env=args.env,
+        options=options,
         tasks_module=args.tasks_module,
         default_echo=args.echo,
         default_hide=args.hide,
         debug=args.debug,
     )
 
-    if args.list_tasks_short:
-        runner.print_usage(args.tasks_module, short=True)
-    elif args.list_tasks:
-        runner.print_usage(args.tasks_module)
-    elif not remaining_args:
-        print_warning('No tasks specified\n')
-        runner.print_usage(args.tasks_module)
+    if print_and_exit:
+        if args.list_tasks_short:
+            runner.print_usage(args.tasks_module, short=True)
+        elif args.list_tasks:
+            print()
+            runner.print_usage(args.tasks_module)
+        elif not remaining_args and not args.version:
+            printer.warning('\nNo tasks specified\n')
+            runner.print_usage(args.tasks_module)
     else:
         try:
             runner.run(remaining_args)
         except TaskRunnerError as exc:
-            print_error(exc, file=sys.stderr)
+            printer.error(exc, file=sys.stderr)
             return 1
 
     return 0
@@ -80,7 +109,8 @@ def main(argv=None):
 def split_args(argv):
     command_args = []
 
-    options_with_values = {'-c', '--config-file', '-e', '--env', '-t', '--tasks-module', '--hide'}
+    options_with_values = {
+        '-c', '--config-file', '-e', '--env', '-o', '-t', '--tasks-module', '--hide'}
     option_value_expected = False
 
     for i, s in enumerate(argv):

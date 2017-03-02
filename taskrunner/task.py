@@ -4,7 +4,7 @@ import os
 import time
 from collections import OrderedDict
 
-from .util import Hide, cached_property, get_hr, print_debug, print_info
+from .util import Hide, cached_property, get_hr, printer
 
 
 __all__ = ['task']
@@ -64,19 +64,20 @@ class Task:
 
         if self.timed:
             hide = kwargs.get('hide', config._get_dotted('run.hide', 'none'))
-            hide = Hide(hide) if hide is not None else Hide.none
-            if hide not in (Hide.stdout, Hide.all):
+            if not Hide.hide_stdout(hide):
                 self.print_elapsed_time(time.monotonic() - start_time)
 
         return result
 
     def __call__(self, config, *args, **kwargs):
         if config.debug:
-            print_debug('Task called:', self.name)
-            print_debug('    Received positional args:', args)
-            print_debug('    Received keyword args:', kwargs)
+            printer.debug('Task called:', self.name)
+            printer.debug('    Received positional args:', args)
+            printer.debug('    Received keyword args:', kwargs)
 
+        params = self.parameters
         defaults = config._get_dotted(self.defaults_path, None)
+
         if defaults:
             positionals = OrderedDict()
             for name, value in zip(self.positionals, args):
@@ -92,22 +93,22 @@ class Task:
                 if not present and name in defaults:
                     kwargs[name] = defaults[name]
 
-        if 'echo' in self.parameters and 'echo' not in kwargs:
+        if 'echo' in params and 'echo' not in kwargs:
             kwargs['echo'] = config._get_dotted('run.echo', False)
 
-        if 'hide' in self.parameters and 'hide' not in kwargs:
+        if 'hide' in params and params['hide'].default is None and 'hide' not in kwargs:
             kwargs['hide'] = config._get_dotted('run.hide', 'none')
 
         if config.debug:
-            print_debug('Running task:', self.name)
-            print_debug('    Final positional args:', repr(args))
-            print_debug('    Final keyword args:', repr(kwargs))
+            printer.debug('Running task:', self.name)
+            printer.debug('    Final positional args:', repr(args))
+            printer.debug('    Final keyword args:', repr(kwargs))
 
         return self.implementation(config, *args, **kwargs)
 
     def parse_args(self, config, args):
         if config.debug:
-            print_debug('Parsing args for task `{self.name}`: {args}'.format(**locals()))
+            printer.debug('Parsing args for task `{self.name}`: {args}'.format(**locals()))
         parsed_args = self.get_arg_parser(config).parse_args(args)
         parsed_args = vars(parsed_args)
         return parsed_args
@@ -151,7 +152,7 @@ class Task:
         m = int(m)
         hr = get_hr()
         msg = '{hr}\nElapsed time for {self.name} task: {m:d}m {s:.3f}s\n{hr}'.format(**locals())
-        print_info(msg)
+        printer.info(msg)
 
     @cached_property
     def signature(self):
@@ -284,67 +285,6 @@ class Task:
     def __str__(self):
         return self.usage
 
-    def partition_args(self, args):
-        """Partition list of args into positionals & optionals.
-
-        Args:
-            args (list)
-
-        Returns:
-            (OrderedDict, OrderedDict)
-
-        Usage::
-
-            positionals, optionals = self.partition_args(args)
-            defaults = self.defaults
-            if defaults:
-                for name in self.positionals:
-                    if name not in positionals and name in defaults:
-                        args.append(defaults[name])
-
-        .. todo:: Remove this since it's unused.
-
-        """
-        i = 0
-        all_positionals = list(self.positionals.values())
-        positional_index = 0
-        force_positional = False
-        positionals = OrderedDict()
-        optionals = OrderedDict()
-        while i < len(args):
-            item = args[i]
-            positional = force_positional or not item.startswith('-')
-            if item == '--':
-                i += 1
-                force_positional = True
-            elif positional:
-                try:
-                    param = all_positionals[positional_index]
-                except IndexError:
-                    # Too many positionals; bail
-                    break
-                positionals[param.name] = item
-                positional_index += 1
-                i += 1
-            else:
-                if item == '--help':
-                    i += 1
-                else:
-                    try:
-                        param = self.arg_map[item]
-                    except KeyError:
-                        # Unknown optional; bail
-                        break
-                    optionals[param.name] = item
-                    if param.is_bool:
-                        i += 1
-                    else:
-                        if '=' in item:
-                            i += 1
-                        else:
-                            i += 2
-        return positionals, optionals
-
 
 task = Task.decorator
 
@@ -360,7 +300,3 @@ class Parameter:
 
     def __getattr__(self, name):
         return getattr(self._parameter, name)
-
-
-# Avoid circular import
-from .config import RawConfig

@@ -5,7 +5,7 @@ from collections import Mapping, OrderedDict, Sequence
 from configparser import RawConfigParser
 
 from .task import task
-from .util import abs_path, print_error
+from .util import abs_path, printer
 
 
 __all__ = ['show_config']
@@ -63,6 +63,19 @@ class RawConfig(OrderedDict):
             obj = obj[segment]
         obj[last_segment] = value
 
+    def _update_dotted(self, *args, **kwargs):
+        if args:
+            items, *rest = args
+            if rest:
+                raise TypeError('Expected at most 1 argument; got {n}'.format(n=len(args)))
+            if isinstance(items, Mapping):
+                items = items.items()
+            for name, value in items:
+                self._set_dotted(name, value)
+        if kwargs:
+            for name, value in kwargs.items():
+                self._set_dotted(name, value)
+
     def _read_from_file(self, file_name, env=None):
         file_name = abs_path(file_name)
         parser = ConfigParser()
@@ -97,12 +110,13 @@ class Config(RawConfig):
 
     """Config that adds defaults and does interpolation on values."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, _interpolate=True, **kwargs):
         kwargs.setdefault('cwd', os.getcwd())
         kwargs.setdefault('current_user', getpass.getuser())
         kwargs.setdefault('version', 'X.Y.Z')
         super().__init__(*args, **kwargs)
-        self._interpolate()
+        if _interpolate:
+            self._interpolate()
 
     def _interpolate(self):
         interpolated = []
@@ -142,7 +156,7 @@ def show_config(config, name=None, defaults=True, initial_level=0):
         try:
             value = config._get_dotted(name)
         except KeyError:
-            print_error('Unknown config key:', name)
+            printer.error('Unknown config key:', name)
         else:
             print(name, '=', value)
     else:

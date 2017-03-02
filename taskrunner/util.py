@@ -2,7 +2,6 @@ import importlib
 import os
 import shutil
 import sys
-from functools import partial
 
 import enum
 
@@ -13,6 +12,18 @@ class Hide(enum.Enum):
     stdout = 'stdout'
     stderr = 'stderr'
     all = 'all'
+
+    @classmethod
+    def hide_stdout(cls, value):
+        if value is None:
+            return False
+        return cls(value) in (cls.stdout, cls.all)
+
+    @classmethod
+    def hide_stderr(cls, value):
+        if value is None:
+            return False
+        return cls(value) in (cls.stderr, cls.all)
 
 
 class cached_property:
@@ -47,10 +58,10 @@ def isatty(stream):
 
 def abort(code=0, message='Aborted', color=True):
     if message:
+        if color is True:
+            color = 'error' if code else 'warning'
         if color:
-            if color is True:
-                color = 'error' if code else 'warning'
-            message = colorize(message, color=color)
+            message = printer.colorize(message, color=color)
         if code != 0:
             print(message, file=sys.stderr)
         else:
@@ -154,7 +165,7 @@ def confirm(config, prompt='Really?', color='warning', yes_values=('y', 'yes')):
     if isinstance(yes_values, str):
         yes_values = (yes_values,)
     if color is not None:
-        prompt = colorize(prompt, color=color)
+        prompt = printer.colorize(prompt, color=color)
     try:
         answer = input(prompt)
     except KeyboardInterrupt:
@@ -211,63 +222,82 @@ class Color(enum.Enum):
         return self.value
 
 
-COLOR_MAP = {
-    'header': Color.magenta,
-    'info': Color.blue,
-    'success': Color.green,
-    'warning': Color.yellow,
-    'error': Color.red,
-    'debug': Color.cyan,
-}
+class Printer:
 
+    color_map = {
+        'header': Color.magenta,
+        'info': Color.blue,
+        'success': Color.green,
+        'warning': Color.yellow,
+        'error': Color.red,
+        'danger': Color.cyan,
+        'debug': Color.cyan,
+    }
 
-def colorize(*args, color=Color.none, sep=' ', end=Color.reset):
-    if not isinstance(color, Color):
-        if color in COLOR_MAP:
-            color = COLOR_MAP[color]
+    def __init__(self, color_map=None):
+        if color_map is not None:
+            self.color_map = color_map
+
+    def colorize(self, *args, color=Color.none, sep=' ', end=Color.reset):
+        if not isinstance(color, Color):
+            if color in self.color_map:
+                color = self.color_map[color]
+            else:
+                try:
+                    color = Color[color]
+                except KeyError:
+                    raise ValueError('Unknown color: {color}'.format(color=color))
+        args = (color,) + args
+        string = []
+        for arg in args[:-1]:
+            string.append(str(arg))
+            if not isinstance(arg, Color):
+                string.append(sep)
+        string.append(str(args[-1]))
+        string = ''.join(string)
+        if end:
+            string = '{string}{end}'.format(**locals())
+        return string
+
+    def print(self, *args, color=Color.none, file=sys.stdout, **kwargs):
+        if isatty(file):
+            colorize_kwargs = kwargs.copy()
+            colorize_kwargs.pop('end', None)
+            string = self.colorize(*args, color=color, **colorize_kwargs)
+            print(string, **kwargs)
         else:
-            try:
-                color = Color[color]
-            except KeyError:
-                raise ValueError('Unknown color: {color}'.format(color=color))
-    args = (color,) + args
-    string = []
-    for arg in args[:-1]:
-        string.append(str(arg))
-        if not isinstance(arg, Color):
-            string.append(sep)
-    string.append(str(args[-1]))
-    string = ''.join(string)
-    if end:
-        string = '{string}{end}'.format(**locals())
-    return string
+            args = [a for a in args if not isinstance(a, Color)]
+            print(*args, **kwargs)
+
+    def header(self, *args, color=color_map['header'], **kwargs):
+        self.print(*args, color=color, **kwargs)
+
+    def info(self, *args, color=color_map['info'], **kwargs):
+        self.print(*args, color=color, **kwargs)
+
+    def success(self, *args, color=color_map['success'], **kwargs):
+        self.print(*args, color=color, **kwargs)
+
+    def warning(self, *args, color=color_map['warning'], file=sys.stderr, **kwargs):
+        self.print(*args, color=color, file=file, **kwargs)
+
+    def error(self, *args, color=color_map['error'], file=sys.stderr, **kwargs):
+        self.print(*args, color=color, file=file, **kwargs)
+
+    def danger(self, *args, color=color_map['danger'], file=sys.stderr, **kwargs):
+        self.print(*args, color=color, file=file, **kwargs)
+
+    def debug(self, *args, color=color_map['debug'], file=sys.stderr, **kwargs):
+        self.print(*args, color=color, file=file, **kwargs)
+
+    def hr(self, color=color_map['info']):
+        self.print(get_hr(), color=color)
 
 
-def print_color(*args, color=Color.none, file=sys.stdout, **kwargs):
-    if isatty(file):
-        colorize_kwargs = kwargs.copy()
-        colorize_kwargs.pop('end', None)
-        string = colorize(*args, color=color, **colorize_kwargs)
-        print(string, **kwargs)
-    else:
-        args = [a for a in args if not isinstance(a, Color)]
-        print(*args, **kwargs)
-
-
-print_header = partial(print_color, color=COLOR_MAP['header'])
-print_info = partial(print_color, color=COLOR_MAP['info'])
-print_success = partial(print_color, color=COLOR_MAP['success'])
-print_warning = partial(print_color, color=COLOR_MAP['warning'])
-print_error = partial(print_color, color=COLOR_MAP['error'])
-print_danger = partial(print_color, color=COLOR_MAP['error'])
-print_debug = partial(print_color, color=COLOR_MAP['debug'])
+printer = Printer()
 
 
 def get_hr():
     term_size = shutil.get_terminal_size((80, 25))
     hr = '=' * term_size.columns
     return hr
-
-
-def print_hr(color='info'):
-    print_color(get_hr(), color=color)

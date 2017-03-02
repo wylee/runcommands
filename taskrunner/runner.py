@@ -4,15 +4,16 @@ from itertools import chain
 
 from .config import Config, RawConfig
 from .task import Task
-from .util import get_hr, print_debug, print_header, print_info, print_warning
+from .util import abs_path, get_hr, printer
 
 
 class TaskRunner:
 
-    def __init__(self, config_file=None, env=None, tasks_module='tasks.py', default_echo=False,
-                 default_hide=None, debug=False):
+    def __init__(self, config_file=None, env=None, options=None, tasks_module='tasks.py',
+                 default_echo=False, default_hide=None, debug=False):
         self.config_file = config_file
         self.env = env
+        self.options = options if options is not None else {}
         self.tasks_module = tasks_module
         self.default_echo = default_echo
         self.default_hide = default_hide
@@ -39,11 +40,15 @@ class TaskRunner:
             env=env or self.env,
             run=RawConfig(echo=self.default_echo, hide=self.default_hide),
             debug=self.debug,
+            _interpolate=False,
         )
+        config._update_dotted(self.options)
+        config._interpolate()
         return config
 
     def load_tasks(self, tasks_module):
         if tasks_module.endswith('.py'):
+            tasks_module = abs_path(tasks_module)
             module_loader = SourceFileLoader('tasks', tasks_module)
             module = module_loader.load_module()
         else:
@@ -90,7 +95,7 @@ class TaskRunner:
 
     def print_debug(self, *args, **kwargs):
         if self.debug:
-            print_debug(*args, **kwargs)
+            printer.debug(*args, **kwargs)
 
     def print_usage(self, tasks_module, short=False):
         tasks = self.load_tasks(tasks_module)
@@ -100,14 +105,14 @@ class TaskRunner:
                 print('Available tasks:', ', '.join(sorted_tasks))
             else:
                 hr = get_hr()
-                print_header('Available tasks:\n')
+                printer.header('Available tasks:\n')
                 for name in sorted_tasks:
                     task = tasks[name]
                     task_hr = hr[len(name) + 1:]
-                    print_info(name, task_hr)
+                    printer.info(name, task_hr)
                     print('\n', task.usage, '\n', sep='')
         else:
-            print_warning('No tasks available')
+            printer.warning('No tasks available')
 
 
 class TaskRunnerError(Exception):
