@@ -75,7 +75,9 @@ class Task:
             printer.debug('    Received positional args:', args)
             printer.debug('    Received keyword args:', kwargs)
 
+        params = self.parameters
         defaults = config._get_dotted(self.defaults_path, None)
+
         if defaults:
             positionals = OrderedDict()
             for name, value in zip(self.positionals, args):
@@ -91,10 +93,10 @@ class Task:
                 if not present and name in defaults:
                     kwargs[name] = defaults[name]
 
-        if 'echo' in self.parameters and 'echo' not in kwargs:
+        if 'echo' in params and 'echo' not in kwargs:
             kwargs['echo'] = config._get_dotted('run.echo', False)
 
-        if 'hide' in self.parameters and 'hide' not in kwargs:
+        if 'hide' in params and params['hide'].default is None and 'hide' not in kwargs:
             kwargs['hide'] = config._get_dotted('run.hide', 'none')
 
         if config.debug:
