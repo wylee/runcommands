@@ -123,7 +123,7 @@ def split_args(argv):
     options_with_values = {
         '-c', '--config-file',
         '-e', '--env',
-        '-v', '--version'
+        '-v', '--version',
         '-o',
         '-t', '--tasks-module',
         '--hide',
