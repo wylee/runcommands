@@ -44,7 +44,7 @@ def main(argv=None):
     parser.add_argument('--list', dest='list_tasks', action='store_true', default=False)
     parser.add_argument('-E', '--echo', action='store_true', default=False)
     parser.add_argument('--no-echo', action='store_false', dest='echo', default=False)
-    parser.add_argument('--hide', choices=('none', 'stdout', 'stderr', 'all'), default=None)
+    parser.add_argument('-H', '--hide', choices=('none', 'stdout', 'stderr', 'all'), default=None)
     parser.add_argument('-d', '--debug', action='store_true', default=False)
     parser.add_argument('-v', '--version', action='store_true', default=False)
     args = parser.parse_args(command_args)
