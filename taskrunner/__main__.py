@@ -67,8 +67,14 @@ def main(argv=None):
 
     if args.options:
         options = {}
+        non_options = ('config_file', 'env', 'tasks_module', 'echo', 'no_echo', 'hide', 'debug')
         for item in args.options:
             n, v = item.split('=', 1)
+            if n in non_options:
+                printer.error(
+                    'Cannot pass {name} via -o; use --{option_name} instead'
+                    .format(name=n, option_name=n.replace('_', '-')))
+                return 1
             try:
                 v = json.loads(v)
             except ValueError:
