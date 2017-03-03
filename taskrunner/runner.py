@@ -1,6 +1,7 @@
 from importlib import import_module
 from importlib.machinery import SourceFileLoader
 from itertools import chain
+from shutil import get_terminal_size
 
 from .config import Config, RawConfig
 from .task import Task
@@ -99,7 +100,26 @@ class TaskRunner:
         if tasks:
             sorted_tasks = sorted(tasks)
             if short:
-                print('Available tasks:', ', '.join(sorted_tasks))
+                columns = get_terminal_size((80, 25)).columns
+                indent = 4
+                rows = []
+                row = []
+                row_len = indent
+                for task in sorted_tasks:
+                    task_len = len(task)
+                    if row_len + task_len < columns:
+                        row.append(task)
+                        row_len += task_len + 1
+                    else:
+                        rows.append(row)
+                        row = [task]
+                        row_len = indent + task_len
+                if row:
+                    rows.append(row)
+                print('Available tasks:')
+                for row in rows:
+                    print(' ' * indent, end='')
+                    print(*row)
             else:
                 hr = get_hr()
                 printer.header('Available tasks:\n')
