@@ -1,5 +1,28 @@
 # TaskRunner
 
+## 1.0a3 - 2017-03-03
+
+Third alpha version.
+
+- Don't allow options to be passed via `-o` when there's a corresponding
+  script option; being able to pass the same option via two different vectors
+  seems like it could be confusing.
+- Add `_overrides` option to `RawConfig`; simplifies updating a config object
+  with overrides without needing to make a separate call to do the update.
+- Add `RawConfig._clone(**overrides)` method.
+- Improve output of `runtasks -l`, the condensed task listing. Use the current
+  terminal width to format tasks into rows without mid-word wrapping.
+- Show condensed task listing when no tasks are specified. The long task
+  listing is really verbose and not that useful in this case.
+- Add `-H` alias for `--hide` to main script.
+- Standardize on `-E` for tasks that have and `echo` option  and `-H` for tasks
+  that have a `hide` option. This also leaves `-h` available for task help.
+- Use `-h` for task help. If a task has multiple H options, the first will get
+  `-H` (unless the task also has a `hide` option) and the second won't get
+  a short option name.
+- Normalize task option names more by stripping dashes (after converting
+  underscores to dashes) and lower-casing.
+
 ## 1.0a2 - 2017-03-02
 
 Second alpha version.

@@ -38,21 +38,22 @@ def main(argv=None):
 
     parser.add_argument('-c', '--config-file', type=config_file_type, default='tasks.cfg')
     parser.add_argument('-e', '--env', type=config_file_type, default=None)
+    parser.add_argument('-v', '--version', default=None)
     parser.add_argument('-o', dest='options', action='append', default=[])
     parser.add_argument('-t', '--tasks-module', default='tasks.py')
     parser.add_argument('-l', dest='list_tasks_short', action='store_true', default=False)
     parser.add_argument('--list', dest='list_tasks', action='store_true', default=False)
     parser.add_argument('-E', '--echo', action='store_true', default=False)
     parser.add_argument('--no-echo', action='store_false', dest='echo', default=False)
-    parser.add_argument('--hide', choices=('none', 'stdout', 'stderr', 'all'), default=None)
+    parser.add_argument('-H', '--hide', choices=('none', 'stdout', 'stderr', 'all'), default=None)
     parser.add_argument('-d', '--debug', action='store_true', default=False)
-    parser.add_argument('-v', '--version', action='store_true', default=False)
+    parser.add_argument('-i', '--info', action='store_true', default=False)
     args = parser.parse_args(command_args)
 
     print_and_exit = any((
         args.list_tasks,
         args.list_tasks_short,
-        args.version,
+        args.info,
         not remaining_args,
     ))
 
@@ -67,8 +68,15 @@ def main(argv=None):
 
     if args.options:
         options = {}
+        non_options = (
+            'config_file', 'env', 'version', 'tasks_module', 'echo', 'no_echo', 'hide', 'debug')
         for item in args.options:
             n, v = item.split('=', 1)
+            if n in non_options:
+                printer.error(
+                    'Cannot pass {name} via -o; use --{option_name} instead'
+                    .format(name=n, option_name=n.replace('_', '-')))
+                return 1
             try:
                 v = json.loads(v)
             except ValueError:
@@ -76,6 +84,9 @@ def main(argv=None):
             options[n] = v
     else:
         options = {}
+
+    if args.version is not None:
+        options['version'] = args.version
 
     runner = TaskRunner(
         config_file=args.config_file,
@@ -93,9 +104,9 @@ def main(argv=None):
         elif args.list_tasks:
             print()
             runner.print_usage(args.tasks_module)
-        elif not remaining_args and not args.version:
-            printer.warning('\nNo tasks specified\n')
-            runner.print_usage(args.tasks_module)
+        elif not remaining_args and not args.info:
+            printer.warning('No tasks specified')
+            runner.print_usage(args.tasks_module, short=True)
     else:
         try:
             runner.run(remaining_args)
@@ -110,7 +121,13 @@ def split_args(argv):
     command_args = []
 
     options_with_values = {
-        '-c', '--config-file', '-e', '--env', '-o', '-t', '--tasks-module', '--hide'}
+        '-c', '--config-file',
+        '-e', '--env',
+        '-v', '--version'
+        '-o',
+        '-t', '--tasks-module',
+        '--hide',
+    }
     option_value_expected = False
 
     for i, s in enumerate(argv):

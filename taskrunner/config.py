@@ -16,11 +16,13 @@ NO_DEFAULT = object()
 
 class RawConfig(OrderedDict):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, _overrides={}, **kwargs):
         super().__init__(*args, **kwargs)
         config_file = self.get('config_file')
         if config_file:
             self._read_from_file(config_file, self.get('env'))
+        if _overrides:
+            self._update_dotted(_overrides)
 
     def __getattr__(self, name):
         if name.startswith('_'):
@@ -36,6 +38,15 @@ class RawConfig(OrderedDict):
         if isinstance(value, dict):
             value = RawConfig(value)
         super().__setitem__(name, value)
+
+    def _clone(self, **overrides):
+        items = RawConfig()
+        for n, v in self.items():
+            if isinstance(v, RawConfig):
+                v = v.clone()
+            items[n] = v
+        items._update_dotted(overrides)
+        return self.__class__(items)
 
     def _get_dotted(self, name, default=NO_DEFAULT):
         obj = self
@@ -111,10 +122,10 @@ class Config(RawConfig):
     """Config that adds defaults and does interpolation on values."""
 
     def __init__(self, *args, _interpolate=True, **kwargs):
-        kwargs.setdefault('cwd', os.getcwd())
-        kwargs.setdefault('current_user', getpass.getuser())
-        kwargs.setdefault('version', 'X.Y.Z')
         super().__init__(*args, **kwargs)
+        self.setdefault('cwd', os.getcwd())
+        self.setdefault('current_user', getpass.getuser())
+        self.setdefault('version', 'X.Y.Z')
         if _interpolate:
             self._interpolate()
 

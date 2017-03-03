@@ -121,14 +121,37 @@ class Task:
         if param.is_positional:
             return [name]
 
-        arg_names = []
         arg_name = name.replace('_', '-')
+        arg_name = arg_name.lower()
+        arg_name = arg_name.strip('-')
+
+        arg_names = []
         short_name = '-{arg_name[0]}'.format(arg_name=arg_name)
         long_name = '--{arg_name}'.format(arg_name=arg_name)
 
         first_char = name[0]
+
         names_that_start_with_first_char = [n for n in params if n.startswith(first_char)]
-        names_that_start_with_first_char += [None, None]
+
+        # Ensure list is long enough to avoid IndexError
+        if len(names_that_start_with_first_char) == 1:
+            names_that_start_with_first_char.append(None)
+
+        if first_char == 'e':
+            # Ensure echo gets -E for consistency
+            if 'echo' in params:
+                names_that_start_with_first_char.remove('echo')
+                names_that_start_with_first_char.insert(1, 'echo')
+
+        if first_char == 'h':
+            # -h is reserved for help
+            names_that_start_with_first_char.insert(0, 'help')
+
+            # Ensure hide gets -H for consistency
+            if 'hide' in params:
+                names_that_start_with_first_char.remove('hide')
+                names_that_start_with_first_char.insert(1, 'hide')
+
         if names_that_start_with_first_char[0] == name:
             arg_names.append(short_name)
         elif names_that_start_with_first_char[1] == name:
@@ -218,14 +241,8 @@ class Task:
         parser = argparse.ArgumentParser(
             prog=self.name,
             description=description,
-            add_help=False,
             argument_default=argparse.SUPPRESS,
         )
-
-        # Manually add help arg so we can control its option name(s).
-        parser.add_argument(
-            '--help', action='help', default=argparse.SUPPRESS,
-            help='Show this help message and exit')
 
         defaults = config._get_dotted(self.defaults_path, {}) if config else {}
 
