@@ -99,9 +99,9 @@ def main(argv=None):
         elif args.list_tasks:
             print()
             runner.print_usage(args.tasks_module)
-        elif not remaining_args and not args.version:
-            printer.warning('\nNo tasks specified\n')
-            runner.print_usage(args.tasks_module)
+        elif not remaining_args and not args.info:
+            printer.warning('No tasks specified')
+            runner.print_usage(args.tasks_module, short=True)
     else:
         try:
             runner.run(remaining_args)
