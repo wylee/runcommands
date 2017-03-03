@@ -39,6 +39,15 @@ class RawConfig(OrderedDict):
             value = RawConfig(value)
         super().__setitem__(name, value)
 
+    def _clone(self, **overrides):
+        items = RawConfig()
+        for n, v in self.items():
+            if isinstance(v, RawConfig):
+                v = v.clone()
+            items[n] = v
+        items._update_dotted(overrides)
+        return self.__class__(items)
+
     def _get_dotted(self, name, default=NO_DEFAULT):
         obj = self
         segments = name.split('.')
