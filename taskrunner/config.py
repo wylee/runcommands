@@ -16,11 +16,13 @@ NO_DEFAULT = object()
 
 class RawConfig(OrderedDict):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, _overrides={}, **kwargs):
         super().__init__(*args, **kwargs)
         config_file = self.get('config_file')
         if config_file:
             self._read_from_file(config_file, self.get('env'))
+        if _overrides:
+            self._update_dotted(_overrides)
 
     def __getattr__(self, name):
         if name.startswith('_'):
