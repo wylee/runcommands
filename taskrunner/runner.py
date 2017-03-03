@@ -35,16 +35,13 @@ class TaskRunner:
             task.run(task_config, task_args)
 
     def load_config(self, env=None):
-        config = Config(
+        return Config(
             config_file=self.config_file,
             env=env or self.env,
             run=RawConfig(echo=self.default_echo, hide=self.default_hide),
             debug=self.debug,
-            _interpolate=False,
+            _overrides=self.options,
         )
-        config._update_dotted(self.options)
-        config._interpolate()
-        return config
 
     def load_tasks(self, tasks_module):
         if tasks_module.endswith('.py'):
