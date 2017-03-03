@@ -121,8 +121,11 @@ class Task:
         if param.is_positional:
             return [name]
 
-        arg_names = []
         arg_name = name.replace('_', '-')
+        arg_name = arg_name.lower()
+        arg_name = arg_name.strip('-')
+
+        arg_names = []
         short_name = '-{arg_name[0]}'.format(arg_name=arg_name)
         long_name = '--{arg_name}'.format(arg_name=arg_name)
 
