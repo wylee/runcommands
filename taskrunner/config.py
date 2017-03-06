@@ -169,18 +169,25 @@ def show_config(config, name=None, defaults=True, initial_level=0):
         except KeyError:
             printer.error('Unknown config key:', name)
         else:
-            print(name, '=', value)
-    else:
-        def as_string(c, skip, level):
-            out = []
-            indent = ' ' * (level * 4)
-            for k, v in c.items():
-                if k.startswith('_') or k in skip:
-                    continue
-                if isinstance(v, RawConfig):
-                    out.append('{indent}{k} =>'.format(**locals()))
-                    out.append(as_string(v, skip, level + 1))
-                else:
-                    out.append('{indent}{k} = {v}'.format(**locals()))
-            return '\n'.join(out)
-        print(as_string(config, ['defaults'] if not defaults else [], initial_level))
+            if isinstance(value, RawConfig):
+                config = value
+                initial_level = 1
+                print(name, '=>')
+            else:
+                print(name, '=', value)
+                return
+
+    def as_string(c, skip, level):
+        out = []
+        indent = ' ' * (level * 4)
+        for k, v in c.items():
+            if k.startswith('_') or k in skip:
+                continue
+            if isinstance(v, RawConfig):
+                out.append('{indent}{k} =>'.format(**locals()))
+                out.append(as_string(v, skip, level + 1))
+            else:
+                out.append('{indent}{k} = {v}'.format(**locals()))
+        return '\n'.join(out)
+
+    print(as_string(config, ['defaults'] if not defaults else [], initial_level))
