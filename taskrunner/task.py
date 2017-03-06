@@ -261,7 +261,7 @@ class Task:
 
             if name in self.types:
                 kwargs['type'] = self.types[name]
-            elif not param.is_bool and not param.is_dict:
+            elif not param.is_bool and not param.is_dict and not param.is_list:
                 for type_ in (int, float, complex):
                     if isinstance(default, type_):
                         kwargs['type'] = type_
@@ -281,6 +281,9 @@ class Task:
                 elif param.is_dict or kwargs.get('type') == 'dict':
                     kwargs['action'] = DictAddAction
                     kwargs.pop('type', None)
+                    parser.add_argument(*arg_names, **kwargs)
+                elif param.is_list:
+                    kwargs['action'] = 'append'
                     parser.add_argument(*arg_names, **kwargs)
                 else:
                     parser.add_argument(*arg_names, **kwargs)
@@ -317,6 +320,7 @@ class Parameter:
         self._parameter = parameter
         self.is_bool = isinstance(parameter.default, bool)
         self.is_dict = isinstance(parameter.default, dict)
+        self.is_list = isinstance(parameter.default, (list, tuple))
         self.is_positional = parameter.default is parameter.empty
         self.is_optional = not self.is_positional
         self.position = position
