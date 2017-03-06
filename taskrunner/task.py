@@ -1,5 +1,6 @@
 import argparse
 import inspect
+import json
 import os
 import time
 from collections import OrderedDict
@@ -260,7 +261,7 @@ class Task:
 
             if name in self.types:
                 kwargs['type'] = self.types[name]
-            elif not param.is_bool:
+            elif not param.is_bool and not param.is_dict:
                 for type_ in (int, float, complex):
                     if isinstance(default, type_):
                         kwargs['type'] = type_
@@ -277,6 +278,10 @@ class Task:
                 if param.is_bool:
                     parser.add_argument(*arg_names[:-1], action='store_true', **kwargs)
                     parser.add_argument(arg_names[-1], action='store_false', **kwargs)
+                elif param.is_dict or kwargs.get('type') == 'dict':
+                    kwargs['action'] = DictAddAction
+                    kwargs.pop('type', None)
+                    parser.add_argument(*arg_names, **kwargs)
                 else:
                     parser.add_argument(*arg_names, **kwargs)
 
@@ -311,9 +316,34 @@ class Parameter:
     def __init__(self, parameter, position):
         self._parameter = parameter
         self.is_bool = isinstance(parameter.default, bool)
+        self.is_dict = isinstance(parameter.default, dict)
         self.is_positional = parameter.default is parameter.empty
         self.is_optional = not self.is_positional
         self.position = position
 
     def __getattr__(self, name):
         return getattr(self._parameter, name)
+
+
+class DictAddAction(argparse.Action):
+
+    def __call__(self, parser, namespace, item, option_string=None):
+        if not hasattr(namespace, self.dest):
+            setattr(namespace, self.dest, OrderedDict())
+
+        items = getattr(namespace, self.dest)
+
+        try:
+            name, value = item.split('=', 1)
+        except ValueError:
+            raise ValueError('Expected name=<json value> or name=<str value>') from None
+
+        if not value:
+            value = 'null'
+
+        try:
+            value = json.loads(value)
+        except ValueError:
+            pass
+
+        items[name] = value
