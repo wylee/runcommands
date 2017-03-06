@@ -101,6 +101,7 @@ class TaskRunner:
             sorted_tasks = sorted(tasks)
             if short:
                 columns = get_terminal_size((80, 25)).columns
+                columns = min(80, columns)
                 indent = 4
                 rows = []
                 row = []
