@@ -228,6 +228,7 @@ class Printer:
         'header': Color.magenta,
         'info': Color.blue,
         'success': Color.green,
+        'echo': Color.cyan,
         'warning': Color.yellow,
         'error': Color.red,
         'danger': Color.red,
@@ -276,6 +277,9 @@ class Printer:
         self.print(*args, color=color, **kwargs)
 
     def success(self, *args, color=color_map['success'], **kwargs):
+        self.print(*args, color=color, **kwargs)
+
+    def echo(self, *args, color=color_map['echo'], **kwargs):
         self.print(*args, color=color, **kwargs)
 
     def warning(self, *args, color=color_map['warning'], file=sys.stderr, **kwargs):

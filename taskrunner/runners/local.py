@@ -48,13 +48,13 @@ class LocalRunner(Runner):
             env['PATH'] = path
 
         if echo:
-            printer.hr()
-            printer.info('RUNNING:', cmd_str)
+            printer.hr(color='echo')
+            printer.echo('RUNNING:', cmd_str)
             if cwd:
-                printer.info('    CWD:', cwd)
+                printer.echo('    CWD:', cwd)
             if munge_path:
-                printer.info('   PATH:', path)
-            printer.hr()
+                printer.echo('   PATH:', path)
+            printer.hr(color='echo')
 
         try:
             with Popen(cmd, bufsize=0, cwd=cwd, shell=shell, stdout=PIPE, stderr=PIPE) as proc:
