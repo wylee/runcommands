@@ -230,7 +230,7 @@ class Printer:
         'success': Color.green,
         'warning': Color.yellow,
         'error': Color.red,
-        'danger': Color.cyan,
+        'danger': Color.red,
         'debug': Color.cyan,
     }
 
