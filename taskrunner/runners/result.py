@@ -17,3 +17,6 @@ class Result:
     @cached_property
     def stderr_lines(self):
         return self.stderr.splitlines() if self.stderr else []
+
+    def __bool__(self):
+        return self.succeeded
