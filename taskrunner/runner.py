@@ -3,9 +3,81 @@ from importlib.machinery import SourceFileLoader
 from itertools import chain
 from shutil import get_terminal_size
 
+from . import __version__
 from .config import Config, RawConfig
 from .task import Task
 from .util import abs_path, get_hr, printer
+
+
+def run(args,
+        config_file=None,
+        env=None,
+        options={},
+        version=None,
+        tasks_module='tasks.py',
+        list_tasks=False,
+        echo=False,
+        hide=None,
+        info=False,
+        debug=False):
+    """Run one or more tasks in succession.
+
+    For example, assume the tasks ``local`` and ``remote`` have been
+    defined; the following will run ``ls`` first on the local host and
+    then on the remote host::
+
+        runtasks local ls remote --host <host> ls
+
+    When a task name is encountered in ``argv``, it will be considered
+    the starting point of the next task *unless* the previous item in
+    ``argv`` was an option like ``--xyz`` that expects a value (i.e.,
+    it's not a flag).
+
+    To avoid ambiguity when an option value matches a task name, the
+    value can be prepended with a colon to force it to be considered
+    a value and not a task name.
+
+    """
+    argv, run_args, task_args = args
+
+    print_and_exit = any((list_tasks, info, not argv))
+
+    if print_and_exit or debug:
+        print('TaskRunner version:', __version__)
+
+    if debug:
+        printer.debug('All args:', argv)
+        printer.debug('Run args:', run_args)
+        printer.debug('Task args:', task_args)
+        echo = True
+
+    options = options or {}
+
+    if version is not None:
+        options['version'] = version
+
+    runner = TaskRunner(
+        config_file=config_file,
+        env=env,
+        options=options,
+        tasks_module=tasks_module,
+        default_echo=echo,
+        default_hide=hide,
+        debug=debug,
+    )
+
+    if print_and_exit:
+        if list_tasks:
+            if list_tasks in ('short', True):
+                runner.print_usage(tasks_module, short=True)
+            elif list_tasks == 'long':
+                print()
+                runner.print_usage(tasks_module)
+        elif not argv and not info:
+            printer.warning('No tasks specified')
+            runner.print_usage(tasks_module, short=True)
+    else:
+        runner.run(task_args)
 
 
 class TaskRunner:
