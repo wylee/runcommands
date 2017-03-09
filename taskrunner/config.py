@@ -3,6 +3,7 @@ import json
 import os
 from collections import Mapping, OrderedDict, Sequence
 from configparser import RawConfigParser
+from contextlib import contextmanager
 
 from .task import task
 from .util import abs_path, printer
@@ -47,6 +48,12 @@ class RawConfig(OrderedDict):
             items[n] = v
         items._update_dotted(overrides)
         return self.__class__(items)
+
+    @contextmanager
+    def _override(self, **overrides):
+        config = self._clone()
+        config._update_dotted(overrides)
+        yield config
 
     def _get_dotted(self, name, default=NO_DEFAULT):
         obj = self
