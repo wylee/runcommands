@@ -14,13 +14,14 @@ __all__ = ['task']
 class Task:
 
     def __init__(self, implementation, name=None, description=None, help=None, type=None,
-                 default_env=None, timed=False):
+                 default_env=None, config=None, timed=False):
         self.implementation = implementation
         self.name = name or implementation.__name__
         self.description = description
         self.help_text = help or {}
         self.types = type or {}
         self.default_env = default_env or os.environ.get('TASKRUNNER_DEFAULT_ENV')
+        self.config = config or {}
         self.timed = timed
 
         self.qualified_name = '.'.join((implementation.__module__, implementation.__qualname__))
@@ -28,7 +29,7 @@ class Task:
 
     @classmethod
     def decorator(cls, name_or_wrapped=None, description=None, help=None, type=None,
-                  default_env=None, timed=False):
+                  default_env=None, config=None, timed=False):
         if callable(name_or_wrapped):
             wrapped = name_or_wrapped
             name = wrapped.__name__
@@ -39,6 +40,7 @@ class Task:
                 help=help,
                 type=type,
                 default_env=default_env,
+                config=config,
                 timed=timed,
             )
         else:
@@ -52,6 +54,7 @@ class Task:
                 help=help,
                 type=type,
                 default_env=default_env,
+                config=config,
                 timed=timed,
             )
         return wrapper
@@ -71,6 +74,10 @@ class Task:
         return result
 
     def __call__(self, config, *args, **kwargs):
+        if self.config:
+            config = config._clone()
+            config._update_dotted(self.config)
+
         if config.debug:
             printer.debug('Task called:', self.name)
             printer.debug('    Received positional args:', args)
