@@ -43,7 +43,7 @@ class RawConfig(OrderedDict):
         items = RawConfig()
         for n, v in self.items():
             if isinstance(v, RawConfig):
-                v = v.clone()
+                v = v._clone()
             items[n] = v
         items._update_dotted(overrides)
         return self.__class__(items)
