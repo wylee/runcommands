@@ -62,12 +62,15 @@ class LocalRunner(Runner):
                 try:
                     out = NonBlockingStreamReader('out', proc.stdout, [], hide_stdout, sys.stdout)
                     err = NonBlockingStreamReader('err', proc.stderr, [], hide_stderr, sys.stderr)
+                    reader_threads = (out, err)
+
                     while proc.poll() is None:
-                        out.consume()
-                        err.consume()
+                        for thread in reader_threads:
+                            thread.consume()
                         time.sleep(0.1)
-                    out.consume()
-                    err.consume()
+
+                    for thread in reader_threads:
+                        thread.finish()
                 except KeyboardInterrupt:
                     proc.kill()
                     proc.wait()
@@ -78,6 +81,9 @@ class LocalRunner(Runner):
                     raise
         except FileNotFoundError:
             raise RunAborted('Command not found: {exe}'.format(exe=exe))
+
+        for thread in reader_threads:
+            thread.join()
 
         return_code = proc.returncode
         out_str = out.get_string()
@@ -103,11 +109,18 @@ class NonBlockingStreamReader(Thread):
         self.start()
 
     def run(self):
-        bytes_ = self.stream.read(128)
-        while bytes_:
+        bytes_ = self.read()
+        while bytes_ is not None:
+            bytes_ = self.read()
+            time.sleep(0.1)
+
+    def read(self):
+        if self.stream.closed:
+            return None
+        bytes_ = self.stream.readline()
+        if bytes_:
             self.queue.put(bytes_)
-            self.stream.flush()
-            bytes_ = self.stream.read(128)
+        return bytes_
 
     def consume(self):
         while True:
@@ -116,12 +129,22 @@ class NonBlockingStreamReader(Thread):
             except Empty:
                 return None
             else:
+                if not bytes_:
+                    return None
                 text = bytes_.decode(self.encoding)
                 self.buffer.append(text)
                 if not self.hide:
                     self.file.write(text)
                     self.file.flush()
                 self.queue.task_done()
+            time.sleep(0.1)
+
+    def finish(self):
+        bytes_ = self.read()
+        while bytes_:
+            self.consume()
+            bytes_ = self.read()
+            time.sleep(0.1)
 
     def get_string(self):
         return ''.join(self.buffer)
