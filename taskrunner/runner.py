@@ -69,13 +69,13 @@ def run(args,
     if print_and_exit:
         if list_tasks:
             if list_tasks in ('short', True):
-                runner.print_usage(tasks_module, short=True)
+                runner.print_usage(short=True)
             elif list_tasks == 'long':
                 print()
-                runner.print_usage(tasks_module)
+                runner.print_usage()
         elif not argv and not info:
             printer.warning('No tasks specified')
-            runner.print_usage(tasks_module, short=True)
+            runner.print_usage(short=True)
     else:
         runner.run(task_args)
 
@@ -93,7 +93,7 @@ class TaskRunner:
         self.debug = debug
 
     def run(self, args):
-        all_tasks = self.load_tasks(self.tasks_module)
+        all_tasks = self.load_tasks()
         tasks_to_run = self.get_tasks_to_run(all_tasks, args)
         configs = {}
 
@@ -116,7 +116,8 @@ class TaskRunner:
             _overrides=self.options,
         )
 
-    def load_tasks(self, tasks_module):
+    def load_tasks(self, tasks_module=None):
+        tasks_module = tasks_module or self.tasks_module
         if tasks_module.endswith('.py'):
             tasks_module = abs_path(tasks_module)
             module_loader = SourceFileLoader('tasks', tasks_module)
@@ -167,7 +168,7 @@ class TaskRunner:
         if self.debug:
             printer.debug(*args, **kwargs)
 
-    def print_usage(self, tasks_module, short=False):
+    def print_usage(self, tasks_module=None, short=False):
         tasks = self.load_tasks(tasks_module)
         if tasks:
             sorted_tasks = sorted(tasks)
