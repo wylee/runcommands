@@ -18,7 +18,7 @@ class LocalRunner(Runner):
     """Run a command on the local host."""
 
     def run(self, cmd, cd=None, path=None, prepend_path=None, append_path=None, echo=False,
-            hide=None, timeout=None, debug=False):
+            hide=None, debug=False):
         if isinstance(cmd, str):
             cmd_str = cmd
             exe = shlex.split(cmd)[0]
@@ -68,7 +68,6 @@ class LocalRunner(Runner):
                         time.sleep(0.1)
                     out.consume()
                     err.consume()
-                    return_code = proc.wait(timeout=timeout)
                 except KeyboardInterrupt:
                     proc.kill()
                     proc.wait()
@@ -80,6 +79,7 @@ class LocalRunner(Runner):
         except FileNotFoundError:
             raise RunAborted('Command not found: {exe}'.format(exe=exe))
 
+        return_code = proc.returncode
         out_str = out.get_string()
         err_str = err.get_string()
 
