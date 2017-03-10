@@ -60,8 +60,8 @@ class LocalRunner(Runner):
         try:
             with Popen(cmd, bufsize=0, cwd=cwd, shell=shell, stdout=PIPE, stderr=PIPE) as proc:
                 try:
-                    out = NonBlockingStreamReader(proc.stdout, [], hide_stdout, sys.stdout)
-                    err = NonBlockingStreamReader(proc.stderr, [], hide_stderr, sys.stderr)
+                    out = NonBlockingStreamReader('out', proc.stdout, [], hide_stdout, sys.stdout)
+                    err = NonBlockingStreamReader('err', proc.stderr, [], hide_stderr, sys.stderr)
                     while proc.poll() is None:
                         out.consume()
                         err.consume()
@@ -91,8 +91,9 @@ class LocalRunner(Runner):
 
 class NonBlockingStreamReader(Thread):
 
-    def __init__(self, stream, buffer, hide, file, encoding=None):
-        super().__init__(daemon=True)
+    def __init__(self, name, stream, buffer, hide, file, encoding=None):
+        name = '{name}-reader'.format(name=name)
+        super().__init__(name=name, daemon=True)
         self.stream = stream
         self.buffer = buffer
         self.hide = hide
