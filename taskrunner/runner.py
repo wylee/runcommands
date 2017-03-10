@@ -19,7 +19,8 @@ def run(args,
         echo=False,
         hide=None,
         info=False,
-        debug=False):
+        debug=False,
+        complete=False):
     """Run one or more tasks in succession.
 
     For example, assume the tasks ``local`` and ``remote`` have been
@@ -66,7 +67,9 @@ def run(args,
         debug=debug,
     )
 
-    if print_and_exit:
+    if complete:
+        runner.complete()
+    elif print_and_exit:
         if list_tasks:
             if list_tasks in ('short', True):
                 runner.print_usage(short=True)
@@ -204,6 +207,11 @@ class TaskRunner:
                     print('\n', task.usage, '\n', sep='')
         else:
             printer.warning('No tasks available')
+
+    def complete(self, tasks_module=None):
+        tasks = self.load_tasks(tasks_module)
+        tasks = sorted(tasks)
+        print(' '.join(tasks))
 
 
 class TaskRunnerError(Exception):
