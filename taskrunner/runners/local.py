@@ -1,3 +1,4 @@
+import locale
 import os
 import shlex
 import sys
@@ -90,12 +91,13 @@ class LocalRunner(Runner):
 
 class NonBlockingStreamReader(Thread):
 
-    def __init__(self, stream, buffer, hide, file):
+    def __init__(self, stream, buffer, hide, file, encoding=None):
         super().__init__(daemon=True)
         self.stream = stream
         self.buffer = buffer
         self.hide = hide
         self.file = file
+        self.encoding = encoding or locale.getpreferredencoding(do_setlocale=False)
         self.queue = Queue()
         self.start()
 
@@ -113,8 +115,7 @@ class NonBlockingStreamReader(Thread):
             except Empty:
                 return None
             else:
-                # TODO: Get encoding from env
-                text = bytes_.decode('utf-8')
+                text = bytes_.decode(self.encoding)
                 self.buffer.append(text)
                 if not self.hide:
                     self.file.write(text)
