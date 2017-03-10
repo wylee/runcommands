@@ -4,9 +4,11 @@ import os
 from collections import Mapping, OrderedDict, Sequence
 from configparser import RawConfigParser
 from contextlib import contextmanager
+from locale import getpreferredencoding
+from subprocess import check_output
 
 from .task import task
-from .util import abs_path, printer
+from .util import abs_path, load_object, printer
 
 
 __all__ = ['show_config']
@@ -132,7 +134,7 @@ class Config(RawConfig):
         super().__init__(*args, **kwargs)
         self.setdefault('cwd', os.getcwd())
         self.setdefault('current_user', getpass.getuser())
-        self.setdefault('version', 'X.Y.Z')
+        self.setdefault('version', self._get_default_version())
         if _interpolate:
             self._interpolate()
 
@@ -156,6 +158,14 @@ class Config(RawConfig):
             obj = obj.__class__(self._do_interpolation(thing, interpolated) for thing in obj)
         return obj
 
+    def _get_default_version(self):
+        getter = self.get('version_getter')
+        if not getter:
+            getter = '{self.__class__.__module__}:version_getter'.format(self=self)
+        if isinstance(getter, str):
+            getter = load_object(getter)
+        return getter(self)
+
 
 class ConfigError(Exception):
 
@@ -165,6 +175,13 @@ class ConfigError(Exception):
 class ConfigParser(RawConfigParser):
 
     optionxform = lambda self, name: name
+
+
+def version_getter(config):
+    encoding = getpreferredencoding(do_setlocale=False)
+    version = check_output(['git', 'rev-parse', '--short', 'HEAD'])
+    version = version.decode(encoding).strip()
+    return version
 
 
 @task
