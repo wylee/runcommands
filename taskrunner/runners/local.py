@@ -2,9 +2,7 @@ import locale
 import os
 import shlex
 import sys
-import time
-from queue import Empty, Queue
-from subprocess import PIPE, Popen
+from subprocess import PIPE, Popen, TimeoutExpired
 from threading import Thread
 
 from ..util import Hide, printer
@@ -18,7 +16,7 @@ class LocalRunner(Runner):
     """Run a command on the local host."""
 
     def run(self, cmd, cd=None, path=None, prepend_path=None, append_path=None, echo=False,
-            hide=None, debug=False):
+            hide=None, timeout=30, debug=False):
         if isinstance(cmd, str):
             cmd_str = cmd
             exe = shlex.split(cmd)[0]
@@ -62,19 +60,17 @@ class LocalRunner(Runner):
                 try:
                     out = NonBlockingStreamReader('out', proc.stdout, [], hide_stdout, sys.stdout)
                     err = NonBlockingStreamReader('err', proc.stderr, [], hide_stderr, sys.stderr)
-                    reader_threads = (out, err)
-
-                    while proc.poll() is None:
-                        for thread in reader_threads:
-                            thread.consume()
-                        time.sleep(0.1)
-
-                    for thread in reader_threads:
-                        thread.finish()
+                    return_code = proc.wait(timeout)
                 except KeyboardInterrupt:
                     proc.kill()
                     proc.wait()
                     raise RunAborted('\nAborted')
+                except TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+                    raise RunAborted(
+                        'Subprocess {cmd_str} timed out after {timeout}s'
+                        .format(**locals()))
                 except Exception:
                     proc.kill()
                     proc.wait()
@@ -82,10 +78,9 @@ class LocalRunner(Runner):
         except FileNotFoundError:
             raise RunAborted('Command not found: {exe}'.format(exe=exe))
 
-        for thread in reader_threads:
-            thread.join()
+        out.join()
+        err.join()
 
-        return_code = proc.returncode
         out_str = out.get_string()
         err_str = err.get_string()
 
@@ -105,46 +100,20 @@ class NonBlockingStreamReader(Thread):
         self.hide = hide
         self.file = file
         self.encoding = encoding or locale.getpreferredencoding(do_setlocale=False)
-        self.queue = Queue()
         self.start()
 
     def run(self):
-        bytes_ = self.read()
-        while bytes_ is not None:
-            bytes_ = self.read()
-            time.sleep(0.1)
-
-    def read(self):
-        if self.stream.closed:
-            return None
-        bytes_ = self.stream.readline()
-        if bytes_:
-            self.queue.put(bytes_)
-        return bytes_
-
-    def consume(self):
-        while True:
+        while not self.stream.closed:
             try:
-                bytes_ = self.queue.get_nowait()
-            except Empty:
-                return None
-            else:
-                if not bytes_:
-                    return None
+                bytes_ = self.stream.readline()
+            except ValueError:
+                break
+            if bytes_:
                 text = bytes_.decode(self.encoding)
                 self.buffer.append(text)
                 if not self.hide:
                     self.file.write(text)
                     self.file.flush()
-                self.queue.task_done()
-            time.sleep(0.1)
-
-    def finish(self):
-        bytes_ = self.read()
-        while bytes_:
-            self.consume()
-            bytes_ = self.read()
-            time.sleep(0.1)
 
     def get_string(self):
         return ''.join(self.buffer)
