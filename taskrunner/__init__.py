@@ -1,4 +1,4 @@
 from .task import task
 
 __all__ = ['task', '__version__']
-__version__ = '1.0a4'
+__version__ = '1.0.dev5'
