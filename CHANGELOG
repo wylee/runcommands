@@ -1,8 +1,44 @@
 # TaskRunner
 
-## 1.0.0 - unreleased
+## 1.0a4 - 2017-03-13
 
-In progress...
+### Major changes
+
+- Added `config` option to `Task`/`@task`. This makes specifying override
+  config for a task easy. Useful for overriding default task config options
+  when most tasks use those defaults but one or two don't.
+- Added initial handling of `dict`. The logic for parsing `-o name=value`
+  options was moved into the `task` module.
+- Added initial handling of `list`/`tuple` task options.
+- Added initial completion support; a sample bash completion script is
+  provided.
+- Added `Result.__bool__()` because `if some_task(config): ...` is convenient
+  in some cases.
+- The default version set in `Config` is now the short hash of the HEAD of the
+  git repo in the current directory instead of `'X.Y.Z'`. This is easy to
+  override by setting `version_getter = module:getter` in the project's task
+  config.
+- Revamped internals of `LocalRunner`. In particular, improved handling of
+  in/out/err stream data (but this is tricky to get right, so more work may be
+  needed). When decoding stream data, the encoding is now read from the locale
+  instead of hard coding 'UTF-8'.
+- Reimplemented `main` script so that it's just an entry point; moved the logic
+  of running tasks into `tasks.run()`.
+- Fixed a typo/bug in `RawConfig._clone()`; was calling `clone()` instead of
+  `_clone()` when descending into sub-config objects.
+
+### Other changes
+
+- Made the `tasks_module` arg to `TaskRunner.load_tasks()` optional; use
+  `self.tasks_module` by default.
+- Limited width of short task listing to 80 columns.
+- Improved output of `show_config` when `--name` is used and refers to a config
+  object (by descending into the config object).
+- Added `Printer.echo()` for echoing commands and the like; it uses the same
+  color as `Printer.debug()` because A) echoing is largely used for debugging
+  and B) there aren't that many colors to choose from.
+- Fixed "danger" color in printer utility; was cyan for some reason instead of
+  red.
 
 ## 1.0a3 - 2017-03-03
 
