@@ -1,0 +1,6 @@
+# Source from or copy to ~/.bashrc
+function _complete_taskrunner {
+    local candidates=$(runtasks --complete)
+    COMPREPLY=( $(compgen -W "${candidates}" -- $2) )
+}
+complete -F _complete_taskrunner -o default run runtask runtasks

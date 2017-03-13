@@ -1,5 +1,6 @@
 import argparse
 import inspect
+import json
 import os
 import time
 from collections import OrderedDict
@@ -13,13 +14,14 @@ __all__ = ['task']
 class Task:
 
     def __init__(self, implementation, name=None, description=None, help=None, type=None,
-                 default_env=None, timed=False):
+                 default_env=None, config=None, timed=False):
         self.implementation = implementation
         self.name = name or implementation.__name__
         self.description = description
         self.help_text = help or {}
         self.types = type or {}
         self.default_env = default_env or os.environ.get('TASKRUNNER_DEFAULT_ENV')
+        self.config = config or {}
         self.timed = timed
 
         self.qualified_name = '.'.join((implementation.__module__, implementation.__qualname__))
@@ -27,7 +29,7 @@ class Task:
 
     @classmethod
     def decorator(cls, name_or_wrapped=None, description=None, help=None, type=None,
-                  default_env=None, timed=False):
+                  default_env=None, config=None, timed=False):
         if callable(name_or_wrapped):
             wrapped = name_or_wrapped
             name = wrapped.__name__
@@ -38,6 +40,7 @@ class Task:
                 help=help,
                 type=type,
                 default_env=default_env,
+                config=config,
                 timed=timed,
             )
         else:
@@ -51,6 +54,7 @@ class Task:
                 help=help,
                 type=type,
                 default_env=default_env,
+                config=config,
                 timed=timed,
             )
         return wrapper
@@ -70,6 +74,10 @@ class Task:
         return result
 
     def __call__(self, config, *args, **kwargs):
+        if self.config:
+            config = config._clone()
+            config._update_dotted(self.config)
+
         if config.debug:
             printer.debug('Task called:', self.name)
             printer.debug('    Received positional args:', args)
@@ -260,7 +268,7 @@ class Task:
 
             if name in self.types:
                 kwargs['type'] = self.types[name]
-            elif not param.is_bool:
+            elif not param.is_bool and not param.is_dict and not param.is_list:
                 for type_ in (int, float, complex):
                     if isinstance(default, type_):
                         kwargs['type'] = type_
@@ -277,6 +285,13 @@ class Task:
                 if param.is_bool:
                     parser.add_argument(*arg_names[:-1], action='store_true', **kwargs)
                     parser.add_argument(arg_names[-1], action='store_false', **kwargs)
+                elif param.is_dict or kwargs.get('type') == 'dict':
+                    kwargs['action'] = DictAddAction
+                    kwargs.pop('type', None)
+                    parser.add_argument(*arg_names, **kwargs)
+                elif param.is_list:
+                    kwargs['action'] = 'append'
+                    parser.add_argument(*arg_names, **kwargs)
                 else:
                     parser.add_argument(*arg_names, **kwargs)
 
@@ -311,9 +326,35 @@ class Parameter:
     def __init__(self, parameter, position):
         self._parameter = parameter
         self.is_bool = isinstance(parameter.default, bool)
+        self.is_dict = isinstance(parameter.default, dict)
+        self.is_list = isinstance(parameter.default, (list, tuple))
         self.is_positional = parameter.default is parameter.empty
         self.is_optional = not self.is_positional
         self.position = position
 
     def __getattr__(self, name):
         return getattr(self._parameter, name)
+
+
+class DictAddAction(argparse.Action):
+
+    def __call__(self, parser, namespace, item, option_string=None):
+        if not hasattr(namespace, self.dest):
+            setattr(namespace, self.dest, OrderedDict())
+
+        items = getattr(namespace, self.dest)
+
+        try:
+            name, value = item.split('=', 1)
+        except ValueError:
+            raise ValueError('Expected name=<json value> or name=<str value>') from None
+
+        if not value:
+            value = 'null'
+
+        try:
+            value = json.loads(value)
+        except ValueError:
+            pass
+
+        items[name] = value

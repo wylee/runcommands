@@ -1,9 +1,8 @@
+import locale
 import os
 import shlex
 import sys
-import time
-from queue import Empty, Queue
-from subprocess import PIPE, Popen
+from subprocess import PIPE, Popen, TimeoutExpired
 from threading import Thread
 
 from ..util import Hide, printer
@@ -17,7 +16,7 @@ class LocalRunner(Runner):
     """Run a command on the local host."""
 
     def run(self, cmd, cd=None, path=None, prepend_path=None, append_path=None, echo=False,
-            hide=None, timeout=None, debug=False):
+            hide=None, timeout=30, debug=False):
         if isinstance(cmd, str):
             cmd_str = cmd
             exe = shlex.split(cmd)[0]
@@ -48,36 +47,39 @@ class LocalRunner(Runner):
             env['PATH'] = path
 
         if echo:
-            printer.hr()
-            printer.info('RUNNING:', cmd_str)
+            printer.hr(color='echo')
+            printer.echo('RUNNING:', cmd_str)
             if cwd:
-                printer.info('    CWD:', cwd)
+                printer.echo('    CWD:', cwd)
             if munge_path:
-                printer.info('   PATH:', path)
-            printer.hr()
+                printer.echo('   PATH:', path)
+            printer.hr(color='echo')
 
         try:
             with Popen(cmd, bufsize=0, cwd=cwd, shell=shell, stdout=PIPE, stderr=PIPE) as proc:
                 try:
-                    out = NonBlockingStreamReader(proc.stdout, [], hide_stdout, sys.stdout)
-                    err = NonBlockingStreamReader(proc.stderr, [], hide_stderr, sys.stderr)
-                    while proc.poll() is None:
-                        out.consume()
-                        err.consume()
-                        time.sleep(0.1)
-                    out.consume()
-                    err.consume()
-                    return_code = proc.wait(timeout=timeout)
+                    out = NonBlockingStreamReader('out', proc.stdout, [], hide_stdout, sys.stdout)
+                    err = NonBlockingStreamReader('err', proc.stderr, [], hide_stderr, sys.stderr)
+                    return_code = proc.wait(timeout)
                 except KeyboardInterrupt:
                     proc.kill()
                     proc.wait()
                     raise RunAborted('\nAborted')
+                except TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+                    raise RunAborted(
+                        'Subprocess {cmd_str} timed out after {timeout}s'
+                        .format(**locals()))
                 except Exception:
                     proc.kill()
                     proc.wait()
                     raise
         except FileNotFoundError:
             raise RunAborted('Command not found: {exe}'.format(exe=exe))
+
+        out.join()
+        err.join()
 
         out_str = out.get_string()
         err_str = err.get_string()
@@ -90,36 +92,28 @@ class LocalRunner(Runner):
 
 class NonBlockingStreamReader(Thread):
 
-    def __init__(self, stream, buffer, hide, file):
-        super().__init__(daemon=True)
+    def __init__(self, name, stream, buffer, hide, file, encoding=None):
+        name = '{name}-reader'.format(name=name)
+        super().__init__(name=name, daemon=True)
         self.stream = stream
         self.buffer = buffer
         self.hide = hide
         self.file = file
-        self.queue = Queue()
+        self.encoding = encoding or locale.getpreferredencoding(do_setlocale=False)
         self.start()
 
     def run(self):
-        bytes_ = self.stream.read(128)
-        while bytes_:
-            self.queue.put(bytes_)
-            self.stream.flush()
-            bytes_ = self.stream.read(128)
-
-    def consume(self):
-        while True:
+        while not self.stream.closed:
             try:
-                bytes_ = self.queue.get_nowait()
-            except Empty:
-                return None
-            else:
-                # TODO: Get encoding from env
-                text = bytes_.decode('utf-8')
+                bytes_ = self.stream.readline()
+            except ValueError:
+                break
+            if bytes_:
+                text = bytes_.decode(self.encoding)
                 self.buffer.append(text)
                 if not self.hide:
                     self.file.write(text)
                     self.file.flush()
-                self.queue.task_done()
 
     def get_string(self):
         return ''.join(self.buffer)

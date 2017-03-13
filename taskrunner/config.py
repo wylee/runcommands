@@ -3,9 +3,12 @@ import json
 import os
 from collections import Mapping, OrderedDict, Sequence
 from configparser import RawConfigParser
+from contextlib import contextmanager
+from locale import getpreferredencoding
+from subprocess import check_output
 
 from .task import task
-from .util import abs_path, printer
+from .util import abs_path, load_object, printer
 
 
 __all__ = ['show_config']
@@ -43,10 +46,16 @@ class RawConfig(OrderedDict):
         items = RawConfig()
         for n, v in self.items():
             if isinstance(v, RawConfig):
-                v = v.clone()
+                v = v._clone()
             items[n] = v
         items._update_dotted(overrides)
         return self.__class__(items)
+
+    @contextmanager
+    def _override(self, **overrides):
+        config = self._clone()
+        config._update_dotted(overrides)
+        yield config
 
     def _get_dotted(self, name, default=NO_DEFAULT):
         obj = self
@@ -125,7 +134,7 @@ class Config(RawConfig):
         super().__init__(*args, **kwargs)
         self.setdefault('cwd', os.getcwd())
         self.setdefault('current_user', getpass.getuser())
-        self.setdefault('version', 'X.Y.Z')
+        self.setdefault('version', self._get_default_version())
         if _interpolate:
             self._interpolate()
 
@@ -149,6 +158,14 @@ class Config(RawConfig):
             obj = obj.__class__(self._do_interpolation(thing, interpolated) for thing in obj)
         return obj
 
+    def _get_default_version(self):
+        getter = self.get('version_getter')
+        if not getter:
+            getter = '{self.__class__.__module__}:version_getter'.format(self=self)
+        if isinstance(getter, str):
+            getter = load_object(getter)
+        return getter(self)
+
 
 class ConfigError(Exception):
 
@@ -160,6 +177,13 @@ class ConfigParser(RawConfigParser):
     optionxform = lambda self, name: name
 
 
+def version_getter(config):
+    encoding = getpreferredencoding(do_setlocale=False)
+    version = check_output(['git', 'rev-parse', '--short', 'HEAD'])
+    version = version.decode(encoding).strip()
+    return version
+
+
 @task
 def show_config(config, name=None, defaults=True, initial_level=0):
     """Show config; pass --name=<name> to show just one item."""
@@ -169,18 +193,25 @@ def show_config(config, name=None, defaults=True, initial_level=0):
         except KeyError:
             printer.error('Unknown config key:', name)
         else:
-            print(name, '=', value)
-    else:
-        def as_string(c, skip, level):
-            out = []
-            indent = ' ' * (level * 4)
-            for k, v in c.items():
-                if k.startswith('_') or k in skip:
-                    continue
-                if isinstance(v, RawConfig):
-                    out.append('{indent}{k} =>'.format(**locals()))
-                    out.append(as_string(v, skip, level + 1))
-                else:
-                    out.append('{indent}{k} = {v}'.format(**locals()))
-            return '\n'.join(out)
-        print(as_string(config, ['defaults'] if not defaults else [], initial_level))
+            if isinstance(value, RawConfig):
+                config = value
+                initial_level = 1
+                print(name, '=>')
+            else:
+                print(name, '=', value)
+                return
+
+    def as_string(c, skip, level):
+        out = []
+        indent = ' ' * (level * 4)
+        for k, v in c.items():
+            if k.startswith('_') or k in skip:
+                continue
+            if isinstance(v, RawConfig):
+                out.append('{indent}{k} =>'.format(**locals()))
+                out.append(as_string(v, skip, level + 1))
+            else:
+                out.append('{indent}{k} = {v}'.format(**locals()))
+        return '\n'.join(out)
+
+    print(as_string(config, ['defaults'] if not defaults else [], initial_level))
