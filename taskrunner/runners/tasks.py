@@ -20,7 +20,7 @@ def get_default_prepend_path(config):
 
 @task
 def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, sudo=False,
-          run_as=None, echo=False, hide=None, timeout=30, abort_on_failure=True,
+          run_as=None, echo=False, hide=None, timeout=None, abort_on_failure=True,
           inject_context=True):
     """Run a command locally.
 
