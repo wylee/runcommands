@@ -20,7 +20,8 @@ def get_default_prepend_path(config):
 
 @task
 def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, sudo=False,
-          run_as=None, echo=False, hide=None, abort_on_failure=True, inject_context=True):
+          run_as=None, echo=False, hide=None, timeout=30, abort_on_failure=True,
+          inject_context=True):
     """Run a command locally.
 
     Args:
@@ -55,7 +56,7 @@ def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, 
     try:
         return runner.run(
             cmd, cd=cd, path=path, prepend_path=prepend_path, append_path=append_path, echo=echo,
-            hide=hide, debug=config.debug)
+            hide=hide, timeout=timeout, debug=config.debug)
     except RunAborted as exc:
         if config.debug:
             raise
