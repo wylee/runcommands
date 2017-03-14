@@ -20,7 +20,9 @@ def run(args,
         hide=None,
         info=False,
         debug=False,
-        complete=False):
+        complete=False,
+        words=(),
+        word_index=0):
     """Run one or more tasks in succession.
 
     For example, assume the tasks ``local`` and ``remote`` have been
@@ -68,7 +70,7 @@ def run(args,
     )
 
     if complete:
-        runner.complete()
+        runner.complete(words=words, index=word_index)
     elif print_and_exit:
         if list_tasks:
             if list_tasks in ('short', True):
@@ -208,10 +210,31 @@ class TaskRunner:
         else:
             printer.warning('No tasks available')
 
-    def complete(self, tasks_module=None):
-        tasks = self.load_tasks(tasks_module)
-        tasks = sorted(tasks)
-        print(' '.join(tasks))
+    def complete(self, words=(), index=0, tasks_module=None):
+        # Currently, this only allows completion of tasks names and
+        # a single option per task.
+        task = None
+        words = [word[1:-1] for word in words]  # Strip quotes
+        current_word = words[index]
+
+        if index == 0:
+            task = Task(run)
+            excluded = {'--complete', '--words', '--word-index'}
+        else:
+            tasks = self.load_tasks(tasks_module)
+            if current_word in tasks:
+                task = tasks[current_word]
+                excluded = ()
+
+        if task is not None:
+            options = ['--help']
+            options.extend(
+                opt for opt in task.arg_map
+                if opt.startswith('--') and opt not in excluded)
+            print(' '.join(options))
+        else:
+            tasks = sorted(tasks)
+            print(' '.join(tasks))
 
 
 class TaskRunnerError(Exception):

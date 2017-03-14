@@ -1,6 +1,15 @@
 # Source from or copy to ~/.bashrc
 function _complete_taskrunner {
-    local candidates=$(runtasks --complete)
+    local words=""
+
+    for word in "${COMP_WORDS[@]}"; do
+        if [ "$word" != "" ]; then
+            words="$words -w '$word'"
+        fi
+    done
+
+    local candidates=$(runtasks --complete ${words} --word-index $(( $COMP_CWORD - 1 )))
+
     COMPREPLY=( $(compgen -W "${candidates}" -- $2) )
 }
 complete -F _complete_taskrunner -o default run runtask runtasks
