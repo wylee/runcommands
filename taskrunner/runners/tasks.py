@@ -69,8 +69,8 @@ def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, 
 
 @task
 def remote(config, cmd, host=None, user=None, cd=None, path=None, prepend_path=None,
-           append_path=None, sudo=False, run_as=None, echo=False, hide=None, abort_on_failure=True,
-           inject_context=True):
+           append_path=None, sudo=False, run_as=None, echo=False, hide=None, timeout=30,
+           abort_on_failure=True, inject_context=True):
     """Run a command on the remote host via SSH.
 
     Args:
@@ -143,7 +143,7 @@ def remote(config, cmd, host=None, user=None, cd=None, path=None, prepend_path=N
     runner = LocalRunner()
 
     try:
-        return runner.run(ssh_cmd, echo=echo, hide=hide, debug=config.debug)
+        return runner.run(ssh_cmd, echo=echo, hide=hide, timeout=timeout, debug=config.debug)
     except RunAborted as exc:
         if config.debug:
             raise
