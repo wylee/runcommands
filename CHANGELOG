@@ -1,5 +1,9 @@
 # TaskRunner
 
+## 1.0.0 - unreleased
+
+In progress...
+
 ## 1.0a5 - 2017-03-15
 
 - Added `timeout` option to `local` task. Set default timeout for `local`
