@@ -1,3 +1,4 @@
+import sys
 from importlib import import_module
 from importlib.machinery import SourceFileLoader
 from itertools import chain
@@ -20,7 +21,9 @@ def run(args,
         hide=None,
         info=False,
         debug=False,
-        complete=False):
+        complete=False,
+        words=(),
+        word_index=0):
     """Run one or more tasks in succession.
 
     For example, assume the tasks ``local`` and ``remote`` have been
@@ -68,7 +71,7 @@ def run(args,
     )
 
     if complete:
-        runner.complete()
+        runner.complete(words=words, index=word_index)
     elif print_and_exit:
         if list_tasks:
             if list_tasks in ('short', True):
@@ -208,10 +211,42 @@ class TaskRunner:
         else:
             printer.warning('No tasks available')
 
-    def complete(self, tasks_module=None):
+    def complete(self, words=(), index=0, tasks_module=None):
+        task = None
+        words = [word[1:-1] for word in words]  # Strip quotes
+        current_word = words[index]
+        previous_word = words[index - 1] if index > 0 else None
+
         tasks = self.load_tasks(tasks_module)
-        tasks = sorted(tasks)
-        print(' '.join(tasks))
+
+        def find_task():
+            for word in reversed(words):
+                if word in tasks:
+                    return tasks[word], ()
+            return Task(run), {'--complete', '--words', '--word-index'}
+
+        def print_tasks():
+            print(' '.join(tasks))
+
+        def print_task_options(task, excluded):
+            options = ['--help']
+            options.extend(
+                opt for opt in task.arg_map
+                if opt.startswith('--') and opt not in excluded)
+            print(' '.join(options))
+
+        found_task, excluded = find_task()
+
+        if current_word.startswith('-'):
+            print_task_options(found_task, excluded)
+        else:
+            if previous_word in found_task.arg_map:
+                # Don't print any candidates; this will cause the shell
+                # to display defaults (file names, etc).
+                pass
+            else:
+                print_task_options(found_task, excluded)
+                print_tasks()
 
 
 class TaskRunnerError(Exception):

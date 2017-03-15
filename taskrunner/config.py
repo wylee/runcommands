@@ -8,7 +8,7 @@ from locale import getpreferredencoding
 from subprocess import check_output
 
 from .task import task
-from .util import abs_path, load_object, printer
+from .util import abort, abs_path, load_object, printer
 
 
 __all__ = ['show_config']
@@ -191,7 +191,7 @@ def show_config(config, name=None, defaults=True, initial_level=0):
         try:
             value = config._get_dotted(name)
         except KeyError:
-            printer.error('Unknown config key:', name)
+            abort(1, 'Unknown config key: {name}'.format(name=name))
         else:
             if isinstance(value, RawConfig):
                 config = value
