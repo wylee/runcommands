@@ -42,7 +42,7 @@ class LocalRunner(Runner):
             if prepend_path:
                 path = [prepend_path] + path
             if append_path:
-                path = path + [append_path]
+                path += [append_path]
             path = ':'.join(path)
             env['PATH'] = path
 

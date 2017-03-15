@@ -5,6 +5,7 @@ from ..util import abort, abs_path, args_to_str, as_list
 
 from .exc import RunAborted, RunError
 from .local import LocalRunner
+from .remote import RemoteRunner
 
 
 __all__ = ['local', 'remote']
@@ -68,7 +69,7 @@ def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, 
 
 
 @task
-def remote(config, cmd, host=None, user=None, cd=None, path=None, prepend_path=None,
+def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
            append_path=None, sudo=False, run_as=None, echo=False, hide=None, timeout=30,
            abort_on_failure=True, inject_context=True):
     """Run a command on the remote host via SSH.
@@ -95,55 +96,13 @@ def remote(config, cmd, host=None, user=None, cd=None, path=None, prepend_path=N
     path = args_to_str(path, format_kwargs=config)
     run_as = args_to_str(run_as, format_kwargs=config)
 
-    if not host:
-        raise ValueError('host must be specified')
-
-    if user:
-        ssh_connection_str = '{user}@{host}'.format(user=user, host=host)
-    else:
-        ssh_connection_str = host
-
-    if path or prepend_path or append_path:
-        if path:
-            path = [path]
-        else:
-            path = ['$PATH']
-        if prepend_path:
-            path = [prepend_path] + path
-        if append_path:
-            path = path + [append_path]
-        path = ':'.join(path)
-
-    remote_cmd = []
-
-    if sudo:
-        remote_cmd.append('sudo')
-    elif run_as and run_as != user:
-        remote_cmd.append('sudo -u {run_as}'.format(run_as=run_as))
-
-    bash_cmd = ["bash <<'EOBASH'"]
-    if cd:
-        bash_cmd.append('  cd {cd} || exit 1\n'.format(cd=cd))
-    if path:
-        bash_cmd.append('  export PATH="{path}"\n'.format(path=path))
-    bash_cmd.append('  {cmd}'.format(cmd=cmd))
-    bash_cmd.append('EOBASH')
-    bash_cmd = '\n'.join(bash_cmd)
-    remote_cmd.append(bash_cmd)
-
-    remote_cmd = ' '.join(remote_cmd)
-
-    # ssh -T someone@somehost sudo -u svusrXYZ bash <<'EOBASH'
-    #     cd <cd> || exit 1
-    #     export PATH="<path>"
-    #     <cmd>
-    # EOBASH
-    ssh_cmd = ['ssh', '-T', ssh_connection_str, remote_cmd]
-
-    runner = LocalRunner()
+    runner = RemoteRunner()
 
     try:
-        return runner.run(ssh_cmd, echo=echo, hide=hide, timeout=timeout, debug=config.debug)
+        return runner.run(
+            cmd, host, user=user, cd=cd, path=path, prepend_path=prepend_path,
+            append_path=append_path, sudo=sudo, run_as=run_as, echo=echo, hide=hide,
+            timeout=timeout, debug=config.debug)
     except RunAborted as exc:
         if config.debug:
             raise
