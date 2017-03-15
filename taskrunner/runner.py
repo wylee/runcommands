@@ -1,3 +1,4 @@
+import sys
 from importlib import import_module
 from importlib.machinery import SourceFileLoader
 from itertools import chain
@@ -211,30 +212,41 @@ class TaskRunner:
             printer.warning('No tasks available')
 
     def complete(self, words=(), index=0, tasks_module=None):
-        # Currently, this only allows completion of tasks names and
-        # a single option per task.
         task = None
         words = [word[1:-1] for word in words]  # Strip quotes
         current_word = words[index]
+        previous_word = words[index - 1] if index > 0 else None
 
-        if index == 0:
-            task = Task(run)
-            excluded = {'--complete', '--words', '--word-index'}
-        else:
-            tasks = self.load_tasks(tasks_module)
-            if current_word in tasks:
-                task = tasks[current_word]
-                excluded = ()
+        tasks = self.load_tasks(tasks_module)
 
-        if task is not None:
+        def find_task():
+            for word in reversed(words):
+                if word in tasks:
+                    return tasks[word], ()
+            return Task(run), {'--complete', '--words', '--word-index'}
+
+        def print_tasks():
+            print(' '.join(tasks))
+
+        def print_task_options(task, excluded):
             options = ['--help']
             options.extend(
                 opt for opt in task.arg_map
                 if opt.startswith('--') and opt not in excluded)
             print(' '.join(options))
+
+        found_task, excluded = find_task()
+
+        if current_word.startswith('-'):
+            print_task_options(found_task, excluded)
         else:
-            tasks = sorted(tasks)
-            print(' '.join(tasks))
+            if previous_word in found_task.arg_map:
+                # Don't print any candidates; this will cause the shell
+                # to display defaults (file names, etc).
+                pass
+            else:
+                print_task_options(found_task, excluded)
+                print_tasks()
 
 
 class TaskRunnerError(Exception):

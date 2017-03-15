@@ -3,12 +3,10 @@ function _complete_taskrunner {
     local words=""
 
     for word in "${COMP_WORDS[@]}"; do
-        if [ "$word" != "" ]; then
-            words="$words -w '$word'"
-        fi
+        words="$words -w '$word'"
     done
 
-    local candidates=$(runtasks --complete ${words} --word-index $(( $COMP_CWORD - 1 )))
+    local candidates=$(runtasks --complete ${words} --word-index $COMP_CWORD)
 
     COMPREPLY=( $(compgen -W "${candidates}" -- $2) )
 }
