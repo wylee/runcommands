@@ -30,6 +30,9 @@ setup(
         'dev': [
             'coverage',
             'flake8',
+        ],
+        'paramiko': [
+            'paramiko>=2.1.2',
         ]
     },
     entry_points={

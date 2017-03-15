@@ -11,7 +11,7 @@ class NonBlockingStreamReader(Thread):
         self.buffer = buffer
         self.hide = hide
         self.file = file
-        self.encoding = encoding or locale.getpreferredencoding(do_setlocale=False)
+        self.encoding = encoding or getpreferredencoding(do_setlocale=False)
         self.start()
 
     def run(self):
