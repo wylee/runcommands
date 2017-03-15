@@ -1,8 +1,15 @@
 # TaskRunner
 
-## 1.0.0 - unreleased
+## 1.0a5 - 2017-03-15
 
-In progress...
+- Added `timeout` option to `local` task. Set default timeout for `local`
+  task to `None` (no timeout by default).
+- Added `timeout` option to `remote` task. The default timeout for remote tasks
+  is 30 seconds.
+- Fleshed out command line completion, especially for Bash. It now works pretty
+  well.
+- Fixed a bug in the `show_config` task where it failed to abort when a bad
+  `name` was passed.
 
 ## 1.0a4 - 2017-03-13
 
