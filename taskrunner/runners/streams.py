@@ -17,11 +17,14 @@ class NonBlockingStreamReader(Thread):
     def run(self):
         while not self.stream.closed:
             try:
-                bytes_ = self.stream.readline()
+                data = self.stream.readline()
             except ValueError:
                 break
-            if bytes_:
-                text = bytes_.decode(self.encoding)
+            if data:
+                if isinstance(data, bytes):
+                    text = data.decode(self.encoding)
+                else:
+                    text = data
                 self.buffer.append(text)
                 if not self.hide:
                     self.file.write(text)
