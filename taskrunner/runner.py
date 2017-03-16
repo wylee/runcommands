@@ -211,7 +211,6 @@ class TaskRunner:
             printer.warning('No tasks available')
 
     def complete(self, words=(), index=0, tasks_module=None):
-        task = None
         words = [word[1:-1] for word in words]  # Strip quotes
         current_word = words[index]
         previous_word = words[index - 1] if index > 0 else None
