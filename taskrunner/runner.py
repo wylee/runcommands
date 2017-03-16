@@ -238,7 +238,9 @@ class TaskRunner:
         if current_word.startswith('-'):
             print_task_options(found_task, excluded)
         else:
-            if previous_word in found_task.arg_map:
+            is_task_arg = previous_word in found_task.arg_map
+            task_arg = found_task.arg_map[previous_word] if is_task_arg else None
+            if is_task_arg and task_arg.takes_option_value:
                 # Don't print any candidates; this will cause the shell
                 # to display defaults (file names, etc).
                 pass
