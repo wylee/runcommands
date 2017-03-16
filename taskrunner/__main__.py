@@ -13,10 +13,11 @@ def main(argv=None):
     run_task = task(run)
 
     optionals = run_task.optionals.values()
+    optionals_that_take_values = [option for option in optionals if option.takes_option_value]
+
     options_with_values = set()
-    for param in optionals:
-        if not param.is_bool:
-            options_with_values.update(run_task.arg_names_for_param(param))
+    for param in optionals_that_take_values:
+        options_with_values.update(run_task.arg_names_for_param(param))
 
     option_value_expected = False
 

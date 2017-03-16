@@ -162,7 +162,7 @@ class TaskRunner:
         for prev_arg, arg, next_arg in zip(prev_args, args, next_args):
             if arg in all_tasks:
                 option = task.arg_map.get(prev_arg)
-                if option is None or option.is_bool:
+                if option is None or not option.takes_option_value:
                     break
             if arg.startswith(':') and arg != ':':
                 arg = arg[1:]

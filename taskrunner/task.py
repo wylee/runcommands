@@ -332,6 +332,12 @@ class Parameter:
         self.is_optional = not self.is_positional
         self.position = position
 
+        # Is optional *and* takes a value?
+        self.takes_option_value = self.is_optional and not self.is_bool
+
+        # Takes a value? Positionals always do. Optionals might.
+        self.takes_value = self.is_positional or self.takes_option_value
+
     def __getattr__(self, name):
         return getattr(self._parameter, name)
 
