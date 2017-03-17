@@ -210,6 +210,27 @@ def load_object(obj) -> object:
     return obj
 
 
+def prompt(message, default=None, color=True):
+    message = message.rstrip()
+    if default is not None:
+        default = default.rstrip()
+        message = '%s [%s]' % (message, default)
+    message = '%s ' % message
+    if color is True:
+        color = 'warning'
+    if color:
+        message = printer.colorize(message, color=color)
+    try:
+        value = input(message)
+    except KeyboardInterrupt:
+        print()
+        abort()
+    value = value.strip()
+    if not value and default is not None:
+        return default
+    return value
+
+
 class Color(enum.Enum):
 
     none = ''
