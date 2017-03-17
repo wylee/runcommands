@@ -60,6 +60,8 @@ class LocalRunner(Runner):
                     out = NonBlockingStreamReader('out', proc.stdout, [], hide_stdout, sys.stdout)
                     err = NonBlockingStreamReader('err', proc.stderr, [], hide_stderr, sys.stderr)
                     return_code = proc.wait(timeout)
+                    out.finish()
+                    err.finish()
                 except KeyboardInterrupt:
                     proc.kill()
                     proc.wait()
@@ -76,9 +78,6 @@ class LocalRunner(Runner):
                     raise
         except FileNotFoundError:
             raise RunAborted('Command not found: {exe}'.format(exe=exe))
-
-        out.join()
-        err.join()
 
         out_str = out.get_string()
         err_str = err.get_string()
