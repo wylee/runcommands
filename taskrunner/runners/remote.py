@@ -1,6 +1,8 @@
 import getpass
 import locale
 import sys
+from contextlib import closing
+from time import sleep
 
 try:
     import paramiko
@@ -108,29 +110,42 @@ class RemoteRunnerParamiko(RemoteRunner):
                 printer.echo('   PATH:', path)
             printer.hr(color='echo')
 
-        client = SSHClient()
+        with closing(SSHClient()) as client:
+            try:
+                client.load_system_host_keys()
+                client.set_missing_host_key_policy(AutoAddPolicy())
+                client.connect(host, username=user)
+                channel, stdin, stdout, stderr = self.exec_command(
+                    client, remote_command, timeout=timeout)
+                out = NonBlockingStreamReader('out', stdout, [], hide_stdout, sys.stdout)
+                err = NonBlockingStreamReader('err', stderr, [], hide_stderr, sys.stderr)
+                while not channel.exit_status_ready():
+                    sleep(0.1)
+                out.finish()
+                err.finish()
+            except SSHException:
+                raise RunError(-255, '', '')
 
-        try:
-            client.load_system_host_keys()
-            client.set_missing_host_key_policy(AutoAddPolicy())
-            client.connect(host, username=user)
-            stdin, stdout, stderr = client.exec_command(remote_command, timeout=timeout)
-            out = NonBlockingStreamReader('out', stdout, [], hide_stdout, sys.stdout)
-            err = NonBlockingStreamReader('err', stderr, [], hide_stderr, sys.stderr)
-        except SSHException:
-            raise RunError(-255, '', '')
-        finally:
-            client.close()
-
-        # TODO: Blocks forever because streams don't get closed
-        out.join()
-        err.join()
-
+        return_code = channel.exit_status
         out_str = out.get_string()
         err_str = err.get_string()
 
-        # TODO: Get error code from... somewhere
-        if err_str:
-            raise RunError(1, out_str, err_str)
+        if return_code:
+            raise RunError(return_code, out_str, err_str)
 
-        return Result(0, out_str, err_str)
+        return Result(return_code, out_str, err_str)
+
+    def exec_command(self, client, command, bufsize=-1, timeout=None, get_pty=False,
+                     environment=None):
+        # This is a copy of paramiko.client.SSHClient.exec_command().
+        channel = client._transport.open_session(timeout=timeout)
+        if get_pty:
+            channel.get_pty()
+        channel.settimeout(timeout)
+        if environment:
+            channel.update_environment(environment)
+        channel.exec_command(command)
+        stdin = channel.makefile('wb', bufsize)
+        stdout = channel.makefile('r', bufsize)
+        stderr = channel.makefile_stderr('r', bufsize)
+        return channel, stdin, stdout, stderr
