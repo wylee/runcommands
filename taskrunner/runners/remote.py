@@ -1,7 +1,7 @@
+import atexit
 import getpass
 import locale
 import sys
-from contextlib import closing
 from time import sleep
 
 try:
@@ -85,6 +85,8 @@ class RemoteRunnerSSH(RemoteRunner):
 
 class RemoteRunnerParamiko(RemoteRunner):
 
+    clients = {}
+
     def __init__(self, *args, **kwargs):
         if paramiko is None:
             raise RuntimeError('Paramiko remote strategy unusable: paramiko not installed')
@@ -110,21 +112,22 @@ class RemoteRunnerParamiko(RemoteRunner):
                 printer.echo('   PATH:', path)
             printer.hr(color='echo')
 
-        with closing(SSHClient()) as client:
-            try:
-                client.load_system_host_keys()
-                client.set_missing_host_key_policy(AutoAddPolicy())
-                client.connect(host, username=user)
-                channel, stdin, stdout, stderr = self.exec_command(
-                    client, remote_command, timeout=timeout)
-                out = NonBlockingStreamReader('out', stdout, [], hide_stdout, sys.stdout)
-                err = NonBlockingStreamReader('err', stderr, [], hide_stderr, sys.stderr)
-                while not channel.exit_status_ready():
-                    sleep(0.1)
-                out.finish()
-                err.finish()
-            except SSHException:
-                raise RunError(-255, '', '')
+        client = self.get_client(host, user, debug=debug)
+
+        try:
+            client.load_system_host_keys()
+            client.set_missing_host_key_policy(AutoAddPolicy())
+            client.connect(host, username=user)
+            channel, stdin, stdout, stderr = self.exec_command(
+                client, remote_command, timeout=timeout)
+            out = NonBlockingStreamReader('out', stdout, [], hide_stdout, sys.stdout)
+            err = NonBlockingStreamReader('err', stderr, [], hide_stderr, sys.stderr)
+            while not channel.exit_status_ready():
+                sleep(0.1)
+            out.finish()
+            err.finish()
+        except SSHException:
+            raise RunError(-255, '', '')
 
         return_code = channel.exit_status
         out_str = out.get_string()
@@ -149,3 +152,26 @@ class RemoteRunnerParamiko(RemoteRunner):
         stdout = channel.makefile('r', bufsize)
         stderr = channel.makefile_stderr('r', bufsize)
         return channel, stdin, stdout, stderr
+
+    @classmethod
+    def get_client(cls, host, user, debug=False):
+        key = (host, user)
+        if key not in cls.clients:
+            client = SSHClient()
+            client.load_system_host_keys()
+            client.set_missing_host_key_policy(AutoAddPolicy())
+            client.connect(host, username=user)
+            cls.clients[key] = client
+            if debug:
+                printer.debug('Created SSH connection for {user}@{host}'.format_map(locals()))
+        else:
+            printer.debug('Using existing SSH connection for {user}@{host}'.format_map(locals()))
+        return cls.clients[key]
+
+    @classmethod
+    def cleanup(cls):
+        for client in cls.clients.values():
+            client.close()
+
+
+atexit.register(RemoteRunnerParamiko.cleanup)
