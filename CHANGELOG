@@ -1,8 +1,25 @@
 # TaskRunner
 
-## 1.0.0 - unreleased
+## 1.0a6 - 2017-03-20
 
-In progress...
+- Added `RemoteRunner` class.
+- Added a start at a Paramiko-based remote runner as an alternative to shelling
+  out to `ssh`. Work in progress.
+- Moved `NonBlockingStreamReader` into a separate module for potential reuse.
+  E.g., it might be useful in the Paramiko-based remote runner.
+- Made `NonBlockingStreamReader` handle text streams. I.e., we no longer assume
+  all streams are byte streams.
+- Improved handling of output in `LocalRunner`/`NonBlockingStreamReader`.
+  Streams can be closed after a subprocess exits, so we have to account for
+  this.
+- Added `Parameter.task_value` and `Parameter.takes_option_value`. These can be
+  easier to use in some cases than checking for `is_bool` (just because the
+  meaning is more clear).
+- Improved completion by correctly handling options that don't take values.
+  This makes use of `Parameter.takes_option_value`.
+- Added `abort_on_unconfirmed` option to `confirm`.
+- Added `prompt` utility function.
+- Added `release` task.
 
 ## 1.0a5 - 2017-03-15
 
