@@ -1,14 +1,13 @@
-import locale
 import os
 import shlex
 import sys
 from subprocess import PIPE, Popen, TimeoutExpired
-from threading import Thread
 
 from ..util import Hide, printer
 from .base import Runner
 from .exc import RunAborted, RunError
 from .result import Result
+from .streams import NonBlockingStreamReader
 
 
 class LocalRunner(Runner):
@@ -42,7 +41,7 @@ class LocalRunner(Runner):
             if prepend_path:
                 path = [prepend_path] + path
             if append_path:
-                path = path + [append_path]
+                path += [append_path]
             path = ':'.join(path)
             env['PATH'] = path
 
@@ -61,6 +60,8 @@ class LocalRunner(Runner):
                     out = NonBlockingStreamReader('out', proc.stdout, [], hide_stdout, sys.stdout)
                     err = NonBlockingStreamReader('err', proc.stderr, [], hide_stderr, sys.stderr)
                     return_code = proc.wait(timeout)
+                    out.finish()
+                    err.finish()
                 except KeyboardInterrupt:
                     proc.kill()
                     proc.wait()
@@ -78,9 +79,6 @@ class LocalRunner(Runner):
         except FileNotFoundError:
             raise RunAborted('Command not found: {exe}'.format(exe=exe))
 
-        out.join()
-        err.join()
-
         out_str = out.get_string()
         err_str = err.get_string()
 
@@ -88,32 +86,3 @@ class LocalRunner(Runner):
             raise RunError(return_code, out_str, err_str)
 
         return Result(return_code, out_str, err_str)
-
-
-class NonBlockingStreamReader(Thread):
-
-    def __init__(self, name, stream, buffer, hide, file, encoding=None):
-        name = '{name}-reader'.format(name=name)
-        super().__init__(name=name, daemon=True)
-        self.stream = stream
-        self.buffer = buffer
-        self.hide = hide
-        self.file = file
-        self.encoding = encoding or locale.getpreferredencoding(do_setlocale=False)
-        self.start()
-
-    def run(self):
-        while not self.stream.closed:
-            try:
-                bytes_ = self.stream.readline()
-            except ValueError:
-                break
-            if bytes_:
-                text = bytes_.decode(self.encoding)
-                self.buffer.append(text)
-                if not self.hide:
-                    self.file.write(text)
-                    self.file.flush()
-
-    def get_string(self):
-        return ''.join(self.buffer)

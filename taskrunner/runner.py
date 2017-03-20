@@ -1,4 +1,3 @@
-import sys
 from importlib import import_module
 from importlib.machinery import SourceFileLoader
 from itertools import chain
@@ -162,7 +161,7 @@ class TaskRunner:
         for prev_arg, arg, next_arg in zip(prev_args, args, next_args):
             if arg in all_tasks:
                 option = task.arg_map.get(prev_arg)
-                if option is None or option.is_bool:
+                if option is None or not option.takes_option_value:
                     break
             if arg.startswith(':') and arg != ':':
                 arg = arg[1:]
@@ -212,7 +211,6 @@ class TaskRunner:
             printer.warning('No tasks available')
 
     def complete(self, words=(), index=0, tasks_module=None):
-        task = None
         words = [word[1:-1] for word in words]  # Strip quotes
         current_word = words[index]
         previous_word = words[index - 1] if index > 0 else None
@@ -240,7 +238,9 @@ class TaskRunner:
         if current_word.startswith('-'):
             print_task_options(found_task, excluded)
         else:
-            if previous_word in found_task.arg_map:
+            is_task_arg = previous_word in found_task.arg_map
+            task_arg = found_task.arg_map[previous_word] if is_task_arg else None
+            if is_task_arg and task_arg.takes_option_value:
                 # Don't print any candidates; this will cause the shell
                 # to display defaults (file names, etc).
                 pass

@@ -159,7 +159,8 @@ def as_tuple(items, sep=','):
     return tuple(as_list(items, sep))
 
 
-def confirm(config, prompt='Really?', color='warning', yes_values=('y', 'yes')):
+def confirm(config, prompt='Really?', color='warning', yes_values=('y', 'yes'),
+            abort_on_unconfirmed=False, abort_options=None):
     prompt = prompt.format(**config)
     prompt = '{prompt} [{yes_value}/N] '.format(prompt=prompt, yes_value=yes_values[0])
     if isinstance(yes_values, str):
@@ -170,9 +171,13 @@ def confirm(config, prompt='Really?', color='warning', yes_values=('y', 'yes')):
         answer = input(prompt)
     except KeyboardInterrupt:
         print()
-        return False
-    answer = answer.strip().lower()
-    return answer in yes_values
+        confirmed = False
+    else:
+        answer = answer.strip().lower()
+        confirmed = answer in yes_values
+    if not confirmed and abort_on_unconfirmed:
+        abort(**(abort_options or {}))
+    return confirmed
 
 
 def load_object(obj) -> object:
@@ -203,6 +208,27 @@ def load_object(obj) -> object:
             for attr in attrs:
                 obj = getattr(obj, attr)
     return obj
+
+
+def prompt(message, default=None, color=True):
+    message = message.rstrip()
+    if default is not None:
+        default = default.rstrip()
+        message = '%s [%s]' % (message, default)
+    message = '%s ' % message
+    if color is True:
+        color = 'warning'
+    if color:
+        message = printer.colorize(message, color=color)
+    try:
+        value = input(message)
+    except KeyboardInterrupt:
+        print()
+        abort()
+    value = value.strip()
+    if not value and default is not None:
+        return default
+    return value
 
 
 class Color(enum.Enum):
