@@ -7,8 +7,8 @@ from contextlib import contextmanager
 from locale import getpreferredencoding
 from subprocess import check_output
 
-from .task import task
-from .util import abort, abs_path, load_object, printer
+from .command import command
+from .util import abort, abs_path, load_object
 
 
 __all__ = ['show_config']
@@ -184,7 +184,7 @@ def version_getter(config):
     return version
 
 
-@task
+@command
 def show_config(config, name=None, defaults=True, initial_level=0):
     """Show config; pass --name=<name> to show just one item."""
     if name is not None:

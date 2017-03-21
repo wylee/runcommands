@@ -1,26 +1,26 @@
 import datetime
 import re
 
-from taskrunner import task
-from taskrunner.tasks import *
-from taskrunner.util import abort, confirm, printer, prompt
+from runcommands import command
+from runcommands.commands import *
+from runcommands.util import abort, confirm, printer, prompt
 
 
-@task
+@command
 def install(config, where='.env', upgrade=False):
     pip = '{where}/bin/pip'.format(where=where)
     local(config, (pip, 'install', '--upgrade' if upgrade else '', '-e .[dev]'))
 
 
-@task
+@command
 def test(config):
     local(config, 'python -m unittest discover .')
     lint(config)
 
 
-@task
+@command
 def lint(config):
-    result = local(config, 'flake8 taskrunner', abort_on_failure=False)
+    result = local(config, 'flake8 runcommands', abort_on_failure=False)
     pieces_of_lint = len(result.stdout_lines)
     if pieces_of_lint:
         s = '' if pieces_of_lint == 1 else 's'
@@ -29,7 +29,7 @@ def lint(config):
         printer.success('No lint found')
 
 
-@task
+@command
 def release(config, version=None, date=None, tag_name=None, next_version=None, prepare=True,
             merge=True, create_tag=True, resume=True, yes=False):
     def update_line(file_name, line_number, content):
@@ -44,7 +44,7 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
     if current_branch != 'develop':
         abort(1, 'Must be on develop branch to make a release')
 
-    init_module = 'taskrunner/__init__.py'
+    init_module = 'runcommands/__init__.py'
     changelog = 'CHANGELOG'
 
     # E.g.: __version__ = '1.0.dev0'

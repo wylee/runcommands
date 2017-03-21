@@ -1,15 +1,16 @@
+import atexit
 import getpass
 import locale
 import sys
+from time import sleep
 
 try:
     import paramiko
 except ImportError:
     paramiko = None
 else:
-    from paramiko.agent import Agent as SSHAgent
     from paramiko.client import AutoAddPolicy, SSHClient
-    from paramiko.ssh_exception import AuthenticationException, SSHException
+    from paramiko.ssh_exception import SSHException
 
 from ..util import Hide, printer
 from .base import Runner
@@ -83,6 +84,8 @@ class RemoteRunnerSSH(RemoteRunner):
 
 class RemoteRunnerParamiko(RemoteRunner):
 
+    clients = {}
+
     def __init__(self, *args, **kwargs):
         if paramiko is None:
             raise RuntimeError('Paramiko remote strategy unusable: paramiko not installed')
@@ -108,29 +111,66 @@ class RemoteRunnerParamiko(RemoteRunner):
                 printer.echo('   PATH:', path)
             printer.hr(color='echo')
 
-        client = SSHClient()
+        client = self.get_client(host, user, debug=debug)
 
         try:
             client.load_system_host_keys()
             client.set_missing_host_key_policy(AutoAddPolicy())
             client.connect(host, username=user)
-            stdin, stdout, stderr = client.exec_command(remote_command, timeout=timeout)
+            channel, stdin, stdout, stderr = self.exec_command(
+                client, remote_command, timeout=timeout)
             out = NonBlockingStreamReader('out', stdout, [], hide_stdout, sys.stdout)
             err = NonBlockingStreamReader('err', stderr, [], hide_stderr, sys.stderr)
+            while not channel.exit_status_ready():
+                sleep(0.1)
+            out.finish()
+            err.finish()
         except SSHException:
             raise RunError(-255, '', '')
-        finally:
-            client.close()
 
-        # TODO: Blocks forever because streams don't get closed
-        out.join()
-        err.join()
-
+        return_code = channel.exit_status
         out_str = out.get_string()
         err_str = err.get_string()
 
-        # TODO: Get error code from... somewhere
-        if err_str:
-            raise RunError(1, out_str, err_str)
+        if return_code:
+            raise RunError(return_code, out_str, err_str)
 
-        return Result(0, out_str, err_str)
+        return Result(return_code, out_str, err_str)
+
+    def exec_command(self, client, command, bufsize=-1, timeout=None, get_pty=False,
+                     environment=None):
+        # This is a copy of paramiko.client.SSHClient.exec_command().
+        channel = client._transport.open_session(timeout=timeout)
+        if get_pty:
+            channel.get_pty()
+        channel.settimeout(timeout)
+        if environment:
+            channel.update_environment(environment)
+        channel.exec_command(command)
+        stdin = channel.makefile('wb', bufsize)
+        stdout = channel.makefile('r', bufsize)
+        stderr = channel.makefile_stderr('r', bufsize)
+        return channel, stdin, stdout, stderr
+
+    @classmethod
+    def get_client(cls, host, user, debug=False):
+        key = (host, user)
+        if key not in cls.clients:
+            client = SSHClient()
+            client.load_system_host_keys()
+            client.set_missing_host_key_policy(AutoAddPolicy())
+            client.connect(host, username=user)
+            cls.clients[key] = client
+            if debug:
+                printer.debug('Created SSH connection for {user}@{host}'.format_map(locals()))
+        else:
+            printer.debug('Using existing SSH connection for {user}@{host}'.format_map(locals()))
+        return cls.clients[key]
+
+    @classmethod
+    def cleanup(cls):
+        for client in cls.clients.values():
+            client.close()
+
+
+atexit.register(RemoteRunnerParamiko.cleanup)

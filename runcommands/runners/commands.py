@@ -1,6 +1,6 @@
 import os
 
-from ..task import task
+from ..command import command
 from ..util import abort, abs_path, args_to_str, as_list
 
 from .exc import RunAborted, RunError
@@ -19,7 +19,7 @@ def get_default_prepend_path(config):
     return prepend_path or None
 
 
-@task
+@command
 def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, sudo=False,
           run_as=None, echo=False, hide=None, timeout=None, abort_on_failure=True,
           inject_context=True):
@@ -68,7 +68,7 @@ def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, 
         return exc
 
 
-@task
+@command
 def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
            append_path=None, sudo=False, run_as=None, echo=False, hide=None, timeout=30,
            abort_on_failure=True, inject_context=True, strategy=RemoteRunnerSSH):

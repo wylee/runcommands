@@ -91,8 +91,8 @@ def abs_path(path, format_kwargs={}):
 def asset_path(path, format_kwargs={}):
     """Get absolute path to asset in package.
 
-    ``path`` can be just a package name like 'arctasks' or it can be
-    a package name and a relative file system path like 'arctasks:util'.
+    ``path`` can be just a package name like 'package' or it can be
+    a package name and a relative file system path like 'package:util'.
 
     """
     if ':' in path:

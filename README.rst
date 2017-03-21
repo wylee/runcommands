@@ -1,7 +1,7 @@
-TaskRunner
-++++++++++
+RunCommands
++++++++++++
 
-A simple task runner that uses argparse under the hood.
+A simple command runner that uses argparse under the hood.
 
 Somewhat inspired by Invoke.
 
@@ -12,36 +12,36 @@ License
 
 MIT
 
-Defining Tasks
-==============
+Defining Commands
+=================
 
 ::
 
-    from taskrunner import task
+    from runcommands import command
 
-    @task
+    @command
     def hello(config, name=None):
         if name:
             print('Hello,' name)
         else:
             print('Hello, World')
 
-Listing Tasks
-=============
+Listing Commands
+================
 
 ::
 
-    > runtasks --list
+    > runcommands --list
     hello [--help] [-n NAME]
 
-Running Tasks
-=============
+Running Commands
+================
 
 ::
 
-    > runtasks hello
+    > runcommands hello
     Hello, World
-    > runtasks hello -n You
+    > runcommands hello -n You
     Hello, You
 
 Configuration
@@ -52,7 +52,7 @@ This allows for rich values without requiring third party libraries.
 
 A config file looks like this, with sections for different environments::
 
-    ; tasks.cfg
+    ; commands.cfg
     [DEFAULT]
     project_name = "My Project"
 
@@ -61,12 +61,12 @@ A config file looks like this, with sections for different environments::
 
     [stage]
     debug = true
-    defaults.taskrunner.runners.tasks.remote.host = "stage_host"
+    defaults.runcommands.runners.commands.remote.host = "stage_host"
 
     [prod]
     debug = false
     remote.host = "prod_host"
-    defaults.taskrunner.runners.tasks.remote.host = "{remote.host}"
+    defaults.runcommands.runners.commands.remote.host = "{remote.host}"
 
 Accessing Config
 ----------------
@@ -111,32 +111,24 @@ will be replaced with the corresponding config values.
 Default Option Values
 ---------------------
 
-As shown above, default option values can be specified for a task via
+As shown above, default option values can be specified for a command via
 configuration. These defaults will take precedence over option values defined
-on the task but can be overridden via command line options.
+on the command but can be overridden via command line options.
 
-.. note:: This works whether a task is called via the command line *or* called
-          directly in Python code.
+.. note:: This works whether a command is called via the command line *or*
+          called directly in Python code.
 
 Features
 ========
 
-* Easy help for tasks: ``runtasks hello --help``
-* Global config is built in: ``runtasks --env staging pre_deploy deploy ...``
+* Easy help for commands: ``runcommands hello --help``
+* Global config is built in: ``runcommands --env staging deploy ...``
   (no default envs are built in though; these must be defined as needed)
-* Default env and task options can be defined in a config file
-
-Known Issues
-============
-
-* The project name "TaskRunner" is pretty generic and there's already a package
-  named ``taskrunner`` on PyPI.
+* Default env and command options can be defined in a config file
 
 TODO
 ====
 
-* Come up with a better project name
 * Add command line completion
-* Fix known issues
 * Add more documentation and examples
 * Write tests
