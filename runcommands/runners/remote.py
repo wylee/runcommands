@@ -9,9 +9,8 @@ try:
 except ImportError:
     paramiko = None
 else:
-    from paramiko.agent import Agent as SSHAgent
     from paramiko.client import AutoAddPolicy, SSHClient
-    from paramiko.ssh_exception import AuthenticationException, SSHException
+    from paramiko.ssh_exception import SSHException
 
 from ..util import Hide, printer
 from .base import Runner
