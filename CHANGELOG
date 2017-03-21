@@ -1,8 +1,13 @@
 # RunCommands
 
-## 1.0a7 - unreleased
+## 1.0a7 - 2017-03-21
 
-In progress...
+- Renamed package from `taskrunner` to `runcommands`. The latter name is
+  available on PyPI and the term "command" is perhaps less ambiguous
+  than "task".
+- Fleshed out the Paramiko remote runner a bit. It now A) works and B) caches
+  connections per user/host. Needs review/testing. Should be made more robust
+  in dealing with auth and network issues.
 
 ## 1.0a6 - 2017-03-20
 
