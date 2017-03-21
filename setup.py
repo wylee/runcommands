@@ -2,7 +2,7 @@ import sys
 
 from setuptools import find_packages, setup
 
-with open('taskrunner/__init__.py') as fp:
+with open('runcommands/__init__.py') as fp:
     for line in fp:
         if line.startswith('__version__'):
             __version__ = line.split('=')[1].strip()[1:-1]
@@ -16,14 +16,14 @@ if sys.version_info[:2] < (3, 4):
     install_requires.append('enum34')
 
 setup(
-    name='taskrunner',
+    name='runcommands',
     version=__version__,
     license='MIT',
     author='Wyatt Baldwin',
     author_email='self@wyattbaldwin.com',
-    description='Task runner',
+    description='A simple command runner',
     long_description=long_description,
-    url='https://bitbucket.org/wyatt/taskrunner',
+    url='https://bitbucket.org/wyatt/runcommands',
     packages=find_packages(),
     install_requires=install_requires,
     extras_require={
@@ -37,9 +37,10 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'run = taskrunner.__main__:main',
-            'runtask = taskrunner.__main__:main',
-            'runtasks = taskrunner.__main__:main',
+            'run = runcommands.__main__:main',
+            'runcmd = runcommands.__main__:main',
+            'runcommand = runcommands.__main__:main',
+            'runcommands = runcommands.__main__:main',
         ],
     },
     classifiers=[

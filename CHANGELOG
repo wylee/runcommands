@@ -1,4 +1,4 @@
-# TaskRunner
+# RunCommands
 
 ## 1.0a7 - unreleased
 
@@ -16,58 +16,58 @@ In progress...
 - Improved handling of output in `LocalRunner`/`NonBlockingStreamReader`.
   Streams can be closed after a subprocess exits, so we have to account for
   this.
-- Added `Parameter.task_value` and `Parameter.takes_option_value`. These can be
-  easier to use in some cases than checking for `is_bool` (just because the
+- Added `Parameter.takes_value` and `Parameter.takes_option_value`. These can
+  be easier to use in some cases than checking for `is_bool` (just because the
   meaning is more clear).
 - Improved completion by correctly handling options that don't take values.
   This makes use of `Parameter.takes_option_value`.
 - Added `abort_on_unconfirmed` option to `confirm`.
 - Added `prompt` utility function.
-- Added `release` task.
+- Added `release` command.
 
 ## 1.0a5 - 2017-03-15
 
-- Added `timeout` option to `local` task. Set default timeout for `local`
-  task to `None` (no timeout by default).
-- Added `timeout` option to `remote` task. The default timeout for remote tasks
-  is 30 seconds.
+- Added `timeout` option to `local` command. Set default timeout for `local`
+  command to `None` (no timeout by default).
+- Added `timeout` option to `remote` command. The default timeout for remote
+  commands is 30 seconds.
 - Fleshed out command line completion, especially for Bash. It now works pretty
   well.
-- Fixed a bug in the `show_config` task where it failed to abort when a bad
+- Fixed a bug in the `show_config` command where it failed to abort when a bad
   `name` was passed.
 
 ## 1.0a4 - 2017-03-13
 
 ### Major changes
 
-- Added `config` option to `Task`/`@task`. This makes specifying override
-  config for a task easy. Useful for overriding default task config options
-  when most tasks use those defaults but one or two don't.
+- Added `config` option to `Command`/`@command`. This makes specifying override
+  config for a command easy. Useful for overriding default command config
+  options when most commands use those defaults but one or two don't.
 - Added initial handling of `dict`. The logic for parsing `-o name=value`
-  options was moved into the `task` module.
-- Added initial handling of `list`/`tuple` task options.
+  options was moved into the `command` module.
+- Added initial handling of `list`/`tuple` command options.
 - Added initial completion support; a sample bash completion script is
   provided.
-- Added `Result.__bool__()` because `if some_task(config): ...` is convenient
-  in some cases.
+- Added `Result.__bool__()` because `if command(config): ...` is convenient in
+  some cases.
 - The default version set in `Config` is now the short hash of the HEAD of the
   git repo in the current directory instead of `'X.Y.Z'`. This is easy to
-  override by setting `version_getter = module:getter` in the project's task
+  override by setting `version_getter = module:getter` in the project's command
   config.
 - Revamped internals of `LocalRunner`. In particular, improved handling of
   in/out/err stream data (but this is tricky to get right, so more work may be
   needed). When decoding stream data, the encoding is now read from the locale
   instead of hard coding 'UTF-8'.
 - Reimplemented `main` script so that it's just an entry point; moved the logic
-  of running tasks into `tasks.run()`.
+  of running commands into `commands.run()`.
 - Fixed a typo/bug in `RawConfig._clone()`; was calling `clone()` instead of
   `_clone()` when descending into sub-config objects.
 
 ### Other changes
 
-- Made the `tasks_module` arg to `TaskRunner.load_tasks()` optional; use
-  `self.tasks_module` by default.
-- Limited width of short task listing to 80 columns.
+- Made the `commands_module` arg to `CommandRunner.load_commands()` optional;
+  use `self.commands_module` by default.
+- Limited width of short command listing to 80 columns.
 - Improved output of `show_config` when `--name` is used and refers to a config
   object (by descending into the config object).
 - Added `Printer.echo()` for echoing commands and the like; it uses the same
@@ -86,17 +86,19 @@ Third alpha version.
 - Add `_overrides` option to `RawConfig`; simplifies updating a config object
   with overrides without needing to make a separate call to do the update.
 - Add `RawConfig._clone(**overrides)` method.
-- Improve output of `runtasks -l`, the condensed task listing. Use the current
-  terminal width to format tasks into rows without mid-word wrapping.
-- Show condensed task listing when no tasks are specified. The long task
-  listing is really verbose and not that useful in this case.
+- Improve output of `runcommands -l`, the condensed command listing. Use the
+  current terminal width to format commands into rows without mid-word
+  wrapping.
+- Show condensed command listing when no commands are specified. The long
+  command listing is really verbose and not that useful in this case.
 - Add `-H` alias for `--hide` to main script.
-- Standardize on `-E` for tasks that have and `echo` option  and `-H` for tasks
-  that have a `hide` option. This also leaves `-h` available for task help.
-- Use `-h` for task help. If a task has multiple H options, the first will get
-  `-H` (unless the task also has a `hide` option) and the second won't get
-  a short option name.
-- Normalize task option names more by stripping dashes (after converting
+- Standardize on `-E` for commands that have and `echo` option  and `-H` for
+  commands that have a `hide` option. This also leaves `-h` available for
+  command help.
+- Use `-h` for command help. If a command has multiple H options, the first
+  will get `-H` (unless the command also has a `hide` option) and the second
+  won't get a short option name.
+- Normalize command option names more by stripping dashes (after converting
   underscores to dashes) and lower-casing.
 
 ## 1.0a2 - 2017-03-02
@@ -113,9 +115,9 @@ Second alpha version.
 - Print warning, error, and debug messages to stderr by default.
 - Make it easier to determine if stdout and/or stderr should be hidden by
   adding some utility class methods to the `Hide` enum.
-- Only set the `hide` option for a task from the global config value if the
-  task's default is `hide=None`. TODO: Something similar for `echo`, but that's
-  a bit harder.
+- Only set the `hide` option for a command from the global config value if the
+  command's default is `hide=None`. TODO: Something similar for `echo`, but
+  that's a bit harder.
 - Remove unused imports, clean other lint, add `__all__` lists where
   appropriate, etc.
 

@@ -8,10 +8,10 @@ from collections import OrderedDict
 from .util import Hide, cached_property, get_hr, printer
 
 
-__all__ = ['task']
+__all__ = ['command']
 
 
-class Task:
+class Command:
 
     def __init__(self, implementation, name=None, description=None, help=None, type=None,
                  default_env=None, config=None, timed=False):
@@ -20,7 +20,7 @@ class Task:
         self.description = description
         self.help_text = help or {}
         self.types = type or {}
-        self.default_env = default_env or os.environ.get('TASKRUNNER_DEFAULT_ENV')
+        self.default_env = default_env or os.environ.get('RUNCOMMANDS_DEFAULT_ENV')
         self.config = config or {}
         self.timed = timed
 
@@ -33,7 +33,7 @@ class Task:
         if callable(name_or_wrapped):
             wrapped = name_or_wrapped
             name = wrapped.__name__
-            return Task(
+            return Command(
                 implementation=wrapped,
                 name=name,
                 description=description,
@@ -47,7 +47,7 @@ class Task:
             name = name_or_wrapped
 
         def wrapper(wrapped):
-            return Task(
+            return Command(
                 implementation=wrapped,
                 name=name,
                 description=description,
@@ -79,7 +79,7 @@ class Task:
             config._update_dotted(self.config)
 
         if config.debug:
-            printer.debug('Task called:', self.name)
+            printer.debug('Command called:', self.name)
             printer.debug('    Received positional args:', args)
             printer.debug('    Received keyword args:', kwargs)
 
@@ -108,7 +108,7 @@ class Task:
             kwargs['hide'] = config._get_dotted('run.hide', 'none')
 
         if config.debug:
-            printer.debug('Running task:', self.name)
+            printer.debug('Running command:', self.name)
             printer.debug('    Final positional args:', repr(args))
             printer.debug('    Final keyword args:', repr(kwargs))
 
@@ -116,7 +116,7 @@ class Task:
 
     def parse_args(self, config, args):
         if config.debug:
-            printer.debug('Parsing args for task `{self.name}`: {args}'.format(**locals()))
+            printer.debug('Parsing args for command `{self.name}`: {args}'.format(**locals()))
         parsed_args = self.get_arg_parser(config).parse_args(args)
         parsed_args = vars(parsed_args)
         return parsed_args
@@ -182,7 +182,8 @@ class Task:
         m, s = divmod(elapsed_time, 60)
         m = int(m)
         hr = get_hr()
-        msg = '{hr}\nElapsed time for {self.name} task: {m:d}m {s:.3f}s\n{hr}'.format(**locals())
+        msg = '{hr}\nElapsed time for {self.name} command: {m:d}m {s:.3f}s\n{hr}'
+        msg = msg.format(**locals())
         printer.info(msg)
 
     @cached_property
@@ -318,7 +319,7 @@ class Task:
         return self.usage
 
 
-task = Task.decorator
+command = Command.decorator
 
 
 class Parameter:
