@@ -1,5 +1,9 @@
 # RunCommands
 
+## 1.0a8 - unreleased
+
+In progress...
+
 ## 1.0a7 - 2017-03-21
 
 - Renamed package from `taskrunner` to `runcommands`. The latter name is
