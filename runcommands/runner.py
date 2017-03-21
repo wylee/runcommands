@@ -46,7 +46,7 @@ def run(args,
     print_and_exit = any((list_commands, info, not argv))
 
     if print_and_exit or debug:
-        print('RunCommands version:', __version__)
+        print('RunCommands', __version__)
 
     if debug:
         printer.debug('All args:', argv)
