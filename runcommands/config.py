@@ -8,7 +8,7 @@ from locale import getpreferredencoding
 from subprocess import check_output
 
 from .command import command
-from .util import abort, abs_path, load_object, printer
+from .util import abort, abs_path, load_object
 
 
 __all__ = ['show_config']
