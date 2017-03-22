@@ -1,7 +1,7 @@
 import os
 import sys
 
-from .config import RawConfig
+from .config import ConfigError, RawConfig
 from .runner import run, RunCommandsError
 from .command import command
 from .util import printer
@@ -57,7 +57,7 @@ def main(argv=None):
 
     try:
         run((argv, run_args, command_args), **args)
-    except RunCommandsError as exc:
+    except (ConfigError, RunCommandsError) as exc:
         printer.error(exc, file=sys.stderr)
         return 1
 
