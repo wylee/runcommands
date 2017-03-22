@@ -5,6 +5,7 @@ from shutil import get_terminal_size
 
 from . import __version__
 from .config import Config, RawConfig
+from .exc import RunCommandsError
 from .command import Command
 from .util import abs_path, get_hr, printer
 
@@ -145,7 +146,7 @@ class CommandRunner:
         try:
             command = all_commands[name]
         except KeyError:
-            raise RunCommandsError('Unknown command: {name}'.format(name=name)) from None
+            raise RunnerError('Unknown command: {name}'.format(name=name)) from None
 
         args = args[1:]
         command_args = []
@@ -237,6 +238,6 @@ class CommandRunner:
                 print_commands()
 
 
-class RunCommandsError(Exception):
+class RunnerError(RunCommandsError):
 
     pass
