@@ -206,7 +206,7 @@ class CommandRunner:
         commands = self.load_commands(commands_module)
 
         def find_command():
-            for word in reversed(words):
+            for word in reversed(words[:index]):
                 if word in commands:
                     return commands[word], ()
             return Command(run), {'--complete', '--words', '--word-index'}
