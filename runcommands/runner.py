@@ -73,14 +73,10 @@ def run(args,
         runner.complete(words=words, index=word_index)
     elif print_and_exit:
         if list_commands:
-            if list_commands in ('short', True):
-                runner.print_usage(short=True)
-            elif list_commands == 'long':
-                print()
-                runner.print_usage()
+            runner.print_usage()
         elif not argv and not info:
-            printer.warning('No commands specified')
-            runner.print_usage(short=True)
+            printer.warning('\nNo commands specified')
+            runner.print_usage()
     else:
         runner.run(command_args)
 
@@ -173,42 +169,34 @@ class CommandRunner:
         if self.debug:
             printer.debug(*args, **kwargs)
 
-    def print_usage(self, commands_module=None, short=False):
+    def print_usage(self, commands_module=None):
         commands = self.load_commands(commands_module)
-        if commands:
-            sorted_commands = sorted(commands)
-            if short:
-                columns = get_terminal_size((80, 25)).columns
-                columns = min(80, columns)
-                indent = 4
-                rows = []
-                row = []
-                row_len = indent
-                for command in sorted_commands:
-                    command_len = len(command)
-                    if row_len + command_len < columns:
-                        row.append(command)
-                        row_len += command_len + 1
-                    else:
-                        rows.append(row)
-                        row = [command]
-                        row_len = indent + command_len
-                if row:
-                    rows.append(row)
-                print('Available commands:')
-                for row in rows:
-                    print(' ' * indent, end='')
-                    print(*row)
-            else:
-                hr = get_hr()
-                printer.header('Available commands:\n')
-                for name in sorted_commands:
-                    command = commands[name]
-                    command_hr = hr[len(name) + 1:]
-                    printer.info(name, command_hr)
-                    print('\n', command.usage, '\n', sep='')
-        else:
+        if not commands:
             printer.warning('No commands available')
+            return
+        sorted_commands = sorted(commands)
+        columns = get_terminal_size((80, 25)).columns
+        columns = min(80, columns)
+        indent = 4
+        rows = []
+        row = []
+        row_len = indent
+        for command in sorted_commands:
+            command_len = len(command)
+            if row_len + command_len < columns:
+                row.append(command)
+                row_len += command_len + 1
+            else:
+                rows.append(row)
+                row = [command]
+                row_len = indent + command_len
+        if row:
+            rows.append(row)
+        print('\nAvailable commands:\n')
+        for row in rows:
+            print(' ' * indent, end='')
+            print(*row)
+        print('\nFor detailed help on a command: runcommands <command> --help')
 
     def complete(self, words=(), index=0, commands_module=None):
         words = [word[1:-1] for word in words]  # Strip quotes

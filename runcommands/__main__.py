@@ -55,9 +55,6 @@ def main(argv=None):
                 .format(name=name, option_name=name.replace('_', '-')))
             return 1
 
-    if args.get('list_commands'):
-        args['list_commands'] = 'short' if '-l' in run_args else 'long'
-
     try:
         run((argv, run_args, command_args), **args)
     except RunCommandsError as exc:
