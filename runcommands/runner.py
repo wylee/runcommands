@@ -7,7 +7,7 @@ from . import __version__
 from .config import Config, RawConfig
 from .exc import RunCommandsError
 from .command import Command
-from .util import abs_path, get_hr, printer
+from .util import abs_path, printer
 
 
 def run(args,
