@@ -16,7 +16,7 @@ class Command:
     def __init__(self, implementation, name=None, description=None, help=None, type=None,
                  default_env=None, config=None, timed=False):
         self.implementation = implementation
-        self.name = name or implementation.__name__
+        self.name = name if name is not None else implementation.__name__.replace('_', '-')
         self.description = description
         self.help_text = help or {}
         self.types = type or {}
@@ -32,7 +32,7 @@ class Command:
                   default_env=None, config=None, timed=False):
         if callable(name_or_wrapped):
             wrapped = name_or_wrapped
-            name = wrapped.__name__
+            name = None
             return Command(
                 implementation=wrapped,
                 name=name,
