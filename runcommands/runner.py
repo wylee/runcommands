@@ -76,7 +76,7 @@ def run(args,
         if list_commands:
             runner.print_usage()
         elif not argv and not info:
-            printer.warning('\nNo commands specified')
+            printer.warning('\nNo command(s) specified')
             runner.print_usage()
     else:
         runner.run(command_args)
