@@ -55,7 +55,7 @@ class LocalRunner(Runner):
             printer.hr(color='echo')
 
         try:
-            with Popen(cmd, bufsize=0, cwd=cwd, shell=shell, stdout=PIPE, stderr=PIPE) as proc:
+            with Popen(cmd, bufsize=0, cwd=cwd, env=env, shell=shell, stdout=PIPE, stderr=PIPE) as proc:
                 try:
                     out = NonBlockingStreamReader('out', proc.stdout, hide_stdout, sys.stdout)
                     err = NonBlockingStreamReader('err', proc.stderr, hide_stderr, sys.stderr)
