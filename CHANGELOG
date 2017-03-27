@@ -1,8 +1,27 @@
 # RunCommands
 
-## 1.0a8 - unreleased
+## 1.0a8 - 2017-03-27
 
-In progress...
+- Underscores in command names are now replaced with dashes. This is just an
+  aesthetic preference.
+- Fixed an issue with completion where it would always provide options for the
+  last command on the command line even if the cursor was moved before the last
+  command.
+- Removed distinction between `-l` and `--list` main script options. `-l` used
+  to show a short listing of commands (i.e., just their names) and `--list`
+  would show a long listing with usage strings. Both now show the short
+  listing. The output of `--list` was long and cluttered and with completion
+  working it no longer seems necessary.
+- When printing help for a command, the command function's entire docstring is
+  now shown.
+- When running the main script, we now check for any kind of `RunCommandsError`
+  and print an error message (instead of spewing a traceback) when one is
+  raised.  In particular, this catches a bad/missing `--env`.
+- Made some low-level improvements to the local runner class:
+  - Fixed some issues with prompting for user input by fixing issues with how
+    subprocesses' stdout/stderr are read and mirrored back to the controlling
+    terminal.
+  - Added initial PTY support.
 
 ## 1.0a7 - 2017-03-21
 
