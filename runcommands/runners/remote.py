@@ -119,8 +119,8 @@ class RemoteRunnerParamiko(RemoteRunner):
             client.connect(host, username=user)
             channel, stdin, stdout, stderr = self.exec_command(
                 client, remote_command, timeout=timeout)
-            out = NonBlockingStreamReader('out', stdout, [], hide_stdout, sys.stdout)
-            err = NonBlockingStreamReader('err', stderr, [], hide_stderr, sys.stderr)
+            out = NonBlockingStreamReader('out', stdout, hide_stdout, sys.stdout)
+            err = NonBlockingStreamReader('err', stderr, hide_stderr, sys.stderr)
             while not channel.exit_status_ready():
                 sleep(0.1)
             out.finish()

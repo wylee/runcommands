@@ -4,14 +4,14 @@ from threading import Thread
 
 class NonBlockingStreamReader(Thread):
 
-    def __init__(self, name, stream, buffer, hide, file, encoding=None):
+    def __init__(self, name, stream, hide, file, encoding=None):
         name = '{name}-reader'.format(name=name)
         super().__init__(name=name, daemon=True)
         self.stream = stream
-        self.buffer = buffer
         self.hide = hide
         self.file = file
         self.encoding = encoding or getpreferredencoding(do_setlocale=False)
+        self.buffer = []
         self.finished = False
         self.start()
 

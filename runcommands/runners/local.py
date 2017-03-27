@@ -57,8 +57,8 @@ class LocalRunner(Runner):
         try:
             with Popen(cmd, bufsize=0, cwd=cwd, shell=shell, stdout=PIPE, stderr=PIPE) as proc:
                 try:
-                    out = NonBlockingStreamReader('out', proc.stdout, [], hide_stdout, sys.stdout)
-                    err = NonBlockingStreamReader('err', proc.stderr, [], hide_stderr, sys.stderr)
+                    out = NonBlockingStreamReader('out', proc.stdout, hide_stdout, sys.stdout)
+                    err = NonBlockingStreamReader('err', proc.stderr, hide_stderr, sys.stderr)
                     return_code = proc.wait(timeout)
                     out.finish()
                     err.finish()
