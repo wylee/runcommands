@@ -8,6 +8,7 @@ from locale import getpreferredencoding
 from subprocess import check_output
 
 from .command import command
+from .exc import RunCommandsError
 from .util import abort, abs_path, load_object
 
 
@@ -167,7 +168,7 @@ class Config(RawConfig):
         return getter(self)
 
 
-class ConfigError(Exception):
+class ConfigError(RunCommandsError):
 
     pass
 

@@ -16,7 +16,7 @@ class Command:
     def __init__(self, implementation, name=None, description=None, help=None, type=None,
                  default_env=None, config=None, timed=False):
         self.implementation = implementation
-        self.name = name or implementation.__name__
+        self.name = name if name is not None else implementation.__name__.replace('_', '-')
         self.description = description
         self.help_text = help or {}
         self.types = type or {}
@@ -32,7 +32,7 @@ class Command:
                   default_env=None, config=None, timed=False):
         if callable(name_or_wrapped):
             wrapped = name_or_wrapped
-            name = wrapped.__name__
+            name = None
             return Command(
                 implementation=wrapped,
                 name=name,
@@ -234,22 +234,21 @@ class Command:
         if self.description:
             description = self.description
         else:
-            docstring = self.implementation.__doc__
-            if docstring:
-                description = []
-                for line in docstring.strip().splitlines():
-                    line = line.strip()
-                    if line:
-                        description.append(line)
-                    else:
-                        break
-                description = ' '.join(description) or None
-            else:
-                description = None
+            description = self.implementation.__doc__
+            if description is not None:
+                description = description.strip() or None
+            if description is not None:
+                lines = description.splitlines()
+                title = lines[0]
+                if title.endswith('.'):
+                    title = title[:-1]
+                lines = [title] + [line[4:] for line in lines[1:]]
+                description = '\n'.join(lines)
 
         parser = argparse.ArgumentParser(
             prog=self.name,
             description=description,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
             argument_default=argparse.SUPPRESS,
         )
 

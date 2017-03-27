@@ -2,7 +2,8 @@ import os
 import sys
 
 from .config import RawConfig
-from .runner import run, RunCommandsError
+from .exc import RunCommandsError
+from .runner import run
 from .command import command
 from .util import printer
 
@@ -54,9 +55,6 @@ def main(argv=None):
                 'Cannot pass {name} via -o; use --{option_name} instead'
                 .format(name=name, option_name=name.replace('_', '-')))
             return 1
-
-    if args.get('list_commands'):
-        args['list_commands'] = 'short' if '-l' in run_args else 'long'
 
     try:
         run((argv, run_args, command_args), **args)

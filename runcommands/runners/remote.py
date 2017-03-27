@@ -2,7 +2,6 @@ import atexit
 import getpass
 import locale
 import sys
-from time import sleep
 
 try:
     import paramiko
@@ -119,16 +118,14 @@ class RemoteRunnerParamiko(RemoteRunner):
             client.connect(host, username=user)
             channel, stdin, stdout, stderr = self.exec_command(
                 client, remote_command, timeout=timeout)
-            out = NonBlockingStreamReader('out', stdout, [], hide_stdout, sys.stdout)
-            err = NonBlockingStreamReader('err', stderr, [], hide_stderr, sys.stderr)
-            while not channel.exit_status_ready():
-                sleep(0.1)
+            out = NonBlockingStreamReader('out', stdout, hide_stdout, sys.stdout)
+            err = NonBlockingStreamReader('err', stderr, hide_stderr, sys.stderr)
+            return_code = channel.recv_exit_status()
             out.finish()
             err.finish()
         except SSHException:
             raise RunError(-255, '', '')
 
-        return_code = channel.exit_status
         out_str = out.get_string()
         err_str = err.get_string()
 
