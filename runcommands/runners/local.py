@@ -62,22 +62,16 @@ class LocalRunner(Runner):
                     return_code = proc.wait(timeout)
                     out.finish()
                     err.finish()
-                except KeyboardInterrupt:
-                    proc.kill()
-                    proc.wait()
-                    raise RunAborted('\nAborted')
-                except TimeoutExpired:
-                    proc.kill()
-                    proc.wait()
-                    raise RunAborted(
-                        'Subprocess {cmd_str} timed out after {timeout}s'
-                        .format(**locals()))
-                except Exception:
+                except:
                     proc.kill()
                     proc.wait()
                     raise
         except FileNotFoundError:
             raise RunAborted('Command not found: {exe}'.format(exe=exe))
+        except KeyboardInterrupt:
+            raise RunAborted('\nAborted')
+        except TimeoutExpired:
+            raise RunAborted('Subprocess {cmd_str} timed out after {timeout}s'.format(**locals()))
 
         out_str = out.get_string()
         err_str = err.get_string()
