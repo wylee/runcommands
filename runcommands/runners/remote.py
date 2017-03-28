@@ -16,7 +16,6 @@ from .base import Runner
 from .exc import RunError
 from .local import LocalRunner
 from .result import Result
-from .streams import NonBlockingStreamReader
 
 
 __all__ = ['RemoteRunnerParamiko', 'RemoteRunnerSSH']
@@ -118,6 +117,7 @@ class RemoteRunnerParamiko(RemoteRunner):
             client.connect(host, username=user)
             channel, stdin, stdout, stderr = self.exec_command(
                 client, remote_command, timeout=timeout)
+            # TODO: Fix this
             out = NonBlockingStreamReader('out', stdout, hide_stdout, sys.stdout)
             err = NonBlockingStreamReader('err', stderr, hide_stderr, sys.stderr)
             return_code = channel.recv_exit_status()

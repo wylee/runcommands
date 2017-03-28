@@ -1,14 +1,16 @@
+import locale
 import os
 import pty
 import shlex
 import sys
+from select import select
 from subprocess import PIPE, Popen, TimeoutExpired
+from time import monotonic
 
 from ..util import Hide, printer
 from .base import Runner
 from .exc import RunAborted, RunError
 from .result import Result
-from .streams import NonBlockingStreamReader
 
 
 class LocalRunner(Runner):
@@ -59,36 +61,67 @@ class LocalRunner(Runner):
                 printer.echo('   PATH:', path)
             printer.hr(color='echo')
 
+        out_buffer = []
+        err_buffer = []
+
+        chunk_size = 8192
+        encoding = locale.getpreferredencoding(do_setlocale=False)
+
+        if use_pty:
+            in_master, stdin = pty.openpty()
+            out_master, stdout = pty.openpty()
+            err_master, stderr = pty.openpty()
+        else:
+            stdin = PIPE
+            stdout = PIPE
+            stderr = PIPE
+
+        streams = {
+            'stdin': stdin,
+            'stdout': stdout,
+            'stderr': stderr,
+        }
+
         try:
-            stdin = None
-
-            if use_pty:
-                out_pty_fd, stdout = pty.openpty()
-                err_pty_fd, stderr = pty.openpty()
-            else:
-                stdout = PIPE
-                stderr = PIPE
-
-            streams = {
-                'stdin': stdin,
-                'stdout': stdout,
-                'stderr': stderr,
-            }
-
             with Popen(cmd, bufsize=0, cwd=cwd, env=env, shell=shell, **streams) as proc:
-                if use_pty:
-                    os.close(stdout)
-                    os.close(stderr)
+                if timeout is not None:
+                    end_time = monotonic() + timeout
 
-                out_stream = os.fdopen(out_pty_fd, 'rb', 0) if use_pty else proc.stdout
-                err_stream = os.fdopen(err_pty_fd, 'rb', 0) if use_pty else proc.stderr
+                if not use_pty:
+                    in_master = proc.stdin.fileno()
+                    out_master = proc.stdout.fileno()
+                    err_master = proc.stderr.fileno()
+
+                rstreams = [out_master, err_master, sys.stdin]
 
                 try:
-                    out = NonBlockingStreamReader('out', out_stream, hide_stdout, sys.stdout)
-                    err = NonBlockingStreamReader('err', err_stream, hide_stderr, sys.stderr)
-                    return_code = proc.wait(timeout=timeout)
-                    out.finish()
-                    err.finish()
+                    while proc.poll() is None:
+                        rlist, wlist, xlist = select(rstreams, [], [], 0.05)
+
+                        if out_master in rlist:
+                            data = os.read(out_master, chunk_size)
+                            text = data.decode(encoding)
+                            out_buffer.append(text)
+                            if not hide_stdout:
+                                sys.stdout.write(text)
+                                sys.stdout.flush()
+
+                        if err_master in rlist:
+                            data = os.read(err_master, chunk_size)
+                            text = data.decode(encoding)
+                            err_buffer.append(text)
+                            if not hide_stderr:
+                                sys.stderr.write(text)
+                                sys.stderr.flush()
+
+                        if sys.stdin in rlist:
+                            in_data = os.read(sys.stdin.fileno(), chunk_size)
+                            os.write(in_master, in_data)
+
+                        if timeout is not None and monotonic() > end_time:
+                            raise TimeoutExpired(proc.args, timeout, ''.join(out_buffer))
+
+                    return_code = proc.wait()
                 except:
                     proc.kill()
                     proc.wait()
@@ -100,10 +133,10 @@ class LocalRunner(Runner):
         except TimeoutExpired:
             raise RunAborted('Subprocess {cmd_str} timed out after {timeout}s'.format(**locals()))
 
-        out_str = out.get_string()
-        err_str = err.get_string()
+        out_string = ''.join(out_buffer)
+        err_string = ''.join(err_buffer)
 
         if return_code:
-            raise RunError(return_code, out_str, err_str)
+            raise RunError(return_code, out_string, err_string)
 
-        return Result(return_code, out_str, err_str)
+        return Result(return_code, out_string, err_string)
