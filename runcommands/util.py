@@ -95,6 +95,8 @@ def asset_path(path, format_kwargs={}):
     a package name and a relative file system path like 'package:util'.
 
     """
+    if format_kwargs:
+        path = path.format(**format_kwargs)
     if ':' in path:
         package_name, *rel_path = path.split(':', 1)
     else:
@@ -105,8 +107,6 @@ def asset_path(path, format_kwargs={}):
     package_path = os.path.dirname(package.__file__)
     path = os.path.join(package_path, *rel_path)
     path = os.path.normpath(os.path.abspath(path))
-    if format_kwargs:
-        path = path.format(**format_kwargs)
     return path
 
 
