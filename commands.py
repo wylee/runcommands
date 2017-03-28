@@ -1,5 +1,7 @@
 import datetime
+import os
 import re
+import shutil
 
 from runcommands import command
 from runcommands.commands import *
@@ -27,6 +29,61 @@ def lint(config):
         printer.error('{pieces_of_lint} piece{s} of lint found'.format_map(locals()))
     else:
         printer.success('No lint found')
+
+
+@command
+def clean(config, verbose=False):
+    """Clean up.
+    
+    Removes:
+    
+        - ./build/
+        - ./dist/
+        - **/__pycache__
+        - **/*.py[co]
+    
+    Skips hidden directories.
+    
+    """
+    def rm(name):
+        if os.path.isfile(name):
+            os.remove(name)
+            if verbose:
+                printer.info('Removed file:', name)
+        else:
+            if verbose:
+                printer.info('File not present:', name)
+
+    def rmdir(name):
+        if os.path.isdir(name):
+            shutil.rmtree(name)
+            if verbose:
+                printer.info('Removed directory:', name)
+        else:
+            if verbose:
+                printer.info('Directory not present:', name)
+
+    root = os.getcwd()
+
+    rmdir('build')
+    rmdir('dist')
+
+    for path, dirs, files in os.walk(root):
+        rel_path = os.path.relpath(path, root)
+
+        if rel_path == '.':
+            rel_path = ''
+
+        if rel_path.startswith('.'):
+            continue
+
+        for d in dirs:
+            if d == '__pycache__':
+                rmdir(os.path.join(rel_path, d))
+
+        for f in files:
+            if f.endswith('.pyc') or f.endswith('.pyo'):
+                rm(os.path.join(rel_path, f))
 
 
 @command

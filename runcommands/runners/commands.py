@@ -1,7 +1,7 @@
 import os
 
 from ..command import command
-from ..util import abort, abs_path, args_to_str, as_list
+from ..util import abort, abs_path, asset_path, args_to_str, as_list, printer
 
 from .exc import RunAborted, RunError
 from .local import LocalRunner
@@ -12,11 +12,26 @@ __all__ = ['local', 'remote']
 
 
 def get_default_prepend_path(config):
-    prepend_path = as_list(config._get_dotted('bin.dirs', []))
-    prepend_path = [abs_path(p, format_kwargs=config) for p in prepend_path]
-    prepend_path = [p for p in prepend_path if os.path.isdir(p)]
-    prepend_path = ':'.join(prepend_path)
-    return prepend_path or None
+    paths = as_list(config._get_dotted('bin.dirs', []))
+    processed_paths = []
+    for path in paths:
+        pristine_path = path
+        path = path.format(**config)
+        if not os.path.isabs(path):
+            if ':' in path:
+                try:
+                    path = asset_path(path)
+                except ValueError:
+                    path = None
+            else:
+                path = abs_path(path)
+        if path is not None and os.path.isdir(path):
+            processed_paths.append(path)
+        else:
+            printer.warning(
+                'Path does not exist: {path} (from {pristine_path})'
+                .format_map(locals()))
+    return ':'.join(processed_paths) or None
 
 
 @command

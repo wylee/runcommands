@@ -1,5 +1,21 @@
 # RunCommands
 
+## 1.0a9 - 2017-03-28
+
+- Simplified handling of input/output in `LocalRunner`. Instead of firing up
+  reader threads, this version uses `select`. This seems to actually work in
+  all cases now (PTY vs non-PTY), but it won't work on Windows. It also breaks
+  the Paramiko remote runner strategy (since `NonBlockingStreamReader` was
+  removed). It might be possible to create a thread-based version of the same
+  logic...
+- In `get_default_prepend_path`, bad asset paths are now skipped over and
+  a warning is printed. This fits with how non-existent path directories are
+  skipped. Previously, a bad asset path would cause a nasty `ImportError`.
+- Improved `util.asset_path`:
+  - Inject `config` into path at top instead of at bottom.
+  - Raise a better error when a path contains an unimportable package.
+- Added `clean` command.
+
 ## 1.0a8 - 2017-03-27
 
 - Underscores in command names are now replaced with dashes. This is just an
