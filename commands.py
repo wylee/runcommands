@@ -168,8 +168,8 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
             abort(5, 'Could not find section in change log')
 
     printer.info('Version:', version)
-    printer.info('Release date:', date)
     printer.info('Tag name:', tag_name)
+    printer.info('Release date:', date)
     printer.info('Next version:', next_version)
     msg = 'Continue with release?: {version} - {date}'.format_map(locals())
     yes or confirm(config, msg, abort_on_unconfirmed=True)
