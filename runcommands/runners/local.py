@@ -107,7 +107,7 @@ class LocalRunner(Runner):
                     (err_master, sys.stderr.fileno(), not hide_stderr, err_buffer),
                 )
 
-                read = partial(mirror_and_capture, in_, out, err, chunk_size, encoding)
+                read = partial(mirror_and_capture, in_, out, err, chunk_size)
 
                 try:
                     while proc.poll() is None:
@@ -134,10 +134,9 @@ class LocalRunner(Runner):
                 os.close(out_master)
                 os.close(err_master)
 
-        out_string = ''.join(out_buffer)
-        err_string = ''.join(err_buffer)
+        result_args = (return_code, out_buffer, err_buffer, encoding)
 
         if return_code:
-            raise RunError(return_code, out_string, err_string)
+            raise RunError(*result_args)
 
-        return Result(return_code, out_string, err_string)
+        return Result(*result_args)

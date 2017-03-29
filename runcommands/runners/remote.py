@@ -146,13 +146,12 @@ class RemoteRunnerParamiko(RemoteRunner):
         except SSHException:
             raise RunError(-255, '', '')
 
-        out_string = out_buffer.get_string()
-        err_string = err_buffer.get_string()
+        result_args = (return_code, out_buffer, err_buffer, encoding)
 
         if return_code:
-            raise RunError(return_code, out_string, err_string)
+            raise RunError(*result_args)
 
-        return Result(return_code, out_string, err_string)
+        return Result(*result_args)
 
     def exec_command(self, client, command, bufsize=-1, timeout=None, get_pty=False,
                      environment=None):

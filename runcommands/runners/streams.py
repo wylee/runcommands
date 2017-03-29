@@ -3,7 +3,7 @@ import os
 from select import select
 
 
-def mirror_and_capture(in_, out, err, chunk_size, encoding, finish=False, poll_timeout=0.05):
+def mirror_and_capture(in_, out, err, chunk_size, finish=False, poll_timeout=0.05):
     """Read streams; mirror and capture output.
 
     Read from a subprocess's stdout and mirror it to the console's
@@ -19,7 +19,8 @@ def mirror_and_capture(in_, out, err, chunk_size, encoding, finish=False, poll_t
         out (int, int, bool, list): Read fd, write fd, mirror?, buffer
         err (int, int, bool, list): Read fd, write fd, mirror?, buffer
         chunk_size (int): Number of bytes to read
-        encoding (str): Encoding; used to decode bytes for capture
+        finish (bool): Passed by the caller to indicate it's finished
+        poll_timeout (float): How long to wait when `select`ing
 
     File descriptors must be integers. Buffers can be ``None`` to
     disable capture.
@@ -40,8 +41,7 @@ def mirror_and_capture(in_, out, err, chunk_size, encoding, finish=False, poll_t
                     if remove:
                         rlist.remove(read_from)
             if buffer is not None:
-                text = data.decode(encoding)
-                buffer.append(text)
+                buffer.append(data)
         elif finish and remove:
             rlist.remove(read_from)
 

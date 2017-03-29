@@ -11,6 +11,6 @@ class RunAborted(RunCommandsError):
 
 class RunError(RunCommandsError, Result):
 
-    def __init__(self, return_code, stdout, stderr):
+    def __init__(self, return_code, stdout_data, stderr_data, encoding):
         super().__init__('Exited with return code {}'.format(return_code))
-        Result.__init__(self, return_code, stdout, stderr)
+        Result.__init__(self, return_code, stdout_data, stderr_data, encoding)

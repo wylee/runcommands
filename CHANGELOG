@@ -1,5 +1,12 @@
 # RunCommands
 
+## 1.0a11 - 2017-03-29
+
+- Fixed potential decoding errors when capturing subprocess data. Captured data
+  is no longer decoded eagerly, which avoids decoding errors when the data read
+  ends with an incomplete Unicode byte sequence. This was an issue for commands
+  that output a lot of data, like `npm install`.
+
 ## 1.0a10 - 2017-03-29
 
 - Improved input/output mirroring/capture in `LocalRunner`.
