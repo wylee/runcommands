@@ -2,6 +2,7 @@ import atexit
 import getpass
 import locale
 import sys
+from functools import partial
 
 try:
     import paramiko
@@ -16,6 +17,7 @@ from .base import Runner
 from .exc import RunError
 from .local import LocalRunner
 from .result import Result
+from .streams import mirror_and_capture
 
 
 __all__ = ['RemoteRunnerParamiko', 'RemoteRunnerSSH']
@@ -109,30 +111,48 @@ class RemoteRunnerParamiko(RemoteRunner):
                 printer.echo('   PATH:', path)
             printer.hr(color='echo')
 
-        client = self.get_client(host, user, debug=debug)
+        out_buffer = []
+        err_buffer = []
+
+        chunk_size = 8192
+        encoding = locale.getpreferredencoding(do_setlocale=False)
 
         try:
+            client = self.get_client(host, user, debug=debug)
             client.load_system_host_keys()
             client.set_missing_host_key_policy(AutoAddPolicy())
             client.connect(host, username=user)
             channel, stdin, stdout, stderr = self.exec_command(
                 client, remote_command, timeout=timeout)
-            # TODO: Fix this
-            out = NonBlockingStreamReader('out', stdout, hide_stdout, sys.stdout)
-            err = NonBlockingStreamReader('err', stderr, hide_stderr, sys.stderr)
-            return_code = channel.recv_exit_status()
-            out.finish()
-            err.finish()
+
+            # XXX: This doesn't work because stdin, stdout, and stderr
+            #      aren't real file objects (the don't have a fileno()
+            #      method).
+            in_, out, err = (
+                (sys.stdin.fileno(), stdin, True, None),
+                (stdout, sys.stdout.fileno(), not hide_stdout, out_buffer),
+                (stderr, sys.stderr.fileno(), not hide_stderr, err_buffer),
+            )
+
+            read = partial(mirror_and_capture, in_, out, err, chunk_size, encoding)
+
+            while not channel.exit_status_ready():
+                read()
+
+            while read(finish=True):
+                pass
+
+            return_code = channel.exit_status
         except SSHException:
             raise RunError(-255, '', '')
 
-        out_str = out.get_string()
-        err_str = err.get_string()
+        out_string = out_buffer.get_string()
+        err_string = err_buffer.get_string()
 
         if return_code:
-            raise RunError(return_code, out_str, err_str)
+            raise RunError(return_code, out_string, err_string)
 
-        return Result(return_code, out_str, err_str)
+        return Result(return_code, out_string, err_string)
 
     def exec_command(self, client, command, bufsize=-1, timeout=None, get_pty=False,
                      environment=None):

@@ -1,5 +1,21 @@
 # RunCommands
 
+## 1.0a10 - 2017-03-29
+
+- Improved input/output mirroring/capture in `LocalRunner`.
+  - Fixed input mirroring issue with subprocesses that accept single character
+    input (like `less`).
+  - Added loop to read until no more data is available after subprocess exits.
+  - Added `COLUMNS` and `LINES` to subprocess environment when using PTY so
+    output isn't constrained to the default terminal size.
+  - Made more robust by checking for closed streams when reading, closing PTY
+    file descriptors, etc.
+  - Moved read/mirror/capture code into its own module for potential reuse.
+- Made an attempt to fix the Paramiko remote runner strategy using the
+  `select`-based reader, but it didn't work because the file handles returned
+  by `SSHClient.exec_command()` aren't "real" files (they don't have
+  a `fileno()` method).
+
 ## 1.0a9 - 2017-03-28
 
 - Simplified handling of input/output in `LocalRunner`. Instead of firing up
