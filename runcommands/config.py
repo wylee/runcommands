@@ -101,8 +101,11 @@ class RawConfig(OrderedDict):
         file_name = abs_path(file_name)
         parser = ConfigParser()
 
-        with open(file_name) as fp:
-            parser.read_file(fp)
+        try:
+            with open(file_name) as fp:
+                parser.read_file(fp)
+        except FileNotFoundError:
+            raise ConfigError('Config file does not exist: {file_name}'.format_map(locals()))
 
         if env:
             if env in parser:
