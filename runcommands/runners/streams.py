@@ -19,6 +19,8 @@ def mirror_and_capture(in_, out, err, chunk_size, finish=False, poll_timeout=0.0
         out (int, int, bool, list): Read fd, write fd, mirror?, buffer
         err (int, int, bool, list): Read fd, write fd, mirror?, buffer
         chunk_size (int): Number of bytes to read
+        finish (bool): Passed by the caller to indicate it's finished
+        poll_timeout (float): How long to wait when `select`ing
 
     File descriptors must be integers. Buffers can be ``None`` to
     disable capture.
