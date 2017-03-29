@@ -90,7 +90,8 @@ class LocalRunner(Runner):
 
                 def check_timeout():
                     if monotonic() > end_time:
-                        raise TimeoutExpired(proc.args, timeout, ''.join(out_buffer))
+                        output = b''.join(out_buffer).decode(encoding)
+                        raise TimeoutExpired(proc.args, timeout, output)
 
                 if use_pty:
                     os.close(stdin)
