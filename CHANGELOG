@@ -1,5 +1,16 @@
 # RunCommands
 
+## 1.0a12 - 2017-03-29
+
+- Fixed a bug when raising `TimeoutExpired` exception in `LocalRunner`. The
+  captured output data is bytes and needs to be decoded.
+- Improved handling of non-existent commands module or config file. Catch
+  exceptions and raise an appropriate `RunCommandsError` instead. The main
+  script catches these errors and aborts with a useful message instead of
+  spewing a traceback.
+- Improved `release` command's automatic next version detection. In particular,
+  it can now derive `1.0aN` from `1.0aM`.
+
 ## 1.0a11 - 2017-03-29
 
 - Fixed potential decoding errors when capturing subprocess data. Captured data

@@ -1,3 +1,4 @@
+import os
 from importlib import import_module
 from importlib.machinery import SourceFileLoader
 from itertools import chain
@@ -120,12 +121,26 @@ class CommandRunner:
 
     def load_commands(self, commands_module=None):
         commands_module = commands_module or self.commands_module
+        raise_does_not_exist = False
+
         if commands_module.endswith('.py'):
             commands_module = abs_path(commands_module)
-            module_loader = SourceFileLoader('commands', commands_module)
-            module = module_loader.load_module()
+            if not os.path.isfile(commands_module):
+                raise_does_not_exist = True
+                does_not_exist_message = 'Commands file does not exist: {commands_module}'
+            else:
+                module_loader = SourceFileLoader('commands', commands_module)
+                module = module_loader.load_module()
         else:
-            module = import_module(commands_module)
+            try:
+                module = import_module(commands_module)
+            except ImportError:
+                raise_does_not_exist = True
+                does_not_exist_message = 'Commands module could not be imported: {commands_module}'
+
+        if raise_does_not_exist:
+            raise RunnerError(does_not_exist_message.format_map(locals()))
+
         objects = vars(module).values()
         commands = {obj.name: obj for obj in objects if isinstance(obj, Command)}
         return commands
@@ -204,7 +219,10 @@ class CommandRunner:
         current_word = words[index]
         previous_word = words[index - 1] if index > 0 else None
 
-        commands = self.load_commands(commands_module)
+        try:
+            commands = self.load_commands(commands_module)
+        except RunnerError:
+            return
 
         def find_command():
             for word in reversed(words[:index]):
