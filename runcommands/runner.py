@@ -101,10 +101,13 @@ class CommandRunner:
         configs = {}
 
         for command, command_args in commands_to_run:
-            self.print_debug('Command to run:', command.name, command_args)
+            command_env = command.get_run_env(self.env)
+            self.print_debug(
+                'Command to run: name={command.name} args={command_args} env={command_env}'
+                .format_map(locals()))
 
         for command, command_args in commands_to_run:
-            command_env = self.env or command.default_env
+            command_env = command.get_run_env(self.env)
             if command_env not in configs:
                 configs[command_env] = self.load_config(command_env)
             command_config = configs[command_env]
