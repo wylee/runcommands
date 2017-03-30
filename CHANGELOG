@@ -1,8 +1,8 @@
 # RunCommands
 
-## 1.0a13 - unreleased
+## 1.0a13 - 2017-03-30
 
-In progress...
+- Improved command env handling and options.
 
 ## 1.0a12 - 2017-03-29
 

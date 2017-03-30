@@ -3,7 +3,7 @@ import os
 from .command import DEFAULT_ENV, command
 
 __all__ = ['DEFAULT_ENV', 'command', '__version__']
-__version__ = '1.0a13.dev0'
+__version__ = '1.0a13'
 
 
 def configure(default_env=None):
