@@ -5,30 +5,82 @@ import os
 import time
 from collections import OrderedDict
 
+from .exc import RunCommandsError
 from .util import Hide, cached_property, get_hr, printer
 
 
-__all__ = ['command']
+__all__ = ['DEFAULT_ENV', 'command']
+
+
+DEFAULT_ENV = object()
 
 
 class Command:
 
+    """Command.
+    
+    Wraps a callable and provides a command line argument parser.
+    
+    Args:
+        implementation (callable)
+        name (str): Name of command as it will be called from the
+            command line. Defaults to ``implementation.__name__`` (with
+            underscores replaced with dashes).
+        description (str): Description of command shown in command
+            help. Defaults to ``implementation.__doc__``.
+        help ({'arg name': 'help text'}): Help text for the command's
+            args.
+        type ({'arg name': 'type'}): Types used to parse values passed
+            via the command line. May be any callable that accepts a
+            single arg. Positional args will be strings unless specified
+            here. Types for options are derived from keyword arg values
+            by default.
+        env (str): Env to run command in. If this is specified, the
+            command *will* be run in this env and may *only* be run in
+            this env. If this is set to :global:`DEFAULT_ENV`, the
+            command will be run in the env specified by the
+            ``RUNCOMMANDS_DEFAULT_ENV`` environment variable.
+        default_env (str): Default env to run command in. If this is
+            specified, the command will be run in this env by default
+            and may also be run in any other env. If this is set to
+            :global:`DEFAULT_ENV`, the command will be run in the env
+            specified by the ``RUNCOMMANDS_DEFAULT_ENV`` environment
+            variable by default.
+        config ({'dotted.name': value}): Additional or override config.
+            This will supplement or override config read from other
+            sources. Passed args take precedence over this config just
+            like other config.
+        timed (bool): Whether the command should be timed. Will print an
+            info message showing how long the command took to complete
+            when ``True``. Defaults to ``False``. 
+    
+    """
+
     def __init__(self, implementation, name=None, description=None, help=None, type=None,
-                 default_env=None, config=None, timed=False):
+                 env=None, default_env=None, config=None, timed=False):
+        if env is not None and default_env is not None:
+            raise CommandError('Only one of `env` or `default_env` may be specified')
+
+        if env is DEFAULT_ENV:
+            env = os.environ['RUNCOMMANDS_DEFAULT_ENV']
+
+        if default_env is DEFAULT_ENV:
+            default_env = os.environ['RUNCOMMANDS_DEFAULT_ENV']
+
         self.implementation = implementation
         self.name = name if name is not None else implementation.__name__.replace('_', '-')
         self.description = description
         self.help_text = help or {}
         self.types = type or {}
-        self.default_env = default_env or os.environ.get('RUNCOMMANDS_DEFAULT_ENV')
+        self.env = env
+        self.default_env = default_env
         self.config = config or {}
         self.timed = timed
-
         self.qualified_name = '.'.join((implementation.__module__, implementation.__qualname__))
         self.defaults_path = '.'.join(('defaults', self.qualified_name))
 
     @classmethod
-    def decorator(cls, name_or_wrapped=None, description=None, help=None, type=None,
+    def decorator(cls, name_or_wrapped=None, description=None, help=None, type=None, env=None,
                   default_env=None, config=None, timed=False):
         if callable(name_or_wrapped):
             wrapped = name_or_wrapped
@@ -39,6 +91,7 @@ class Command:
                 description=description,
                 help=help,
                 type=type,
+                env=env,
                 default_env=default_env,
                 config=config,
                 timed=timed,
@@ -53,11 +106,35 @@ class Command:
                 description=description,
                 help=help,
                 type=type,
+                env=env,
                 default_env=default_env,
                 config=config,
                 timed=timed,
             )
         return wrapper
+
+    def get_run_env(self, specified_env):
+        if self.env is True:
+            # Command has no default env and requires one to be
+            # specified.
+            if specified_env is None:
+                raise CommandError(
+                    'The `{self.name}` command requires an env to be specified'
+                    .format_map(locals()))
+            return specified_env
+        elif self.env:
+            # Command may only be run in a designated env; make sure the
+            # specified env matches that env.
+            if specified_env and specified_env != self.env:
+                raise CommandError(
+                    'The `{self.name}` command may be run only in the "{self.env}" env but the '
+                    '"{specified_env}" env was specified'.format_map(locals()))
+            return self.env
+        # If an env was specified, use that; otherwise fall back to the
+        # default env for this command. The env may be None, which means
+        # the command will be run in no env (which means it will have
+        # access to only the default config).
+        return specified_env or self.default_env
 
     def run(self, config, args):
         if self.timed:
@@ -364,3 +441,8 @@ class DictAddAction(argparse.Action):
             pass
 
         items[name] = value
+
+
+class CommandError(RunCommandsError):
+
+    pass
