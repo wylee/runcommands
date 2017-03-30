@@ -31,7 +31,7 @@ def run(args,
     defined; the following will run ``ls`` first on the local host and
     then on the remote host::
 
-        runcommands local ls remote --host <host> ls
+        runcommands local ls remote <host> ls
 
     When a command name is encountered in ``argv``, it will be considered
     the starting point of the next command *unless* the previous item in
