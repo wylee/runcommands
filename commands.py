@@ -127,17 +127,43 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
     tag_name = tag_name or version
 
     if next_version is None:
-        next_version_re = r'^(?P<major>\d+)\.(?P<minor>\d+)(?P<rest>(\.|a|b|rc).+)?$'
+        next_version_re = r'^(?P<major>\d+)\.(?P<minor>\d+)(?P<rest>.*)$'
         match = re.search(next_version_re, version)
         if match:
             major = match.group('major')
             minor = match.group('minor')
-        if not match or not minor.isdecimal():
+
+            major = int(major)
+            minor = int(minor)
+
+            rest = match.group('rest')
+            patch_re = r'^\.(?P<patch>\d+)$'
+            match = re.search(patch_re, rest)
+
+            if match:
+                # X.Y.Z
+                minor += 1
+                patch = match.group('patch')
+                next_version = '{major}.{minor}.{patch}'.format_map(locals())
+            else:
+                pre_re = r'^(?P<pre_marker>a|b|rc)(?P<pre_version>\d+)$'
+                match = re.search(pre_re, rest)
+                if match:
+                    # X.YaZ
+                    pre_marker = match.group('pre_marker')
+                    pre_version = match.group('pre_version')
+                    pre_version = int(pre_version)
+                    pre_version += 1
+                    next_version = '{major}.{minor}{pre_marker}{pre_version}'.format_map(locals())
+                else:
+                    # X.Y or starts with X.Y (but is not X.Y.Z or X.YaZ)
+                    minor += 1
+                    next_version = '{major}.{minor}'.format_map(locals())
+
+        if next_version is None:
             msg = 'Cannot automatically determine next version from {version}'.format_map(locals())
             abort(3, msg)
-        minor = int(minor)
-        minor += 1
-        next_version = '{major}.{minor}'.format_map(locals())
+
 
     next_version_dev = '{next_version}.dev0'.format_map(locals())
 
