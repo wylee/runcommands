@@ -43,6 +43,18 @@ class RawConfig(OrderedDict):
             value = RawConfig(value)
         super().__setitem__(name, value)
 
+    @classmethod
+    def _make_config_parser(cls, file_name=None):
+        parser = ConfigParser()
+        if file_name:
+            file_name = abs_path(file_name)
+            try:
+                with open(file_name) as fp:
+                    parser.read_file(fp)
+            except FileNotFoundError:
+                raise ConfigError('Config file does not exist: {file_name}'.format_map(locals()))
+        return parser
+
     def _clone(self, **overrides):
         items = RawConfig()
         for n, v in self.items():
@@ -98,14 +110,7 @@ class RawConfig(OrderedDict):
                 self._set_dotted(name, value)
 
     def _read_from_file(self, file_name, env=None):
-        file_name = abs_path(file_name)
-        parser = ConfigParser()
-
-        try:
-            with open(file_name) as fp:
-                parser.read_file(fp)
-        except FileNotFoundError:
-            raise ConfigError('Config file does not exist: {file_name}'.format_map(locals()))
+        parser = self._make_config_parser(file_name)
 
         if env:
             if env in parser:
@@ -119,7 +124,6 @@ class RawConfig(OrderedDict):
         extends = section.get('extends')
         if extends:
             extends = json.loads(extends)
-            extends = abs_path(extends)
             self._read_from_file(extends, env)
 
         for name, value in section.items():
