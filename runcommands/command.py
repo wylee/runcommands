@@ -350,6 +350,10 @@ class Command:
                     if isinstance(default, type_):
                         kwargs['type'] = type_
 
+            type_ = kwargs.get('type')
+
+            is_dict_type = type_ is dict or type_ == 'dict' or param.is_dict
+
             if param.is_positional:
                 # Make positionals optional if a default value is
                 # specified via config.
@@ -362,7 +366,7 @@ class Command:
                 if param.is_bool:
                     parser.add_argument(*arg_names[:-1], action='store_true', **kwargs)
                     parser.add_argument(arg_names[-1], action='store_false', **kwargs)
-                elif param.is_dict or kwargs.get('type') == 'dict':
+                elif is_dict_type:
                     kwargs['action'] = DictAddAction
                     kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
