@@ -14,6 +14,10 @@ class Hide(enum.Enum):
     all = 'all'
 
     @classmethod
+    def choices(cls):
+        return [member.name for member in cls]
+
+    @classmethod
     def hide_stdout(cls, value):
         if value is None:
             return False

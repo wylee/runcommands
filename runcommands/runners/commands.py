@@ -1,7 +1,7 @@
 import os
 
 from ..command import bool_or, command
-from ..util import abort, abs_path, asset_path, args_to_str, as_list, printer
+from ..util import abort, abs_path, asset_path, args_to_str, as_list, printer, Hide
 
 from .exc import RunAborted, RunError
 from .local import LocalRunner
@@ -34,7 +34,10 @@ def get_default_prepend_path(config):
     return ':'.join(processed_paths) or None
 
 
-@command(type={'hide': bool_or(str)})
+@command(
+    type={'hide': bool_or(str)},
+    choices={'hide': Hide.choices()},
+)
 def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, sudo=False,
           run_as=None, echo=False, hide=False, timeout=None, use_pty=True, abort_on_failure=True,
           inject_context=True):
@@ -83,7 +86,10 @@ def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, 
         return exc
 
 
-@command(type={'hide': bool_or(str)})
+@command(
+    type={'hide': bool_or(str)},
+    choices={'hide': Hide.choices()},
+)
 def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
            append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
            abort_on_failure=True, inject_context=True, strategy=RemoteRunnerSSH):
