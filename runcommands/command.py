@@ -363,7 +363,19 @@ class Command:
                 parser.add_argument(*arg_names, **kwargs)
             else:
                 kwargs['dest'] = name
-                if param.is_bool:
+                if isinstance(type_, bool_or):
+                    # Allow --xyz or --xyz=<value>
+                    true_or_value_kwargs = kwargs.copy()
+                    true_or_value_kwargs['action'] = BoolOrAction
+                    true_or_value_kwargs['nargs'] = '?'
+                    true_or_value_arg_names = arg_names[:-1] if param.is_bool else arg_names
+                    parser.add_argument(*true_or_value_arg_names, **true_or_value_kwargs)
+                    if param.is_bool:
+                        # Allow --no-xyz
+                        false_kwargs = kwargs.copy()
+                        false_kwargs.pop('type', None)
+                        parser.add_argument(arg_names[-1], action='store_false', **false_kwargs)
+                elif param.is_bool:
                     parser.add_argument(*arg_names[:-1], action='store_true', **kwargs)
                     parser.add_argument(arg_names[-1], action='store_false', **kwargs)
                 elif is_dict_type:
@@ -421,6 +433,46 @@ class Parameter:
 
     def __getattr__(self, name):
         return getattr(self._parameter, name)
+
+
+class BoolOr:
+
+    """Used to indicate that an arg can be a flag or an option.
+    
+    Used like this::
+    
+        @command(type={'hide': bool_or(str)})
+        def local(config, cmd, hide=False):
+            "Run the specified command, possibly hiding its output."
+
+    Allows for this::
+
+        run local --hide all     # Hide everything
+        run local --hide         # Hide everything with less effort
+        run local --hide stdout  # Hide stdout only
+        run local --no-hide      # Don't hide anything
+
+    .. note:: The ``--no-<name>`` option will only be available when the
+        default for the option is a bool.
+
+    """
+
+    def __init__(self, type_):
+        self.type = type_
+
+    def __call__(self, value):
+        return self.type(value)
+
+
+bool_or = BoolOr
+
+
+class BoolOrAction(argparse.Action):
+
+    def __call__(self, parser, namespace, value, option_string=None):
+        if value is None:
+            value = True
+        setattr(namespace, self.dest, value)
 
 
 class DictAddAction(argparse.Action):
