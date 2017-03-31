@@ -178,11 +178,21 @@ class Command:
                 if not present and name in defaults:
                     kwargs[name] = defaults[name]
 
-        if 'echo' in params and 'echo' not in kwargs:
-            kwargs['echo'] = config._get_dotted('run.echo', False)
+        def set_run_default(option):
+            # If all of the following are true, the global default value
+            # for the option will be injected into the options passed to
+            # the command for this run:
+            #
+            # - This command defines the option.
+            # - The option was not passed explicitly on this run.
+            # - A global default is set for the option (it's not None).
+            if option in params and option not in kwargs:
+                global_default = config._get_dotted('run.%s' % option, None)
+                if global_default is not None:
+                    kwargs[option] = global_default
 
-        if 'hide' in params and params['hide'].default is None and 'hide' not in kwargs:
-            kwargs['hide'] = config._get_dotted('run.hide', 'none')
+        set_run_default('echo')
+        set_run_default('hide')
 
         if config.debug:
             printer.debug('Running command:', self.name)
