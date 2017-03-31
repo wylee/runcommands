@@ -83,8 +83,8 @@ class Command:
         self.defaults_path = '.'.join(('defaults', self.qualified_name))
 
     @classmethod
-    def decorator(cls, name_or_wrapped=None, description=None, help=None, type=None, choices=None,
-                  env=None, default_env=None, config=None, timed=False):
+    def command(cls, name_or_wrapped=None, description=None, help=None, type=None, choices=None,
+                env=None, default_env=None, config=None, timed=False):
         args = dict(
             description=description,
             help=help,
@@ -420,7 +420,7 @@ class Command:
         return self.usage
 
 
-command = Command.decorator
+command = Command.command
 
 
 class Parameter:
