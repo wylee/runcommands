@@ -55,6 +55,17 @@ class RawConfig(OrderedDict):
                 raise ConfigError('Config file does not exist: {file_name}'.format_map(locals()))
         return parser
 
+    @classmethod
+    def _get_envs(cls, file_name):
+        parser = cls._make_config_parser(file_name)
+        sections = set(parser.sections())
+        for name in parser:
+            extends = parser.get(name, 'extends', fallback=None)
+            if extends:
+                extends = json.loads(extends)
+                sections.update(cls._get_envs(extends))
+        return sorted(sections)
+
     def _clone(self, **overrides):
         items = RawConfig()
         for n, v in self.items():

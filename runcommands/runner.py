@@ -19,6 +19,7 @@ def run(args,
         version=None,
         module='commands.py',
         list_commands=False,
+        list_envs=False,
         echo=False,
         hide=False,
         info=False,
@@ -46,9 +47,10 @@ def run(args,
     """
     argv, run_args, command_args = args
 
-    print_and_exit = any((list_commands, info, not argv))
+    show_info = info or list_commands or list_envs or not command_args or debug
+    print_and_exit = info or list_commands or list_envs
 
-    if print_and_exit or debug:
+    if show_info:
         print('RunCommands', __version__)
 
     if debug:
@@ -75,11 +77,13 @@ def run(args,
     if complete:
         runner.complete(words=words, index=word_index)
     elif print_and_exit:
+        if list_envs:
+            runner.print_envs()
         if list_commands:
             runner.print_usage()
-        elif not argv and not info:
-            printer.warning('\nNo command(s) specified')
-            runner.print_usage()
+    elif not command_args:
+        printer.warning('\nNo command(s) specified')
+        runner.print_usage()
     else:
         runner.run(command_args)
 
@@ -188,6 +192,14 @@ class CommandRunner:
     def print_debug(self, *args, **kwargs):
         if self.debug:
             printer.debug(*args, **kwargs)
+
+    def print_envs(self):
+        envs = RawConfig._get_envs(self.config_file)
+        if not envs:
+            printer.warning('No envs available')
+            return
+        print('\nAvailable envs:\n')
+        print(self.fill(envs))
 
     def print_usage(self, commands_module=None):
         commands = self.load_commands(commands_module)
