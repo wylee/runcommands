@@ -1,4 +1,5 @@
 import os
+import textwrap
 from importlib import import_module
 from importlib.machinery import SourceFileLoader
 from itertools import chain
@@ -193,29 +194,23 @@ class CommandRunner:
         if not commands:
             printer.warning('No commands available')
             return
-        sorted_commands = sorted(commands)
-        columns = get_terminal_size((80, 25)).columns
-        columns = min(80, columns)
-        indent = 4
-        rows = []
-        row = []
-        row_len = indent
-        for command in sorted_commands:
-            command_len = len(command)
-            if row_len + command_len < columns:
-                row.append(command)
-                row_len += command_len + 1
-            else:
-                rows.append(row)
-                row = [command]
-                row_len = indent + command_len
-        if row:
-            rows.append(row)
         print('\nAvailable commands:\n')
-        for row in rows:
-            print(' ' * indent, end='')
-            print(*row)
+        print(self.fill(sorted(commands)))
         print('\nFor detailed help on a command: runcommands <command> --help')
+
+    def fill(self, string, indent='    ', max_width=72):
+        """Wrap string so it fits within at most ``max_width`` columns.
+        
+        If the terminal is less than ``max_width`` columns, the string
+        will be filled into that smaller width instead.
+        
+        """
+        if not isinstance(string, str):
+            string = ' '.join(string)
+        width = min(max_width, get_terminal_size().columns)
+        return textwrap.fill(
+            string, width=width, initial_indent=indent, subsequent_indent=indent,
+            break_on_hyphens=False)
 
     def complete(self, words=(), index=0, commands_module=None):
         words = [word[1:-1] for word in words]  # Strip quotes
