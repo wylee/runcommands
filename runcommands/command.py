@@ -35,6 +35,8 @@ class Command:
             single arg. Positional args will be strings unless specified
             here. Types for options are derived from keyword arg values
             by default.
+        choices ({'arg name': list}): When given for an arg, the value
+            for the arg must be one of the specified choices.
         env (str): Env to run command in. If this is specified, the
             command *will* be run in this env and may *only* be run in
             this env. If this is set to :global:`DEFAULT_ENV`, the
@@ -57,7 +59,7 @@ class Command:
     """
 
     def __init__(self, implementation, name=None, description=None, help=None, type=None,
-                 env=None, default_env=None, config=None, timed=False):
+                 choices=(), env=None, default_env=None, config=None, timed=False):
         if env is not None and default_env is not None:
             raise CommandError('Only one of `env` or `default_env` may be specified')
 
@@ -72,6 +74,7 @@ class Command:
         self.description = description
         self.help_text = help or {}
         self.types = type or {}
+        self.choices = choices or {}
         self.env = env
         self.default_env = default_env
         self.config = config or {}
@@ -80,12 +83,13 @@ class Command:
         self.defaults_path = '.'.join(('defaults', self.qualified_name))
 
     @classmethod
-    def decorator(cls, name_or_wrapped=None, description=None, help=None, type=None, env=None,
-                  default_env=None, config=None, timed=False):
+    def decorator(cls, name_or_wrapped=None, description=None, help=None, type=None, choices=None,
+                  env=None, default_env=None, config=None, timed=False):
         args = dict(
             description=description,
             help=help,
             type=type,
+            choices=choices,
             env=env,
             default_env=default_env,
             config=config,
@@ -343,6 +347,10 @@ class Command:
                 'help': self.help_text.get(name),
             }
 
+            choices = self.choices.get(name)
+            if choices:
+                kwargs['choices'] = choices
+
             if name in self.types:
                 kwargs['type'] = self.types[name]
             elif not param.is_bool and not param.is_dict and not param.is_list:
@@ -373,6 +381,7 @@ class Command:
                     if param.is_bool:
                         # Allow --no-xyz
                         false_kwargs = kwargs.copy()
+                        false_kwargs.pop('choices', None)
                         false_kwargs.pop('type', None)
                         parser.add_argument(arg_names[-1], action='store_false', **false_kwargs)
                 elif param.is_bool:
