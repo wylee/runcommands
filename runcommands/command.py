@@ -82,35 +82,25 @@ class Command:
     @classmethod
     def decorator(cls, name_or_wrapped=None, description=None, help=None, type=None, env=None,
                   default_env=None, config=None, timed=False):
+        args = dict(
+            description=description,
+            help=help,
+            type=type,
+            env=env,
+            default_env=default_env,
+            config=config,
+            timed=timed,
+        )
+
         if callable(name_or_wrapped):
             wrapped = name_or_wrapped
-            name = None
-            return Command(
-                implementation=wrapped,
-                name=name,
-                description=description,
-                help=help,
-                type=type,
-                env=env,
-                default_env=default_env,
-                config=config,
-                timed=timed,
-            )
+            return Command(implementation=wrapped, **args)
         else:
             name = name_or_wrapped
 
         def wrapper(wrapped):
-            return Command(
-                implementation=wrapped,
-                name=name,
-                description=description,
-                help=help,
-                type=type,
-                env=env,
-                default_env=default_env,
-                config=config,
-                timed=timed,
-            )
+            return Command(implementation=wrapped, name=name, **args)
+
         return wrapper
 
     def get_run_env(self, specified_env):
