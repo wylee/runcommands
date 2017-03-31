@@ -24,7 +24,7 @@ def main(argv=None):
 
     for i, s in enumerate(argv):
         if s == '--':
-            command_args = argv[i:]
+            command_args = argv[i + 1:]
             break
         elif s.startswith('-'):
             run_args.append(s)
