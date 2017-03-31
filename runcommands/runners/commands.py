@@ -1,6 +1,6 @@
 import os
 
-from ..command import command
+from ..command import bool_or, command
 from ..util import abort, abs_path, asset_path, args_to_str, as_list, printer
 
 from .exc import RunAborted, RunError
@@ -34,9 +34,9 @@ def get_default_prepend_path(config):
     return ':'.join(processed_paths) or None
 
 
-@command
+@command(type={'hide': bool_or(str)})
 def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, sudo=False,
-          run_as=None, echo=False, hide=None, timeout=None, use_pty=True, abort_on_failure=True,
+          run_as=None, echo=False, hide=False, timeout=None, use_pty=True, abort_on_failure=True,
           inject_context=True):
     """Run a command locally.
 
@@ -83,9 +83,9 @@ def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, 
         return exc
 
 
-@command
+@command(type={'hide': bool_or(str)})
 def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
-           append_path=None, sudo=False, run_as=None, echo=False, hide=None, timeout=30,
+           append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
            abort_on_failure=True, inject_context=True, strategy=RemoteRunnerSSH):
     """Run a command on the remote host via SSH.
 

@@ -17,12 +17,16 @@ class Hide(enum.Enum):
     def hide_stdout(cls, value):
         if value is None:
             return False
+        if isinstance(value, bool):
+            return value
         return cls(value) in (cls.stdout, cls.all)
 
     @classmethod
     def hide_stderr(cls, value):
         if value is None:
             return False
+        if isinstance(value, bool):
+            return value
         return cls(value) in (cls.stderr, cls.all)
 
 

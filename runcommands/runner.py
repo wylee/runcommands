@@ -19,7 +19,7 @@ def run(args,
         module='commands.py',
         list_commands=False,
         echo=False,
-        hide=None,
+        hide=False,
         info=False,
         debug=False,
         complete=False,
@@ -86,7 +86,7 @@ def run(args,
 class CommandRunner:
 
     def __init__(self, config_file=None, env=None, options=None, commands_module='commands.py',
-                 default_echo=False, default_hide=None, debug=False):
+                 default_echo=False, default_hide=False, debug=False):
         self.config_file = config_file
         self.env = env
         self.options = options if options is not None else {}

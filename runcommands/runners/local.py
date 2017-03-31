@@ -20,7 +20,7 @@ class LocalRunner(Runner):
     """Run a command on the local host."""
 
     def run(self, cmd, cd=None, path=None, prepend_path=None, append_path=None, echo=False,
-            hide=None, timeout=None, use_pty=True, debug=False):
+            hide=False, timeout=None, use_pty=True, debug=False):
         if isinstance(cmd, str):
             cmd_str = cmd
             exe = shlex.split(cmd)[0]
