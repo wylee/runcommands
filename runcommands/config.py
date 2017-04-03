@@ -20,10 +20,10 @@ NO_DEFAULT = object()
 
 class RawConfig(OrderedDict):
 
-    def __init__(self, *args, _overrides={}, **kwargs):
+    def __init__(self, *args, _overrides={}, _read_file=True, **kwargs):
         super().__init__(*args, **kwargs)
-        config_file = self.get('config_file')
-        if config_file:
+        if _read_file:
+            config_file = self.get('config_file')
             self._read_from_file(config_file, self.get('env'))
         if _overrides:
             self._update_dotted(_overrides)
@@ -40,7 +40,7 @@ class RawConfig(OrderedDict):
 
     def __setitem__(self, name, value):
         if isinstance(value, dict):
-            value = RawConfig(value)
+            value = RawConfig(value, _read_file=False)
         super().__setitem__(name, value)
 
     @classmethod
@@ -70,10 +70,18 @@ class RawConfig(OrderedDict):
         items = RawConfig()
         for n, v in self.items():
             if isinstance(v, RawConfig):
-                v = v._clone()
+                v = v._inner_clone()
             items[n] = v
         items._update_dotted(overrides)
         return self.__class__(items)
+
+    def _inner_clone(self):
+        items = RawConfig()
+        for n, v in self.items():
+            if isinstance(v, RawConfig):
+                v = v._inner_clone()
+            items[n] = v
+        return self.__class__(items, _read_file=False)
 
     @contextmanager
     def _override(self, **overrides):
