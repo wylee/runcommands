@@ -144,6 +144,40 @@ class RawConfig(OrderedDict):
         if env and '__ENV_SECTION_FOUND_IN_FILE__' not in self:
             raise ConfigError('Env/section not found while reading config: {env}'.format(env=env))
 
+    def _to_string(self, flat=False, values_only=False, exclude=(), level=0, root=''):
+        out = []
+
+        flat = flat or values_only
+        indent = '' if flat else ' ' * (level * 4)
+
+        keys = sorted(self)
+        keys = [k for k in keys if not k.startswith('_')]
+        if level == 0 and 'defaults' in keys:
+            keys.remove('defaults')
+            keys.append('defaults')
+
+        for k in keys:
+            v = self[k]
+
+            qualified_k = '.'.join((root, k)) if root else k
+            if qualified_k in exclude:
+                continue
+
+            if flat:
+                k = qualified_k
+
+            if isinstance(v, RawConfig):
+                if not flat:
+                    out.append('{indent}{k} =>'.format(**locals()))
+                out.append(v._to_string(flat, values_only, exclude, level + 1, qualified_k))
+            else:
+                if values_only:
+                    out.append(str(v))
+                else:
+                    out.append('{indent}{k} => {v}'.format(**locals()))
+
+        return '\n'.join(out)
+
 
 class Config(RawConfig):
 
@@ -204,33 +238,66 @@ def version_getter(config):
 
 
 @command
-def show_config(config, name=None, defaults=True, initial_level=0):
-    """Show config; pass --name=<name> to show just one item."""
-    if name is not None:
-        try:
-            value = config._get_dotted(name)
-        except KeyError:
-            abort(1, 'Unknown config key: {name}'.format(name=name))
-        else:
-            if isinstance(value, RawConfig):
-                config = value
-                initial_level = 1
-                print(name, '=>')
-            else:
-                print(name, '=', value)
-                return
+def show_config(config, name=(), flat=False, values=False, exclude=(), defaults=True):
+    """Show config.
+    
+    By default, all config items are shown using a nested format::
+    
+        > show-config
+        remote =>
+            host => example.com
+            user => user
+        
+    To show the items in a flat list, use ``--flat``::
+    
+        > show-config -f
+        remote.host => example.com
+        remote.user => user
+    
+    To show selected items only, use ``--name`` one more times::
+    
+        > show-config -n remote.host
+        remote.host => example.com
+    
+    To show just just values, pass ``--values``::
+    
+        > show-config -n remote.host -v
+        example.com
+        
+        > ssh $(show-config -n remote.host -v)
+    
+    .. note:: ``--values`` implies ``--flat``.
+    
+    To exclude config items, use ``--exclude`` with dotted key names::
+    
+        > show-config -n remote -e remote.host -f
+        remote.user => ec2-user
+    
+    To exclude ``defaults.`` config items (default args for commands),
+    pass ``--no-defaults``.
+    
+    """
+    flat = flat or values
 
-    def as_string(c, skip, level):
-        out = []
-        indent = ' ' * (level * 4)
-        for k, v in c.items():
-            if k.startswith('_') or k in skip:
-                continue
-            if isinstance(v, RawConfig):
-                out.append('{indent}{k} =>'.format(**locals()))
-                out.append(as_string(v, skip, level + 1))
-            else:
-                out.append('{indent}{k} = {v}'.format(**locals()))
-        return '\n'.join(out)
+    exclude = list(exclude)
+    if not defaults:
+        exclude.append('defaults')
 
-    print(as_string(config, ['defaults'] if not defaults else [], initial_level))
+    if name:
+        for n in name:
+            try:
+                value = config._get_dotted(n)
+            except KeyError:
+                abort(1, 'Unknown config key: {name}'.format(name=n))
+            else:
+                if isinstance(value, RawConfig):
+                    if not flat:
+                        print(n, '=>')
+                    print(value._to_string(flat, values, exclude, 1, n))
+                else:
+                    if values:
+                        print(value)
+                    else:
+                        print(n, '=>', value)
+    else:
+        print(config._to_string(flat, values, exclude, 0))
