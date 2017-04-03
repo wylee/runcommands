@@ -193,9 +193,9 @@ class Config(RawConfig):
 
     def __init__(self, *args, _interpolate=True, **kwargs):
         super().__init__(*args, **kwargs)
-        self.setdefault('cwd', os.getcwd())
-        self.setdefault('current_user', getpass.getuser())
-        self.setdefault('version', self._get_default_version())
+        self.setdefault('cwd', os.getcwd, lazy=True)
+        self.setdefault('current_user', getpass.getuser, lazy=True)
+        self.setdefault('version', self._get_default_version, lazy=True)
         if _interpolate:
             self._interpolate()
 
@@ -226,6 +226,11 @@ class Config(RawConfig):
         if isinstance(getter, str):
             getter = load_object(getter)
         return getter(self)
+
+    def setdefault(self, name, default=None, lazy=False, args=(), kwargs=None):
+        if lazy and name not in self:
+            default = default(*args, **(kwargs or {}))
+        return super().setdefault(name, default)
 
 
 class ConfigError(RunCommandsError):
