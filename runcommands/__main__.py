@@ -10,45 +10,8 @@ from .util import printer, Hide
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    run_args = []
     run_command = command(run, type={'hide': bool_or(str)}, choices={'hide': Hide.choices()})
-
-    optionals = run_command.optionals.values()
-    optionals_that_take_values = [option for option in optionals if option.takes_option_value]
-    optionals_that_take_values.append(run_command.parameters['hide'])
-
-    options_with_values = set()
-    for param in optionals_that_take_values:
-        options_with_values.update(run_command.arg_names_for_param(param))
-
-    option = None
-    option_value_expected = False
-
-    for i, s in enumerate(argv):
-        if s == '--':
-            command_args = argv[i + 1:]
-            break
-
-        is_option = s.startswith('-')
-
-        if option and option.name == 'hide':
-            if is_option or s not in Hide.choices():
-                option_value_expected = False
-
-        if is_option:
-            run_args.append(s)
-            if s in options_with_values:
-                option_value_expected = '=' not in s
-            option = run_command.arg_map.get(s)
-        elif option_value_expected:
-            run_args.append(s)
-            option_value_expected = False
-        else:
-            command_args = argv[i:]
-            break
-    else:
-        # No args or all args consumed
-        command_args = []
+    run_args, command_args = partition_argv(run_command, argv)
 
     config = RawConfig(debug=False)
     args = run_command.parse_args(config, run_args)
@@ -73,6 +36,60 @@ def main(argv=None):
         return 1
 
     return 0
+
+
+def partition_argv(command, argv):
+    if not argv:
+        return [], []
+
+    if '--' in argv:
+        i = argv.index('--')
+        return argv[:i], argv[i + 1:]
+
+    args = []
+    option = None
+    arg_map = command.arg_map
+    parser = command.get_arg_parser()
+    parse_optional = parser._parse_optional
+    hide_choices = Hide.choices()
+
+    for i, arg in enumerate(argv):
+        option_data = parse_optional(arg)
+        if option_data is not None:
+            # Arg looks like an option (according to argparse).
+            action, name, value = option_data
+            if name not in arg_map:
+                # Unknown option.
+                break
+            args.append(arg)
+            if value is None:
+                # The option's value will be expected on the next pass.
+                option = arg_map[name]
+            else:
+                # A value was supplied with -nVALUE, -n=VALUE, or
+                # --name=VALUE.
+                option = None
+        elif option is not None:
+            if option.takes_option_value:
+                args.append(arg)
+                option = None
+            elif option.name == 'hide' and arg in hide_choices:
+                args.append(arg)
+                option = None
+            else:
+                # Unexpected option value
+                break
+        else:
+            # The first arg doesn't look like an option (it's probably
+            # a command name).
+            break
+    else:
+        # All args were consumed by command; none remain.
+        i += 1
+
+    remaining = argv[i:]
+
+    return args, remaining
 
 
 if __name__ == '__main__':
