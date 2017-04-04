@@ -447,6 +447,13 @@ class Parameter:
     def __getattr__(self, name):
         return getattr(self._parameter, name)
 
+    def __str__(self):
+        string = '{kind} parameter: {self.name}{default} ({self.type.__name__})'
+        kind = 'Positional' if self.is_positional else 'Optional'
+        empty = self._parameter.default in (self._parameter.empty, None)
+        default = '' if empty else '[={self.default}]'.format_map(locals())
+        return string.format_map(locals())
+
 
 class HelpParameter(Parameter):
 
