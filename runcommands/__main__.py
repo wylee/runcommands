@@ -70,7 +70,7 @@ def partition_argv(command, argv):
                 # --name=VALUE.
                 option = None
         elif option is not None:
-            if option.takes_option_value:
+            if option.takes_value:
                 args.append(arg)
                 option = None
             elif option.name == 'hide' and arg in hide_choices:
