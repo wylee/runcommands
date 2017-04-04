@@ -436,6 +436,7 @@ class Parameter:
         self.is_positional = default is empty
         self.is_optional = not self.is_positional
 
+        self.type = str if default in (None, empty) else type(default)
         self.is_bool = isinstance(default, bool)
         self.is_dict = isinstance(default, dict)
         self.is_list = isinstance(default, (list, tuple))
@@ -454,6 +455,7 @@ class HelpParameter(Parameter):
         self.default = False
         self.is_positional = False
         self.is_optional = True
+        self.type = bool
         self.is_bool = True
         self.is_dict = False
         self.is_list = False
