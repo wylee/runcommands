@@ -243,11 +243,9 @@ class CommandRunner:
         def print_commands():
             print(' '.join(commands))
 
-        def print_command_options(command, excluded):
-            options = ['--help']
-            options.extend(
-                opt for opt in command.arg_map
-                if opt.startswith('--') and opt not in excluded)
+        def print_command_options(command, excludes):
+            options = [option for option in command.arg_map if option.startswith('--')]
+            options = [option for option in options if option not in excludes]
             print(' '.join(options))
 
         found_command, excluded = find_command()

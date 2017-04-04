@@ -303,6 +303,9 @@ class Command:
             arg_names = self.arg_names_for_param(param)
             for arg_name in arg_names:
                 arg_map[arg_name] = param
+        help_param = HelpParameter()
+        arg_map.setdefault('-h', help_param)
+        arg_map.setdefault('--help', help_param)
         return arg_map
 
     @cached_property
@@ -442,6 +445,21 @@ class Parameter:
 
     def __getattr__(self, name):
         return getattr(self._parameter, name)
+
+
+class HelpParameter(Parameter):
+
+    def __init__(self):
+        self._parameter = None
+        self.default = False
+        self.is_bool = True
+        self.is_dict = False
+        self.is_list = False
+        self.is_positional = False
+        self.is_optional = True
+        self.position = None
+        self.takes_option_value = False
+        self.takes_value = False
 
 
 class BoolOr:
