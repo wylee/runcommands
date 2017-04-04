@@ -429,15 +429,18 @@ command = Command.command
 class Parameter:
 
     def __init__(self, parameter, position):
+        default = parameter.default
+        empty = parameter.empty
         self._parameter = parameter
-        self.is_bool = isinstance(parameter.default, bool)
-        self.is_dict = isinstance(parameter.default, dict)
-        self.is_list = isinstance(parameter.default, (list, tuple))
-        self.is_positional = parameter.default is parameter.empty
+
+        self.is_positional = default is empty
         self.is_optional = not self.is_positional
+
+        self.is_bool = isinstance(default, bool)
+        self.is_dict = isinstance(default, dict)
+        self.is_list = isinstance(default, (list, tuple))
+
         self.position = position
-
-
         self.takes_value = self.is_positional or (self.is_optional and not self.is_bool)
 
     def __getattr__(self, name):
@@ -449,11 +452,11 @@ class HelpParameter(Parameter):
     def __init__(self):
         self._parameter = None
         self.default = False
+        self.is_positional = False
+        self.is_optional = True
         self.is_bool = True
         self.is_dict = False
         self.is_list = False
-        self.is_positional = False
-        self.is_optional = True
         self.position = None
         self.takes_value = False
 
