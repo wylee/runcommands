@@ -1,6 +1,5 @@
 import argparse
 import inspect
-import json
 import os
 import time
 from collections import OrderedDict
@@ -527,8 +526,8 @@ class DictAddAction(argparse.Action):
             value = 'null'
 
         try:
-            value = json.loads(value)
-        except ValueError:
+            value = RawConfig._decode_value(name, value)
+        except ConfigError:
             pass
 
         items[name] = value
@@ -537,3 +536,7 @@ class DictAddAction(argparse.Action):
 class CommandError(RunCommandsError):
 
     pass
+
+
+# Avoid circular import
+from .config import ConfigError, RawConfig  # noqa

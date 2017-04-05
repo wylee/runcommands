@@ -56,13 +56,22 @@ class RawConfig(OrderedDict):
         return parser
 
     @classmethod
+    def _decode_value(cls, name, value):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            msg = 'Could not read {name} from config (not valid JSON): {value}'
+            raise ConfigError(msg.format_map(locals()))
+        return value
+
+    @classmethod
     def _get_envs(cls, file_name):
         parser = cls._make_config_parser(file_name)
         sections = set(parser.sections())
         for name in parser:
             extends = parser.get(name, 'extends', fallback=None)
             if extends:
-                extends = json.loads(extends)
+                extends = cls._decode_value('extends', extends)
                 sections.update(cls._get_envs(extends))
         return sorted(sections)
 
@@ -142,11 +151,11 @@ class RawConfig(OrderedDict):
 
         extends = section.get('extends')
         if extends:
-            extends = json.loads(extends)
+            extends = self._decode_value('extends', extends)
             self._read_from_file(extends, env)
 
         for name, value in section.items():
-            value = json.loads(value)
+            value = self._decode_value(name, value)
             self._set_dotted(name, value)
 
         if env and '__ENV_SECTION_FOUND_IN_FILE__' not in self:
