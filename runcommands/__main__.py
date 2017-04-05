@@ -1,5 +1,6 @@
 import os
 import sys
+from configparser import ConfigParser
 
 from .config import RawConfig
 from .exc import RunCommandsError
@@ -13,8 +14,14 @@ def main(argv=None):
     run_command = command(run, type={'hide': bool_or(str)}, choices={'hide': Hide.choices()})
     run_args, command_args = partition_argv(run_command, argv)
 
+    args, remaining = read_default_args_from_file(run_command)
+
+    if remaining:
+        printer.error('Unknown args read from setup.cfg: %s' % ' '.join(remaining))
+        return 1
+
     config = RawConfig(debug=False)
-    args = run_command.parse_args(config, run_args)
+    args.update(run_command.parse_args(config, run_args))
 
     config_file = args.get('config_file')
     if config_file is None:
@@ -36,6 +43,57 @@ def main(argv=None):
         return 1
 
     return 0
+
+
+def read_default_args_from_file(command):
+    if not os.path.isfile('setup.cfg'):
+        return {}, []
+
+    config_parser = ConfigParser()
+    config_parser.optionxform = lambda s: s
+    with open('setup.cfg') as setup_fp:
+        config_parser.read_file(setup_fp)
+
+    if 'runcommands' not in config_parser:
+        return {}, []
+
+    items = config_parser.items('runcommands')
+    arg_map = command.arg_map
+    arg_parser = command.get_arg_parser()
+    argv = []
+
+    for name, value in items:
+        option_name = '--{name}'.format(name=name)
+        option = arg_map.get(option_name)
+
+        true_values = ('true', 't', 'yes', 'y', '1')
+        false_values = ('false', 'f', 'no', 'n', '0')
+        bool_values = true_values + false_values
+
+        is_bool = option is not None and option.is_bool
+
+        if option.name == 'hide' and value not in bool_values:
+            is_bool = False
+
+        if is_bool:
+            true = value in true_values
+            if name == 'no':
+                item = '--no' if true else '--yes'
+            elif name.startswith('no-'):
+                option_yes_name = '--{name}'.format(name=name[3:])
+                item = option_name if true else option_yes_name
+            elif name == 'yes':
+                item = '--yes' if true else '--no'
+            else:
+                option_no_name = '--no-{name}'.format(name=name)
+                item = option_name if true else option_no_name
+        else:
+            item = '--{name}={value}'.format(name=name, value=value)
+
+        argv.append(item)
+
+    args, remaining = arg_parser.parse_known_args(argv)
+    return vars(args), remaining
 
 
 def partition_argv(command, argv):
