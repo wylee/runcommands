@@ -10,33 +10,27 @@ from .util import printer, Hide
 
 
 def main(argv=None):
-    argv = sys.argv[1:] if argv is None else argv
-    run_command = command(run, type={'hide': bool_or(str)}, choices={'hide': Hide.choices()})
-    run_args, command_args = partition_argv(run_command, argv)
-
-    args, remaining = read_default_args_from_file(run_command)
-
-    if remaining:
-        printer.error('Unknown args read from setup.cfg: %s' % ' '.join(remaining))
-        return 1
-
-    config = RawConfig(debug=False)
-    args.update(run_command.parse_args(config, run_args))
-
-    config_file = args.get('config_file')
-    if config_file is None:
-        if os.path.exists('commands.cfg'):
-            args['config_file'] = 'commands.cfg'
-
-    options = args.get('options', {})
-    for name, value in options.items():
-        if name in run_command.optionals:
-            printer.error(
-                'Cannot pass {name} via -o; use --{option_name} instead'
-                .format(name=name, option_name=name.replace('_', '-')))
-            return 1
-
     try:
+        argv = sys.argv[1:] if argv is None else argv
+        config = RawConfig(debug=False)
+        run_command = command(run, type={'hide': bool_or(str)}, choices={'hide': Hide.choices()})
+
+        run_args, command_args = partition_argv(run_command, argv)
+        args = read_default_args_from_file(run_command)
+        args.update(run_command.parse_args(config, run_args))
+
+        config_file = args.get('config_file')
+        if config_file is None:
+            if os.path.exists('commands.cfg'):
+                args['config_file'] = 'commands.cfg'
+
+        options = args.get('options', {})
+        for name, value in options.items():
+            if name in run_command.optionals:
+                raise RunCommandsError(
+                    'Cannot pass {name} via -o; use --{option_name} instead'
+                    .format(name=name, option_name=name.replace('_', '-')))
+
         run((argv, run_args, command_args), **args)
     except RunCommandsError as exc:
         printer.error(exc, file=sys.stderr)
@@ -47,7 +41,7 @@ def main(argv=None):
 
 def read_default_args_from_file(command):
     if not os.path.isfile('setup.cfg'):
-        return {}, []
+        return {}
 
     config_parser = ConfigParser()
     config_parser.optionxform = lambda s: s
@@ -55,7 +49,7 @@ def read_default_args_from_file(command):
         config_parser.read_file(setup_fp)
 
     if 'runcommands' not in config_parser:
-        return {}, []
+        return {}
 
     items = config_parser.items('runcommands')
     arg_map = command.arg_map
@@ -93,7 +87,11 @@ def read_default_args_from_file(command):
         argv.append(item)
 
     args, remaining = arg_parser.parse_known_args(argv)
-    return vars(args), remaining
+
+    if remaining:
+        raise RunCommandsError('Unknown args read from setup.cfg: %s' % ' '.join(remaining))
+
+    return vars(args)
 
 
 def partition_argv(command, argv):
