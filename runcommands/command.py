@@ -221,6 +221,9 @@ class Command:
         short_name = '-{arg_name[0]}'.format(arg_name=arg_name)
         long_name = '--{arg_name}'.format(arg_name=arg_name)
 
+        if (param.is_dict or param.is_list) and len(arg_name) > 1 and long_name.endswith('s'):
+            long_name = long_name[:-1]
+
         first_char = name[0]
 
         names_that_start_with_first_char = [n for n in params if n.startswith(first_char)]
@@ -383,6 +386,10 @@ class Command:
                 parser.add_argument(*arg_names, **kwargs)
             else:
                 kwargs['dest'] = name
+
+                if (param.is_dict or param.is_list) and len(name) > 1 and name.endswith('s'):
+                    kwargs['metavar'] = name[:-1].upper()
+
                 if is_bool_or:
                     # Allow --xyz or --xyz=<value>
                     true_or_value_kwargs = kwargs.copy()
