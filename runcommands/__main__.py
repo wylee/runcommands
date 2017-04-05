@@ -107,7 +107,6 @@ def partition_argv(command, argv):
     arg_map = command.arg_map
     parser = command.get_arg_parser()
     parse_optional = parser._parse_optional
-    hide_choices = Hide.choices()
 
     for i, arg in enumerate(argv):
         option_data = parse_optional(arg)
@@ -126,10 +125,11 @@ def partition_argv(command, argv):
                 # --name=VALUE.
                 option = None
         elif option is not None:
+            choices = action.choices or ()
             if option.takes_value:
                 args.append(arg)
                 option = None
-            elif option.name == 'hide' and arg in hide_choices:
+            elif arg in choices or hasattr(choices, arg):
                 args.append(arg)
                 option = None
             else:

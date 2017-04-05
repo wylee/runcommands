@@ -3,6 +3,7 @@ import inspect
 import os
 import time
 from collections import OrderedDict
+from enum import Enum
 
 from .exc import RunCommandsError
 from .util import Hide, cached_property, get_hr, printer
@@ -364,11 +365,15 @@ class Command:
 
             if isinstance(arg_type, type):
                 is_dict = issubclass(arg_type, dict)
+                is_enum = issubclass(arg_type, Enum)
             else:
                 is_dict = False
+                is_enum = False
 
             if name in self.choices:
                 kwargs['choices'] = self.choices[name]
+            elif is_enum:
+                kwargs['choices'] = arg_type
 
             if param.is_positional:
                 # Make positionals optional if a default value is
