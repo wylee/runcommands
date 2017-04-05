@@ -349,18 +349,26 @@ class Command:
                 'help': self.help_text.get(name),
             }
 
-            choices = self.choices.get(name)
-            if choices:
-                kwargs['choices'] = choices
-
             if name in self.types:
                 kwargs['type'] = self.types[name]
             elif not param.is_bool and not param.is_dict and not param.is_list:
                 kwargs['type'] = param.type
 
-            type_ = kwargs.get('type')
+            arg_type = kwargs.get('type')
 
-            is_dict_type = type_ is dict or type_ == 'dict' or param.is_dict
+            if isinstance(arg_type, BoolOr):
+                arg_type = arg_type.type
+                is_bool_or = True
+            else:
+                is_bool_or = False
+
+            if isinstance(arg_type, type):
+                is_dict = issubclass(arg_type, dict)
+            else:
+                is_dict = False
+
+            if name in self.choices:
+                kwargs['choices'] = self.choices[name]
 
             if param.is_positional:
                 # Make positionals optional if a default value is
@@ -371,7 +379,7 @@ class Command:
                 parser.add_argument(*arg_names, **kwargs)
             else:
                 kwargs['dest'] = name
-                if isinstance(type_, bool_or):
+                if is_bool_or:
                     # Allow --xyz or --xyz=<value>
                     true_or_value_kwargs = kwargs.copy()
                     true_or_value_kwargs['action'] = BoolOrAction
@@ -387,7 +395,7 @@ class Command:
                 elif param.is_bool:
                     parser.add_argument(*arg_names[:-1], action='store_true', **kwargs)
                     parser.add_argument(arg_names[-1], action='store_false', **kwargs)
-                elif is_dict_type:
+                elif param.is_dict or is_dict:
                     kwargs['action'] = DictAddAction
                     kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
