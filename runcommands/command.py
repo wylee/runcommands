@@ -520,7 +520,9 @@ class DictAddAction(argparse.Action):
         try:
             name, value = item.split('=', 1)
         except ValueError:
-            raise ValueError('Expected name=<json value> or name=<str value>') from None
+            raise CommandError(
+                'Bad format for {self.option_strings[0]}; expected: name=<value>; got: {item}'
+                .format_map(locals()))
 
         if not value:
             value = 'null'
