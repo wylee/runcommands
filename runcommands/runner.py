@@ -169,7 +169,7 @@ class CommandRunner:
         try:
             command = all_commands[name]
         except KeyError:
-            raise RunnerError('Unknown command: {name}'.format(name=name)) from None
+            raise RunnerError('Unknown command: {name}'.format(name=name))
 
         args = args[1:]
         command_args = []
