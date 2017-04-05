@@ -285,7 +285,10 @@ class Command:
                 position += 1
             else:
                 param_position = None
-            params[name] = Parameter(param, param_position)
+            param_type = self.types.get(name)
+            if isinstance(param_type, BoolOr):
+                param_type = param_type.type
+            params[name] = Parameter(param, param_position, type_=param_type)
         return params
 
     @cached_property
@@ -366,16 +369,9 @@ class Command:
             else:
                 is_bool_or = False
 
-            if isinstance(arg_type, type):
-                is_dict = issubclass(arg_type, dict)
-                is_enum = issubclass(arg_type, Enum)
-            else:
-                is_dict = False
-                is_enum = False
-
             if name in self.choices:
                 kwargs['choices'] = self.choices[name]
-            elif is_enum:
+            elif param.is_enum:
                 kwargs['choices'] = arg_type
 
             if param.is_positional:
@@ -403,12 +399,13 @@ class Command:
                 elif param.is_bool:
                     parser.add_argument(*arg_names[:-1], action='store_true', **kwargs)
                     parser.add_argument(arg_names[-1], action='store_false', **kwargs)
-                elif param.is_dict or is_dict:
+                elif param.is_dict:
                     kwargs['action'] = DictAddAction
                     kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
                 elif param.is_list:
                     kwargs['action'] = 'append'
+                    kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
                 else:
                     parser.add_argument(*arg_names, **kwargs)
@@ -441,7 +438,7 @@ command = Command.command
 
 class Parameter:
 
-    def __init__(self, parameter, position):
+    def __init__(self, parameter, position, type_=None):
         default = parameter.default
         empty = parameter.empty
         self._parameter = parameter
@@ -449,10 +446,18 @@ class Parameter:
         self.is_positional = default is empty
         self.is_optional = not self.is_positional
 
-        self.type = str if default in (None, empty) else type(default)
-        self.is_bool = isinstance(default, bool)
-        self.is_dict = isinstance(default, dict)
-        self.is_list = isinstance(default, (list, tuple))
+        if type_ is not None:
+            self.type = type_
+            self.is_bool = issubclass(type_, bool)
+            self.is_dict = issubclass(type_, dict)
+            self.is_enum = issubclass(type_, Enum)
+            self.is_list = issubclass(type_, (list, tuple))
+        else:
+            self.type = str if default in (None, empty) else type(default)
+            self.is_bool = isinstance(default, bool)
+            self.is_dict = isinstance(default, dict)
+            self.is_enum = isinstance(default, Enum)
+            self.is_list = isinstance(default, (list, tuple))
 
         self.position = position
         self.takes_value = self.is_positional or (self.is_optional and not self.is_bool)
