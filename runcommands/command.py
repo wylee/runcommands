@@ -356,9 +356,7 @@ class Command:
             if name in self.types:
                 kwargs['type'] = self.types[name]
             elif not param.is_bool and not param.is_dict and not param.is_list:
-                for type_ in (int, float, complex):
-                    if isinstance(default, type_):
-                        kwargs['type'] = type_
+                kwargs['type'] = param.type
 
             type_ = kwargs.get('type')
 
