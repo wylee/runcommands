@@ -475,8 +475,7 @@ class HelpParameter(Parameter):
         self.takes_value = False
 
 
-class BoolOr:
-
+def bool_or(inner_type):
     """Used to indicate that an arg can be a flag or an option.
     
     Used like this::
@@ -496,15 +495,19 @@ class BoolOr:
         default for the option is a bool.
 
     """
+    return BoolOr(inner_type)
+
+
+class BoolOr:
 
     def __init__(self, type_):
         self.type = type_
 
-    def __call__(self, value):
-        return self.type(value)
+    def __call__(self, *args, **kwargs):
+        return self.type(*args, **kwargs)
 
-
-bool_or = BoolOr
+    def __repr__(self):
+        return self.type.__name__
 
 
 class BoolOrAction(argparse.Action):
