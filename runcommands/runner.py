@@ -120,6 +120,7 @@ class CommandRunner:
 
     def load_config(self, env=None):
         return Config(
+            commands_module=self.commands_module,
             config_file=self.config_file,
             env=env or self.env,
             run=RawConfig(echo=self.default_echo, hide=self.default_hide),
