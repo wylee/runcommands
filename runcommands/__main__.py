@@ -5,15 +5,15 @@ from configparser import ConfigParser
 from .config import RawConfig
 from .exc import RunCommandsError
 from .runner import run
-from .command import bool_or, Command
-from .util import printer, Hide
+from .command import Command
+from .util import printer
 
 
 def main(argv=None):
     try:
         argv = sys.argv[1:] if argv is None else argv
         config = RawConfig(debug=False)
-        run_command = Command(run, type={'hide': bool_or(str)}, choices={'hide': Hide.choices()})
+        run_command = Command(run)
 
         run_args, command_args = partition_argv(run_command, argv)
         args = read_default_args_from_file(run_command)

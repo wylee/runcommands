@@ -14,10 +14,6 @@ class Hide(enum.Enum):
     all = 'all'
 
     @classmethod
-    def choices(cls):
-        return [member.name for member in cls]
-
-    @classmethod
     def hide_stdout(cls, value):
         if value is None:
             return False
@@ -32,6 +28,9 @@ class Hide(enum.Enum):
         if isinstance(value, bool):
             return value
         return cls(value) in (cls.stderr, cls.all)
+
+    def __str__(self):
+        return self.name
 
 
 class cached_property:

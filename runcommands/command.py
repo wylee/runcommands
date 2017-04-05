@@ -82,6 +82,9 @@ class Command:
         self.qualified_name = '.'.join((implementation.__module__, implementation.__qualname__))
         self.defaults_path = '.'.join(('defaults', self.qualified_name))
 
+        if 'hide' in self.optionals and 'hide' not in self.types:
+            self.types['hide'] = bool_or(Hide)
+
     @classmethod
     def command(cls, name_or_wrapped=None, description=None, help=None, type=None, choices=None,
                 env=None, default_env=None, config=None, timed=False):
