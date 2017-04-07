@@ -8,7 +8,7 @@ from locale import getpreferredencoding
 from subprocess import check_output
 
 from .command import command
-from .exc import RunCommandsError
+from .exc import ConfigError
 from .util import abort, abs_path, load_object
 
 
@@ -16,11 +16,6 @@ __all__ = ['show_config']
 
 
 NO_DEFAULT = object()
-
-
-class ConfigError(RunCommandsError):
-
-    pass
 
 
 class RawConfig(OrderedDict):

@@ -8,7 +8,7 @@ from shutil import get_terminal_size
 from . import __version__
 from .command import Command
 from .config import Config, RawConfig
-from .exc import RunCommandsError
+from .exc import RunnerError
 from .util import abs_path, printer
 
 
@@ -76,7 +76,7 @@ def run(args,
 
     for name, value in options.items():
         if name in run_command.optionals:
-            raise RunCommandsError(
+            raise RunnerError(
                 'Cannot pass {name} via --option; use --{option_name} instead'
                 .format(name=name, option_name=name.replace('_', '-')))
 
@@ -108,11 +108,6 @@ def run(args,
 
 
 run_command = Command(run)
-
-
-class RunnerError(RunCommandsError):
-
-    pass
 
 
 class CommandRunner:
