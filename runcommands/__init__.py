@@ -4,7 +4,7 @@ from .command import DEFAULT_ENV, bool_or, command
 
 
 __all__ = ['__version__', 'DEFAULT_ENV', 'bool_or', 'command']
-__version__ = '1.0a14'
+__version__ = '1.0a15.dev0'
 
 
 def configure(default_env=None):
