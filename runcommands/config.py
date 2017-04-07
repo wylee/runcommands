@@ -18,6 +18,11 @@ __all__ = ['show_config']
 NO_DEFAULT = object()
 
 
+class ConfigError(RunCommandsError):
+
+    pass
+
+
 class RawConfig(OrderedDict):
 
     def __init__(self, *args, _overrides={}, _read_file=True, **kwargs):
@@ -240,11 +245,6 @@ class Config(RawConfig):
         if lazy and name not in self:
             default = default(*args, **(kwargs or {}))
         return super().setdefault(name, default)
-
-
-class ConfigError(RunCommandsError):
-
-    pass
 
 
 class ConfigParser(RawConfigParser):

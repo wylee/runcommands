@@ -15,6 +15,11 @@ __all__ = ['DEFAULT_ENV', 'command']
 DEFAULT_ENV = object()
 
 
+class CommandError(RunCommandsError):
+
+    pass
+
+
 class Command:
 
     """Command.
@@ -133,11 +138,11 @@ class Command:
         # access to only the default config).
         return specified_env or self.default_env
 
-    def run(self, config, args):
+    def run(self, config, argv):
         if self.timed:
             start_time = time.monotonic()
 
-        kwargs = self.parse_args(config, args)
+        kwargs = self.parse_args(config, argv)
         result = self(config, **kwargs)
 
         if self.timed:
@@ -568,11 +573,6 @@ class DictAddAction(argparse.Action):
             pass
 
         items[name] = value
-
-
-class CommandError(RunCommandsError):
-
-    pass
 
 
 # Avoid circular import

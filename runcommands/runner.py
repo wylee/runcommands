@@ -6,9 +6,9 @@ from itertools import chain
 from shutil import get_terminal_size
 
 from . import __version__
+from .command import Command
 from .config import Config, RawConfig
 from .exc import RunCommandsError
-from .command import Command
 from .util import abs_path, printer
 
 
@@ -68,6 +68,10 @@ def run(args,
         printer.debug('Command args:', command_argv)
         echo = True
 
+    if config_file is None:
+        if os.path.isfile(DEFAULT_CONFIG_FILE):
+            config_file = DEFAULT_CONFIG_FILE
+
     options = options.copy()
 
     for name, value in options.items():
@@ -106,15 +110,15 @@ def run(args,
 run_command = Command(run)
 
 
+class RunnerError(RunCommandsError):
+
+    pass
+
+
 class CommandRunner:
 
     def __init__(self, commands_module=DEFAULT_COMMANDS_MODULE, config_file=None, env=None,
                  options=None, default_echo=False, default_hide=False, debug=False):
-        # A config file is not required. If the default config file is
-        # present, use it.
-        if config_file is None and os.path.isfile(DEFAULT_CONFIG_FILE):
-            config_file = DEFAULT_CONFIG_FILE
-
         self.commands_module = commands_module
         self.config_file = config_file
         self.env = env
@@ -263,7 +267,7 @@ class CommandRunner:
             for word in reversed(words[:index]):
                 if word in commands:
                     return commands[word], ()
-            return Command(run), {'--complete', '--words', '--word-index'}
+            return run_command, {'--complete', '--words', '--word-index'}
 
         def print_commands():
             print(' '.join(commands))
@@ -287,8 +291,3 @@ class CommandRunner:
             else:
                 print_command_options(found_command, excluded)
                 print_commands()
-
-
-class RunnerError(RunCommandsError):
-
-    pass
