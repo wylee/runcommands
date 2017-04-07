@@ -4,34 +4,17 @@ from configparser import ConfigParser
 
 from .config import RawConfig
 from .exc import RunCommandsError
-from .runner import run
-from .command import Command
+from .runner import run, run_command
 from .util import printer
 
 
 def main(argv=None):
     try:
-        argv = sys.argv[1:] if argv is None else argv
         config = RawConfig(debug=False)
-        run_command = Command(run)
-
-        run_args, command_args = partition_argv(run_command, argv)
-        args = read_default_args_from_file(run_command)
-        args.update(run_command.parse_args(config, run_args))
-
-        config_file = args.get('config_file')
-        if config_file is None:
-            if os.path.exists('commands.cfg'):
-                args['config_file'] = 'commands.cfg'
-
-        options = args.get('options', {})
-        for name, value in options.items():
-            if name in run_command.optionals:
-                raise RunCommandsError(
-                    'Cannot pass {name} via -o; use --{option_name} instead'
-                    .format(name=name, option_name=name.replace('_', '-')))
-
-        run((argv, run_args, command_args), **args)
+        run_argv, command_argv = partition_argv(argv)
+        run_args = read_default_args_from_file()
+        run_args.update(run_command.parse_args(config, run_argv))
+        run((argv, run_argv, command_argv), **run_args)
     except RunCommandsError as exc:
         printer.error(exc, file=sys.stderr)
         return 1
@@ -39,7 +22,7 @@ def main(argv=None):
     return 0
 
 
-def read_default_args_from_file(command):
+def read_default_args_from_file():
     """Read default run args from file.
 
     Defaults will be read from the ``[runcommands]`` section of either
@@ -57,15 +40,15 @@ def read_default_args_from_file(command):
 
     config_parser = ConfigParser()
     config_parser.optionxform = lambda s: s
-    with open('setup.cfg') as setup_fp:
-        config_parser.read_file(setup_fp)
+    with open(file_name) as config_parser_fp:
+        config_parser.read_file(config_parser_fp)
 
     if 'runcommands' not in config_parser:
         return {}
 
     items = config_parser.items('runcommands')
-    arg_map = command.arg_map
-    arg_parser = command.get_arg_parser()
+    arg_map = run_command.arg_map
+    arg_parser = run_command.get_arg_parser()
     argv = []
 
     for name, value in items:
@@ -108,7 +91,10 @@ def read_default_args_from_file(command):
     return vars(args)
 
 
-def partition_argv(command, argv):
+def partition_argv(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+
     if not argv:
         return [], []
 
@@ -118,8 +104,8 @@ def partition_argv(command, argv):
 
     args = []
     option = None
-    arg_map = command.arg_map
-    parser = command.get_arg_parser()
+    arg_map = run_command.arg_map
+    parser = run_command.get_arg_parser()
     parse_optional = parser._parse_optional
 
     for i, arg in enumerate(argv):

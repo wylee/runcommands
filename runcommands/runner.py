@@ -12,18 +12,27 @@ from .command import Command
 from .util import abs_path, printer
 
 
+DEFAULT_COMMANDS_MODULE = 'commands.py'
+DEFAULT_CONFIG_FILE = 'commands.cfg'
+
+
 def run(args,
+        module=DEFAULT_COMMANDS_MODULE,
+        # config
         config_file=None,
         env=None,
+        # options
         options={},
         version=None,
-        module='commands.py',
-        list_commands=False,
-        list_envs=False,
+        # output
         echo=False,
         hide=False,
-        info=False,
         debug=False,
+        # info/help
+        info=False,
+        list_commands=False,
+        list_envs=False,
+        # completion
         complete=False,
         words=(),
         word_index=0):
@@ -45,9 +54,9 @@ def run(args,
     a value and not a command name.
 
     """
-    argv, run_args, command_args = args
+    argv, run_argv, command_argv = args
 
-    show_info = info or list_commands or list_envs or not command_args or debug
+    show_info = info or list_commands or list_envs or not command_argv or debug
     print_and_exit = info or list_commands or list_envs
 
     if show_info:
@@ -55,20 +64,26 @@ def run(args,
 
     if debug:
         printer.debug('All args:', argv)
-        printer.debug('Run args:', run_args)
-        printer.debug('Command args:', command_args)
+        printer.debug('Run args:', run_argv)
+        printer.debug('Command args:', command_argv)
         echo = True
 
-    options = options or {}
+    options = options.copy()
+
+    for name, value in options.items():
+        if name in run_command.optionals:
+            raise RunCommandsError(
+                'Cannot pass {name} via --option; use --{option_name} instead'
+                .format(name=name, option_name=name.replace('_', '-')))
 
     if version is not None:
         options['version'] = version
 
     runner = CommandRunner(
+        commands_module=module,
         config_file=config_file,
         env=env,
         options=options,
-        commands_module=module,
         default_echo=echo,
         default_hide=hide,
         debug=debug,
@@ -81,17 +96,26 @@ def run(args,
             runner.print_envs()
         if list_commands:
             runner.print_usage()
-    elif not command_args:
+    elif not command_argv:
         printer.warning('\nNo command(s) specified')
         runner.print_usage()
     else:
-        runner.run(command_args)
+        runner.run(command_argv)
+
+
+run_command = Command(run)
 
 
 class CommandRunner:
 
-    def __init__(self, config_file=None, env=None, options=None, commands_module='commands.py',
-                 default_echo=False, default_hide=False, debug=False):
+    def __init__(self, commands_module=DEFAULT_COMMANDS_MODULE, config_file=None, env=None,
+                 options=None, default_echo=False, default_hide=False, debug=False):
+        # A config file is not required. If the default config file is
+        # present, use it.
+        if config_file is None and os.path.isfile(DEFAULT_CONFIG_FILE):
+            config_file = DEFAULT_CONFIG_FILE
+
+        self.commands_module = commands_module
         self.config_file = config_file
         self.env = env
         self.options = options if options is not None else {}

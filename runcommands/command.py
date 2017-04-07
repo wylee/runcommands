@@ -198,10 +198,10 @@ class Command:
 
         return self.implementation(config, *args, **kwargs)
 
-    def parse_args(self, config, args):
+    def parse_args(self, config, argv):
         if config.debug:
-            printer.debug('Parsing args for command `{self.name}`: {args}'.format(**locals()))
-        parsed_args = self.get_arg_parser(config).parse_args(args)
+            printer.debug('Parsing args for command `{self.name}`: {argv}'.format(**locals()))
+        parsed_args = self.get_arg_parser(config).parse_args(argv)
         parsed_args = vars(parsed_args)
         return parsed_args
 
@@ -324,6 +324,9 @@ class Command:
         return OrderedDict((n, self.arg_names_for_param(p)) for (n, p) in parameters)
 
     def get_arg_parser(self, config=None):
+        if config is None:
+            config = RawConfig()
+
         if self.description:
             description = self.description
         else:
@@ -345,7 +348,7 @@ class Command:
             argument_default=argparse.SUPPRESS,
         )
 
-        defaults = config._get_dotted(self.defaults_path, {}) if config else {}
+        defaults = config._get_dotted(self.defaults_path, {})
 
         for name, arg_names in self.param_map.items():
             param = self.parameters[name]
