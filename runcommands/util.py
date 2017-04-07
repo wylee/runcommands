@@ -17,13 +17,20 @@ class Hide(enum.Enum):
     def hide_stdout(cls, value):
         if value is None:
             return False
+        if isinstance(value, bool):
+            return value
         return cls(value) in (cls.stdout, cls.all)
 
     @classmethod
     def hide_stderr(cls, value):
         if value is None:
             return False
+        if isinstance(value, bool):
+            return value
         return cls(value) in (cls.stderr, cls.all)
+
+    def __str__(self):
+        return self.name
 
 
 class cached_property:
@@ -301,10 +308,10 @@ class Printer:
             colorize_kwargs = kwargs.copy()
             colorize_kwargs.pop('end', None)
             string = self.colorize(*args, color=color, **colorize_kwargs)
-            print(string, **kwargs)
+            print(string, file=file, **kwargs)
         else:
             args = [a for a in args if not isinstance(a, Color)]
-            print(*args, **kwargs)
+            print(*args, file=file, **kwargs)
 
     def header(self, *args, color=color_map['header'], **kwargs):
         self.print(*args, color=color, **kwargs)

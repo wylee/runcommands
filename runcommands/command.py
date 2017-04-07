@@ -1,9 +1,9 @@
 import argparse
 import inspect
-import json
 import os
 import time
 from collections import OrderedDict
+from enum import Enum
 
 from .exc import RunCommandsError
 from .util import Hide, cached_property, get_hr, printer
@@ -35,6 +35,8 @@ class Command:
             single arg. Positional args will be strings unless specified
             here. Types for options are derived from keyword arg values
             by default.
+        choices ({'arg name': list}): When given for an arg, the value
+            for the arg must be one of the specified choices.
         env (str): Env to run command in. If this is specified, the
             command *will* be run in this env and may *only* be run in
             this env. If this is set to :global:`DEFAULT_ENV`, the
@@ -57,7 +59,7 @@ class Command:
     """
 
     def __init__(self, implementation, name=None, description=None, help=None, type=None,
-                 env=None, default_env=None, config=None, timed=False):
+                 choices=(), env=None, default_env=None, config=None, timed=False):
         if env is not None and default_env is not None:
             raise CommandError('Only one of `env` or `default_env` may be specified')
 
@@ -72,6 +74,7 @@ class Command:
         self.description = description
         self.help_text = help or {}
         self.types = type or {}
+        self.choices = choices or {}
         self.env = env
         self.default_env = default_env
         self.config = config or {}
@@ -79,38 +82,32 @@ class Command:
         self.qualified_name = '.'.join((implementation.__module__, implementation.__qualname__))
         self.defaults_path = '.'.join(('defaults', self.qualified_name))
 
+        if 'hide' in self.optionals and 'hide' not in self.types:
+            self.types['hide'] = bool_or(Hide)
+
     @classmethod
-    def decorator(cls, name_or_wrapped=None, description=None, help=None, type=None, env=None,
-                  default_env=None, config=None, timed=False):
+    def command(cls, name_or_wrapped=None, description=None, help=None, type=None, choices=None,
+                env=None, default_env=None, config=None, timed=False):
+        args = dict(
+            description=description,
+            help=help,
+            type=type,
+            choices=choices,
+            env=env,
+            default_env=default_env,
+            config=config,
+            timed=timed,
+        )
+
         if callable(name_or_wrapped):
             wrapped = name_or_wrapped
-            name = None
-            return Command(
-                implementation=wrapped,
-                name=name,
-                description=description,
-                help=help,
-                type=type,
-                env=env,
-                default_env=default_env,
-                config=config,
-                timed=timed,
-            )
+            return Command(implementation=wrapped, **args)
         else:
             name = name_or_wrapped
 
         def wrapper(wrapped):
-            return Command(
-                implementation=wrapped,
-                name=name,
-                description=description,
-                help=help,
-                type=type,
-                env=env,
-                default_env=default_env,
-                config=config,
-                timed=timed,
-            )
+            return Command(implementation=wrapped, name=name, **args)
+
         return wrapper
 
     def get_run_env(self, specified_env):
@@ -178,11 +175,21 @@ class Command:
                 if not present and name in defaults:
                     kwargs[name] = defaults[name]
 
-        if 'echo' in params and 'echo' not in kwargs:
-            kwargs['echo'] = config._get_dotted('run.echo', False)
+        def set_run_default(option):
+            # If all of the following are true, the global default value
+            # for the option will be injected into the options passed to
+            # the command for this run:
+            #
+            # - This command defines the option.
+            # - The option was not passed explicitly on this run.
+            # - A global default is set for the option (it's not None).
+            if option in params and option not in kwargs:
+                global_default = config._get_dotted('run.%s' % option, None)
+                if global_default is not None:
+                    kwargs[option] = global_default
 
-        if 'hide' in params and params['hide'].default is None and 'hide' not in kwargs:
-            kwargs['hide'] = config._get_dotted('run.hide', 'none')
+        set_run_default('echo')
+        set_run_default('hide')
 
         if config.debug:
             printer.debug('Running command:', self.name)
@@ -191,10 +198,10 @@ class Command:
 
         return self.implementation(config, *args, **kwargs)
 
-    def parse_args(self, config, args):
+    def parse_args(self, config, argv):
         if config.debug:
-            printer.debug('Parsing args for command `{self.name}`: {args}'.format(**locals()))
-        parsed_args = self.get_arg_parser(config).parse_args(args)
+            printer.debug('Parsing args for command `{self.name}`: {argv}'.format(**locals()))
+        parsed_args = self.get_arg_parser(config).parse_args(argv)
         parsed_args = vars(parsed_args)
         return parsed_args
 
@@ -213,6 +220,9 @@ class Command:
         arg_names = []
         short_name = '-{arg_name[0]}'.format(arg_name=arg_name)
         long_name = '--{arg_name}'.format(arg_name=arg_name)
+
+        if (param.is_dict or param.is_list) and len(arg_name) > 1 and long_name.endswith('s'):
+            long_name = long_name[:-1]
 
         first_char = name[0]
 
@@ -278,7 +288,10 @@ class Command:
                 position += 1
             else:
                 param_position = None
-            params[name] = Parameter(param, param_position)
+            param_type = self.types.get(name)
+            if isinstance(param_type, BoolOr):
+                param_type = param_type.type
+            params[name] = Parameter(param, param_position, type_=param_type)
         return params
 
     @cached_property
@@ -299,6 +312,9 @@ class Command:
             arg_names = self.arg_names_for_param(param)
             for arg_name in arg_names:
                 arg_map[arg_name] = param
+        help_param = HelpParameter()
+        arg_map.setdefault('-h', help_param)
+        arg_map.setdefault('--help', help_param)
         return arg_map
 
     @cached_property
@@ -308,6 +324,9 @@ class Command:
         return OrderedDict((n, self.arg_names_for_param(p)) for (n, p) in parameters)
 
     def get_arg_parser(self, config=None):
+        if config is None:
+            config = RawConfig()
+
         if self.description:
             description = self.description
         else:
@@ -329,7 +348,7 @@ class Command:
             argument_default=argparse.SUPPRESS,
         )
 
-        defaults = config._get_dotted(self.defaults_path, {}) if config else {}
+        defaults = config._get_dotted(self.defaults_path, {})
 
         for name, arg_names in self.param_map.items():
             param = self.parameters[name]
@@ -346,9 +365,20 @@ class Command:
             if name in self.types:
                 kwargs['type'] = self.types[name]
             elif not param.is_bool and not param.is_dict and not param.is_list:
-                for type_ in (int, float, complex):
-                    if isinstance(default, type_):
-                        kwargs['type'] = type_
+                kwargs['type'] = param.type
+
+            arg_type = kwargs.get('type')
+
+            if isinstance(arg_type, BoolOr):
+                arg_type = arg_type.type
+                is_bool_or = True
+            else:
+                is_bool_or = False
+
+            if name in self.choices:
+                kwargs['choices'] = self.choices[name]
+            elif param.is_enum:
+                kwargs['choices'] = arg_type
 
             if param.is_positional:
                 # Make positionals optional if a default value is
@@ -359,15 +389,33 @@ class Command:
                 parser.add_argument(*arg_names, **kwargs)
             else:
                 kwargs['dest'] = name
-                if param.is_bool:
+
+                if (param.is_dict or param.is_list) and len(name) > 1 and name.endswith('s'):
+                    kwargs['metavar'] = name[:-1].upper()
+
+                if is_bool_or:
+                    # Allow --xyz or --xyz=<value>
+                    true_or_value_kwargs = kwargs.copy()
+                    true_or_value_kwargs['action'] = BoolOrAction
+                    true_or_value_kwargs['nargs'] = '?'
+                    true_or_value_arg_names = arg_names[:-1] if param.is_bool else arg_names
+                    parser.add_argument(*true_or_value_arg_names, **true_or_value_kwargs)
+                    if param.is_bool:
+                        # Allow --no-xyz
+                        false_kwargs = kwargs.copy()
+                        false_kwargs.pop('choices', None)
+                        false_kwargs.pop('type', None)
+                        parser.add_argument(arg_names[-1], action='store_false', **false_kwargs)
+                elif param.is_bool:
                     parser.add_argument(*arg_names[:-1], action='store_true', **kwargs)
                     parser.add_argument(arg_names[-1], action='store_false', **kwargs)
-                elif param.is_dict or kwargs.get('type') == 'dict':
+                elif param.is_dict:
                     kwargs['action'] = DictAddAction
                     kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
                 elif param.is_list:
                     kwargs['action'] = 'append'
+                    kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
                 else:
                     parser.add_argument(*arg_names, **kwargs)
@@ -395,28 +443,102 @@ class Command:
         return self.usage
 
 
-command = Command.decorator
+command = Command.command
 
 
 class Parameter:
 
-    def __init__(self, parameter, position):
+    def __init__(self, parameter, position, type_=None):
+        default = parameter.default
+        empty = parameter.empty
         self._parameter = parameter
-        self.is_bool = isinstance(parameter.default, bool)
-        self.is_dict = isinstance(parameter.default, dict)
-        self.is_list = isinstance(parameter.default, (list, tuple))
-        self.is_positional = parameter.default is parameter.empty
+
+        self.is_positional = default is empty
         self.is_optional = not self.is_positional
+
+        if type_ is not None:
+            self.type = type_
+            self.is_bool = issubclass(type_, bool)
+            self.is_dict = issubclass(type_, dict)
+            self.is_enum = issubclass(type_, Enum)
+            self.is_list = issubclass(type_, (list, tuple))
+        else:
+            self.type = str if default in (None, empty) else type(default)
+            self.is_bool = isinstance(default, bool)
+            self.is_dict = isinstance(default, dict)
+            self.is_enum = isinstance(default, Enum)
+            self.is_list = isinstance(default, (list, tuple))
+
         self.position = position
-
-        # Is optional *and* takes a value?
-        self.takes_option_value = self.is_optional and not self.is_bool
-
-        # Takes a value? Positionals always do. Optionals might.
-        self.takes_value = self.is_positional or self.takes_option_value
+        self.takes_value = self.is_positional or (self.is_optional and not self.is_bool)
 
     def __getattr__(self, name):
         return getattr(self._parameter, name)
+
+    def __str__(self):
+        string = '{kind} parameter: {self.name}{default} ({self.type.__name__})'
+        kind = 'Positional' if self.is_positional else 'Optional'
+        empty = self._parameter.default in (self._parameter.empty, None)
+        default = '' if empty else '[={self.default}]'.format_map(locals())
+        return string.format_map(locals())
+
+
+class HelpParameter(Parameter):
+
+    def __init__(self):
+        self._parameter = None
+        self.default = False
+        self.is_positional = False
+        self.is_optional = True
+        self.type = bool
+        self.is_bool = True
+        self.is_dict = False
+        self.is_list = False
+        self.position = None
+        self.takes_value = False
+
+
+def bool_or(inner_type):
+    """Used to indicate that an arg can be a flag or an option.
+    
+    Used like this::
+    
+        @command(type={'hide': bool_or(str)})
+        def local(config, cmd, hide=False):
+            "Run the specified command, possibly hiding its output."
+
+    Allows for this::
+
+        run local --hide all     # Hide everything
+        run local --hide         # Hide everything with less effort
+        run local --hide stdout  # Hide stdout only
+        run local --no-hide      # Don't hide anything
+
+    .. note:: The ``--no-<name>`` option will only be available when the
+        default for the option is a bool.
+
+    """
+    return BoolOr(inner_type)
+
+
+class BoolOr:
+
+    def __init__(self, type_):
+        self.type = type_
+
+    def __call__(self, *args, **kwargs):
+        return self.type(*args, **kwargs)
+
+    def __repr__(self):
+        return self.type.__name__
+
+
+class BoolOrAction(argparse.Action):
+
+    def __call__(self, parser, namespace, value, option_string=None):
+        if value is None:
+            value = True
+        setattr(namespace, self.dest, value)
 
 
 class DictAddAction(argparse.Action):
@@ -430,14 +552,16 @@ class DictAddAction(argparse.Action):
         try:
             name, value = item.split('=', 1)
         except ValueError:
-            raise ValueError('Expected name=<json value> or name=<str value>') from None
+            raise CommandError(
+                'Bad format for {self.option_strings[0]}; expected: name=<value>; got: {item}'
+                .format_map(locals()))
 
         if not value:
             value = 'null'
 
         try:
-            value = json.loads(value)
-        except ValueError:
+            value = RawConfig._decode_value(name, value)
+        except ConfigError:
             pass
 
         items[name] = value
@@ -446,3 +570,7 @@ class DictAddAction(argparse.Action):
 class CommandError(RunCommandsError):
 
     pass
+
+
+# Avoid circular import
+from .config import ConfigError, RawConfig  # noqa

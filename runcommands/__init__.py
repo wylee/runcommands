@@ -1,9 +1,10 @@
 import os
 
-from .command import DEFAULT_ENV, command
+from .command import DEFAULT_ENV, bool_or, command
 
-__all__ = ['DEFAULT_ENV', 'command', '__version__']
-__version__ = '1.0a13'
+
+__all__ = ['__version__', 'DEFAULT_ENV', 'bool_or', 'command']
+__version__ = '1.0a14'
 
 
 def configure(default_env=None):

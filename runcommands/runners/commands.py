@@ -36,7 +36,7 @@ def get_default_prepend_path(config):
 
 @command
 def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, sudo=False,
-          run_as=None, echo=False, hide=None, timeout=None, use_pty=True, abort_on_failure=True,
+          run_as=None, echo=False, hide=False, timeout=None, use_pty=True, abort_on_failure=True,
           inject_context=True):
     """Run a command locally.
 
@@ -85,7 +85,7 @@ def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, 
 
 @command
 def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
-           append_path=None, sudo=False, run_as=None, echo=False, hide=None, timeout=30,
+           append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
            abort_on_failure=True, inject_context=True, strategy=RemoteRunnerSSH):
     """Run a command on the remote host via SSH.
 

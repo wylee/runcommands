@@ -65,7 +65,7 @@ class RemoteRunner(Runner):
 class RemoteRunnerSSH(RemoteRunner):
 
     def run(self, cmd, host, user=None, cd=None, path=None, prepend_path=None,
-            append_path=None, sudo=False, run_as=None, echo=False, hide=None, timeout=30,
+            append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
             debug=False):
         # Runs a remote command by running ssh in a subprocess:
         #
@@ -92,7 +92,7 @@ class RemoteRunnerParamiko(RemoteRunner):
         super().__init__(*args, **kwargs)
 
     def run(self, cmd, host, user=None, cd=None, path=None, prepend_path=None,
-            append_path=None, sudo=False, run_as=None, echo=False, hide=None, timeout=30,
+            append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
             debug=False):
         user = user or getpass.getuser()
         path = self.munge_path(path, prepend_path, append_path)
