@@ -40,6 +40,13 @@ def main(argv=None):
 
 
 def read_default_args_from_file(command):
+    """Read default run args from file.
+
+    Defaults will be read from the ``[runcommands]`` section of either
+    ``runcommands.cfg`` or ``setup.cfg`` (if one of these files exists
+    and has that section).
+
+    """
     file_names = ('runcommands.cfg', 'setup.cfg')
 
     for file_name in file_names:
