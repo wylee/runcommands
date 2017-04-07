@@ -64,9 +64,11 @@ def read_default_args_from_file(command):
         false_values = ('false', 'f', 'no', 'n', '0')
         bool_values = true_values + false_values
 
-        is_bool = option is not None and option.is_bool
-
-        if option.name == 'hide' and value not in bool_values:
+        if option is not None:
+            is_bool = option.is_bool
+            if option.name == 'hide' and value not in bool_values:
+                is_bool = False
+        else:
             is_bool = False
 
         if is_bool:
