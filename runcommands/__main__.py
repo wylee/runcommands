@@ -40,7 +40,12 @@ def main(argv=None):
 
 
 def read_default_args_from_file(command):
-    if not os.path.isfile('setup.cfg'):
+    file_names = ('runcommands.cfg', 'setup.cfg')
+
+    for file_name in file_names:
+        if os.path.isfile(file_name):
+            break
+    else:
         return {}
 
     config_parser = ConfigParser()
