@@ -442,6 +442,9 @@ class Command:
     def __str__(self):
         return self.usage
 
+    def __repr__(self):
+        return 'Command(name={self.name})'.format(self=self)
+
 
 command = Command.command
 
