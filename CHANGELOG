@@ -1,8 +1,44 @@
 # RunCommands
 
-## 1.0a14 - unreleased
+## 1.0a14 - 2017-04-06
 
-In progress...
+### Added
+
+- Default args for the main script will now be read from `runcommands.cfg` or
+  `setup.cfg` if one of those is present and contains a `[runcommands]`
+  section.
+- Added ability to list available envs to main script (`--list-envs`).
+- Added support for bool-or-type options. This is used with `hide` options.
+- Added support for args that specify choices. Added `choices` arg to
+  `Command`.
+- Added support for `Enum` args. These args will be limited to the choices
+  specified by the enum.
+- `commands_module` is now included in config.
+
+### Changed/Improved
+
+- Command line option names for `dict` and `list` args are now made singular
+  when they end with an `s`. From the command line, dicts and lists are created
+  by using a given option multiple times. Using a singular name makes this more
+  clear.
+- Improved `show-config` command. Added `--flat` flag (don't nest config).
+  Added `--values` flag (show values only without keys. Added ability to
+  specify multiple items. Added `--exclude` option.
+- Made default type of `hide` args for all commands `bool_or(Hide)`.
+- Improved handling of arg types in general.
+- Removed fill/wrap code; use `textwrap.fill()` from the stdlib instead.
+- Wrapped entire body of main script in try block. `RunCommandsError` is now
+  raised in some places. These keep the main script from blowing up with
+  a stack trace in cases where it's better to abort with a nice error message.
+
+### Fixed
+
+- Fixed a one-off bug with `--` in the main script. Skip over it so it's not
+  treated as a command arg.
+- Fixed an issue in `Printer.print()` where the `file` arg wasn't being passed
+  down to `print()`, which was causing warning, error, and debug messages to be
+  sent to stdout instead of stderr.
+- Fixed `RawConfig` so it doesn't read files when adding items or cloning.
 
 ## 1.0a13 - 2017-03-30
 
