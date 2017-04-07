@@ -49,11 +49,14 @@ def read_default_args_from_file():
     items = config_parser.items('runcommands')
     arg_map = run_command.arg_map
     arg_parser = run_command.get_arg_parser()
+    option_template = '--{name} {value}'
     argv = []
 
     for name, value in items:
         option_name = '--{name}'.format(name=name)
         option = arg_map.get(option_name)
+
+        value = value.strip()
 
         true_values = ('true', 't', 'yes', 'y', '1')
         false_values = ('false', 'f', 'no', 'n', '0')
@@ -63,8 +66,12 @@ def read_default_args_from_file():
             is_bool = option.is_bool
             if option.name == 'hide' and value not in bool_values:
                 is_bool = False
+            is_dict = option.is_dict
+            is_list = option.is_list
         else:
             is_bool = False
+            is_dict = False
+            is_list = False
 
         if is_bool:
             true = value in true_values
@@ -78,10 +85,17 @@ def read_default_args_from_file():
             else:
                 option_no_name = '--no-{name}'.format(name=name)
                 item = option_name if true else option_no_name
+            argv.append(item)
+        elif is_dict or is_list:
+            values = value.splitlines()
+            if len(values) == 1:
+                values = values[0].split()
+            values = (v.strip() for v in values)
+            values = (v for v in values if v)
+            argv.extend(option_template.format(name=name, value=v) for v in values)
         else:
-            item = '--{name}={value}'.format(name=name, value=value)
-
-        argv.append(item)
+            item = option_template.format(name=name, value=value)
+            argv.append(item)
 
     args, remaining = arg_parser.parse_known_args(argv)
 
