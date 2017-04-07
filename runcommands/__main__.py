@@ -10,11 +10,11 @@ from .util import printer
 
 def main(argv=None):
     try:
+        all_argv, run_argv, command_argv = partition_argv(argv)
         config = RawConfig(debug=False)
-        run_argv, command_argv = partition_argv(argv)
         run_args = read_default_args_from_file()
         run_args.update(run_command.parse_args(config, run_argv))
-        run((argv, run_argv, command_argv), **run_args)
+        run((all_argv, run_argv, command_argv), **run_args)
     except RunCommandsError as exc:
         printer.error(exc, file=sys.stderr)
         return 1
@@ -110,13 +110,13 @@ def partition_argv(argv=None):
         argv = sys.argv[1:]
 
     if not argv:
-        return [], []
+        return argv, [], []
 
     if '--' in argv:
         i = argv.index('--')
-        return argv[:i], argv[i + 1:]
+        return argv, argv[:i], argv[i + 1:]
 
-    args = []
+    run_argv = []
     option = None
     arg_map = run_command.arg_map
     parser = run_command.get_arg_parser()
@@ -130,7 +130,7 @@ def partition_argv(argv=None):
             if name not in arg_map:
                 # Unknown option.
                 break
-            args.append(arg)
+            run_argv.append(arg)
             if value is None:
                 # The option's value will be expected on the next pass.
                 option = arg_map[name]
@@ -141,10 +141,10 @@ def partition_argv(argv=None):
         elif option is not None:
             choices = action.choices or ()
             if option.takes_value:
-                args.append(arg)
+                run_argv.append(arg)
                 option = None
             elif arg in choices or hasattr(choices, arg):
-                args.append(arg)
+                run_argv.append(arg)
                 option = None
             else:
                 # Unexpected option value
@@ -159,7 +159,7 @@ def partition_argv(argv=None):
 
     remaining = argv[i:]
 
-    return args, remaining
+    return argv, run_argv, remaining
 
 
 if __name__ == '__main__':
