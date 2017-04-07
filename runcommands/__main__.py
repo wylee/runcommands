@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from configparser import ConfigParser
 
@@ -11,10 +12,27 @@ from .util import printer
 def main(argv=None):
     try:
         all_argv, run_argv, command_argv = partition_argv(argv)
+
         config = RawConfig(debug=False)
-        run_args = read_default_args_from_file()
-        run_args.update(run_command.parse_args(config, run_argv))
-        run((all_argv, run_argv, command_argv), **run_args)
+        passed_run_args = run_command.parse_args(config, run_argv)
+
+        run_args = {}
+        config_parser = make_run_args_config_parser()
+
+        main_run_args = {}
+        main_run_args.update(read_run_args_from_file(config_parser, 'runcommands'))
+        main_run_args.update(passed_run_args)
+
+        for section in config_parser:
+            match = re.search(r'^runcommands:(?P<name>.+)$', section)
+            if match:
+                name = match.group('name')
+                command_run_args = {}
+                command_run_args.update(read_run_args_from_file(config_parser, section))
+                command_run_args.update(passed_run_args)
+                run_args[name] = command_run_args
+
+        run((all_argv, run_argv, command_argv, run_args), **main_run_args)
     except RunCommandsError as exc:
         printer.error(exc, file=sys.stderr)
         return 1
@@ -22,37 +40,32 @@ def main(argv=None):
     return 0
 
 
-def read_default_args_from_file():
-    """Read default run args from file.
-
-    Defaults will be read from the ``[runcommands]`` section of either
-    ``runcommands.cfg`` or ``setup.cfg`` (if one of these files exists
-    and has that section).
-
-    """
-    file_names = ('runcommands.cfg', 'setup.cfg')
-
-    for file_name in file_names:
-        if os.path.isfile(file_name):
-            break
+def read_run_args_from_file(parser, section):
+    if section == 'runcommands':
+        sections = ['runcommands']
+    elif section.startswith('runcommands:'):
+        sections = ['runcommands', section]
     else:
+        raise ValueError('Bad section: %s' % section)
+
+    sections = [section for section in sections if section in parser]
+
+    if not sections:
         return {}
 
-    config_parser = ConfigParser()
-    config_parser.optionxform = lambda s: s
-    with open(file_name) as config_parser_fp:
-        config_parser.read_file(config_parser_fp)
+    items = {}
+    for section in sections:
+        items.update(parser[section])
 
-    if 'runcommands' not in config_parser:
+    if not items:
         return {}
 
-    items = config_parser.items('runcommands')
     arg_map = run_command.arg_map
     arg_parser = run_command.get_arg_parser()
     option_template = '--{name} {value}'
     argv = []
 
-    for name, value in items:
+    for name, value in items.items():
         option_name = '--{name}'.format(name=name)
         option = arg_map.get(option_name)
 
@@ -103,6 +116,21 @@ def read_default_args_from_file():
         raise RunCommandsError('Unknown args read from setup.cfg: %s' % ' '.join(remaining))
 
     return vars(args)
+
+
+def make_run_args_config_parser():
+    file_names = ('runcommands.cfg', 'setup.cfg')
+
+    config_parser = ConfigParser(empty_lines_in_values=False)
+    config_parser.optionxform = lambda s: s
+
+    for file_name in file_names:
+        if os.path.isfile(file_name):
+            with open(file_name) as config_parser_fp:
+                config_parser.read_file(config_parser_fp)
+            break
+
+    return config_parser
 
 
 def partition_argv(argv=None):
