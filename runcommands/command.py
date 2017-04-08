@@ -1,11 +1,12 @@
 import argparse
 import inspect
 import os
+import sys
 import time
 from collections import OrderedDict
 from enum import Enum
 
-from .exc import CommandError
+from .exc import CommandError, RunCommandsError
 from .util import Hide, cached_property, get_hr, printer
 
 
@@ -146,6 +147,17 @@ class Command:
                 self.print_elapsed_time(time.monotonic() - start_time)
 
         return result
+
+    def console_script(self, argv=None):
+        if argv is None:
+            argv = sys.argv[1:]
+        try:
+            config = RawConfig(debug=False)
+            self.run(config, argv)
+        except RunCommandsError as exc:
+            printer.error(exc, file=sys.stderr)
+            return 1
+        return 0
 
     def __call__(self, config, *args, **kwargs):
         if self.config:
