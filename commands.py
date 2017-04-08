@@ -5,13 +5,43 @@ import shutil
 
 from runcommands import command
 from runcommands.commands import *
-from runcommands.util import abort, confirm, printer, prompt
+from runcommands.util import abort, asset_path, confirm, printer, prompt
 
 
 @command
 def install(config, where='.env', upgrade=False):
     pip = '{where}/bin/pip'.format(where=where)
     local(config, (pip, 'install', '--upgrade' if upgrade else '', '-e .[dev]'))
+
+
+@command
+def install_completion(config, shell='bash', to='~/.bashrc.d', overwrite=True):
+    """Install command line completion script.
+    
+    Currently, only Bash is supported. The script will be copied to the
+    directory ``~/.bashrc.d`` by default. If the script already exists
+    at that location, it will be overwritten by default.
+    
+    """
+    source = 'runcommands:completion/{shell}/runcommands.rc'.format(shell=shell)
+    source = asset_path(source)
+
+    destination = os.path.expanduser(to)
+
+    if os.path.isdir(destination):
+        to = os.path.join(to, 'runcommands.rc')
+        destination = os.path.join(destination, 'runcommands.rc')
+
+    printer.info('Installing', shell, 'completion script to', to)
+
+    if os.path.exists(destination):
+        if not overwrite:
+            overwrite = confirm(config, 'Overwrite?', abort_on_unconfirmed=True)
+        if overwrite:
+            printer.info('Overwriting', to)
+
+    shutil.copyfile(source, destination)
+    printer.info('Installed; remember to `source {to}`'.format(to=to))
 
 
 @command
