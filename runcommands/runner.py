@@ -16,7 +16,7 @@ DEFAULT_COMMANDS_MODULE = 'commands.py'
 DEFAULT_CONFIG_FILE = 'commands.cfg'
 
 
-def run(args,
+def run(config,
         module=DEFAULT_COMMANDS_MODULE,
         # config
         config_file=None,
@@ -54,7 +54,10 @@ def run(args,
     a value and not a command name.
 
     """
-    argv, run_argv, command_argv, run_args = args
+    argv = config.argv
+    run_argv = config.run_argv
+    command_argv = config.command_argv
+    run_args = config.run_args
 
     show_info = info or list_commands or list_envs or not command_argv or debug
     print_and_exit = info or list_commands or list_envs

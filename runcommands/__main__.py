@@ -32,7 +32,13 @@ def main(argv=None):
                 command_run_args.update(passed_run_args)
                 run_args[name] = command_run_args
 
-        run((all_argv, run_argv, command_argv, run_args), **main_run_args)
+        config.update(
+            argv=all_argv,
+            run_argv=run_argv,
+            command_argv=command_argv,
+            run_args=run_args,
+        )
+        run(config, **main_run_args)
     except RunCommandsError as exc:
         printer.error(exc, file=sys.stderr)
         return 1
