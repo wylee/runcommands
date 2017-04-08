@@ -3,10 +3,10 @@ function _complete_runcommands {
     local words=""
 
     for word in "${COMP_WORDS[@]}"; do
-        words="$words -w '$word'"
+        words="$words --word '$word'"
     done
 
-    local candidates=$(runcommands --complete ${words} --word-index $COMP_CWORD)
+    local candidates=$(runcommands-complete ${words} --index $COMP_CWORD)
 
     COMPREPLY=( $(compgen -W "${candidates}" -- $2) )
 }

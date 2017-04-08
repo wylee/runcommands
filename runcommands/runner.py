@@ -31,11 +31,7 @@ def run(config,
         # info/help
         info=False,
         list_commands=False,
-        list_envs=False,
-        # completion
-        complete=False,
-        words=(),
-        word_index=0):
+        list_envs=False):
     """Run one or more commands in succession.
 
     For example, assume the commands ``local`` and ``remote`` have been
@@ -96,9 +92,7 @@ def run(config,
         debug=debug,
     )
 
-    if complete:
-        runner.complete(words=words, index=word_index)
-    elif print_and_exit:
+    if print_and_exit:
         if list_envs:
             runner.print_envs()
         if list_commands:
@@ -262,42 +256,6 @@ class CommandRunner:
         return textwrap.fill(
             string, width=width, initial_indent=indent, subsequent_indent=indent,
             break_on_hyphens=False)
-
-    def complete(self, words=(), index=0):
-        words = [word[1:-1] for word in words]  # Strip quotes
-        current_word = words[index]
-        previous_word = words[index - 1] if index > 0 else None
-
-        commands = self.commands
-
-        def find_command():
-            for word in reversed(words[:index]):
-                if word in commands:
-                    return commands[word], ()
-            return run_command, {'--complete', '--words', '--word-index'}
-
-        def print_commands():
-            print(' '.join(commands))
-
-        def print_command_options(command, excludes):
-            options = [option for option in command.arg_map if option.startswith('--')]
-            options = [option for option in options if option not in excludes]
-            print(' '.join(options))
-
-        found_command, excluded = find_command()
-
-        if current_word.startswith('-'):
-            print_command_options(found_command, excluded)
-        else:
-            is_command_arg = previous_word in found_command.arg_map
-            command_arg = found_command.arg_map[previous_word] if is_command_arg else None
-            if is_command_arg and command_arg.takes_value:
-                # Don't print any candidates; this will cause the shell
-                # to display defaults (file names, etc).
-                pass
-            else:
-                print_command_options(found_command, excluded)
-                print_commands()
 
 
 class CommandToRun:

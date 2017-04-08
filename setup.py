@@ -25,6 +25,9 @@ setup(
     long_description=long_description,
     url='https://bitbucket.org/wyatt/runcommands',
     packages=find_packages(),
+    package_data={
+        'runcommands.completion': ['*/*'],
+    },
     install_requires=install_requires,
     extras_require={
         'dev': [
@@ -41,6 +44,7 @@ setup(
             'runcmd = runcommands.__main__:main',
             'runcommand = runcommands.__main__:main',
             'runcommands = runcommands.__main__:main',
+            'runcommands-complete = runcommands.completion:complete.console_script',
         ],
     },
     classifiers=[
