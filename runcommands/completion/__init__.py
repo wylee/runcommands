@@ -1,6 +1,7 @@
 from ..command import command
 from ..const import DEFAULT_COMMANDS_MODULE
-from ..runner import run_command, CommandRunner
+from ..run import run_command
+from ..runner import CommandRunner
 
 
 @command

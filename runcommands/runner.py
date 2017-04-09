@@ -5,103 +5,10 @@ from importlib.machinery import SourceFileLoader
 from itertools import chain
 from shutil import get_terminal_size
 
-from . import __version__
 from .command import Command
 from .config import Config, RawConfig
-from .const import DEFAULT_COMMANDS_MODULE, DEFAULT_CONFIG_FILE
 from .exc import RunnerError
 from .util import abs_path, printer
-
-
-def run(config,
-        module=DEFAULT_COMMANDS_MODULE,
-        # config
-        config_file=None,
-        env=None,
-        # options
-        options={},
-        version=None,
-        # output
-        echo=False,
-        hide=False,
-        debug=False,
-        # info/help
-        info=False,
-        list_commands=False,
-        list_envs=False):
-    """Run one or more commands in succession.
-
-    For example, assume the commands ``local`` and ``remote`` have been
-    defined; the following will run ``ls`` first on the local host and
-    then on the remote host::
-
-        runcommands local ls remote <host> ls
-
-    When a command name is encountered in ``argv``, it will be considered
-    the starting point of the next command *unless* the previous item in
-    ``argv`` was an option like ``--xyz`` that expects a value (i.e.,
-    it's not a flag).
-
-    To avoid ambiguity when an option value matches a command name, the
-    value can be prepended with a colon to force it to be considered
-    a value and not a command name.
-
-    """
-    argv = config.argv
-    run_argv = config.run_argv
-    command_argv = config.command_argv
-    run_args = config.run_args
-
-    show_info = info or list_commands or list_envs or not command_argv or debug
-    print_and_exit = info or list_commands or list_envs
-
-    if show_info:
-        print('RunCommands', __version__)
-
-    if debug:
-        printer.debug('All args:', argv)
-        printer.debug('Run args:', run_argv)
-        printer.debug('Command args:', command_argv)
-        echo = True
-
-    if config_file is None:
-        if os.path.isfile(DEFAULT_CONFIG_FILE):
-            config_file = DEFAULT_CONFIG_FILE
-
-    options = options.copy()
-
-    for name, value in options.items():
-        if name in run_command.optionals:
-            raise RunnerError(
-                'Cannot pass {name} via --option; use --{option_name} instead'
-                .format(name=name, option_name=name.replace('_', '-')))
-
-    if version is not None:
-        options['version'] = version
-
-    runner = CommandRunner(
-        module,
-        config_file=config_file,
-        env=env,
-        options=options,
-        echo=echo,
-        hide=hide,
-        debug=debug,
-    )
-
-    if print_and_exit:
-        if list_envs:
-            runner.print_envs()
-        if list_commands:
-            runner.print_usage()
-    elif not command_argv:
-        printer.warning('\nNo command(s) specified')
-        runner.print_usage()
-    else:
-        runner.run(command_argv, run_args)
-
-
-run_command = Command(run)
 
 
 class CommandRunner:
