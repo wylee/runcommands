@@ -8,12 +8,9 @@ from shutil import get_terminal_size
 from . import __version__
 from .command import Command
 from .config import Config, RawConfig
+from .const import DEFAULT_COMMANDS_MODULE, DEFAULT_CONFIG_FILE
 from .exc import RunnerError
 from .util import abs_path, printer
-
-
-DEFAULT_COMMANDS_MODULE = 'commands.py'
-DEFAULT_CONFIG_FILE = 'commands.cfg'
 
 
 def run(config,

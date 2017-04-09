@@ -6,14 +6,12 @@ import time
 from collections import OrderedDict
 from enum import Enum
 
+from .const import DEFAULT_ENV
 from .exc import CommandError, RunCommandsError
 from .util import Hide, cached_property, get_hr, printer
 
 
-__all__ = ['DEFAULT_ENV', 'command']
-
-
-DEFAULT_ENV = object()
+__all__ = ['command']
 
 
 class Command:

@@ -1,7 +1,8 @@
 import json
 import os
 
-from .command import DEFAULT_ENV, bool_or, command
+from .command import bool_or, command
+from .const import DEFAULT_ENV
 
 
 __all__ = ['__version__', 'DEFAULT_ENV', 'bool_or', 'command']
