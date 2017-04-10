@@ -9,7 +9,7 @@ def mirror_and_capture(in_, out, err, chunk_size, finish=False, poll_timeout=0.0
     Read from a subprocess's stdout and mirror it to the console's
     stdout (typically sys.stdout) and also capture it into a buffer.
     Ditto for stderr.
-    
+
     On the input side, read the console's stdin (typicall sys.stdin) and
     mirror it to the subprocess's stdin. Input can be captured too, but
     it typically isn't.

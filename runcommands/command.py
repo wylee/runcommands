@@ -17,9 +17,9 @@ __all__ = ['command']
 class Command:
 
     """Command.
-    
+
     Wraps a callable and provides a command line argument parser.
-    
+
     Args:
         implementation (callable)
         name (str): Name of command as it will be called from the
@@ -53,8 +53,8 @@ class Command:
             like other config.
         timed (bool): Whether the command should be timed. Will print an
             info message showing how long the command took to complete
-            when ``True``. Defaults to ``False``. 
-    
+            when ``True``. Defaults to ``False``.
+
     """
 
     def __init__(self, implementation, name=None, description=None, help=None, type=None,
@@ -534,9 +534,9 @@ class HelpParameter(Parameter):
 
 def bool_or(inner_type):
     """Used to indicate that an arg can be a flag or an option.
-    
+
     Used like this::
-    
+
         @command(type={'hide': bool_or(str)})
         def local(config, cmd, hide=False):
             "Run the specified command, possibly hiding its output."

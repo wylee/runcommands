@@ -149,10 +149,10 @@ class CommandRunner:
 
     def fill(self, string, indent='    ', max_width=72):
         """Wrap string so it fits within at most ``max_width`` columns.
-        
+
         If the terminal is less than ``max_width`` columns, the string
         will be filled into that smaller width instead.
-        
+
         """
         if not isinstance(string, str):
             string = ' '.join(string)

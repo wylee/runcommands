@@ -257,42 +257,42 @@ def version_getter(config):
 @command
 def show_config(config, name=(), flat=False, values=False, exclude=(), defaults=True):
     """Show config.
-    
+
     By default, all config items are shown using a nested format::
-    
+
         > show-config
         remote =>
             host => example.com
             user => user
-        
+
     To show the items in a flat list, use ``--flat``::
-    
+
         > show-config -f
         remote.host => example.com
         remote.user => user
-    
+
     To show selected items only, use ``--name`` one more times::
-    
+
         > show-config -n remote.host
         remote.host => example.com
-    
+
     To show just just values, pass ``--values``::
-    
+
         > show-config -n remote.host -v
         example.com
-        
+
         > ssh $(show-config -n remote.host -v)
-    
+
     .. note:: ``--values`` implies ``--flat``.
-    
+
     To exclude config items, use ``--exclude`` with dotted key names::
-    
+
         > show-config -n remote -e remote.host -f
         remote.user => ec2-user
-    
+
     To exclude ``defaults.`` config items (default args for commands),
     pass ``--no-defaults``.
-    
+
     """
     flat = flat or values
 

@@ -12,10 +12,10 @@ __version__ = '1.0a15.dev0'
 def configure(commands_module=None, config_file=None, default_env=None, env=None, echo=None,
               hide=None, debug=None):
     """Set environment variables.
-    
+
     String values will be left as is; other types of values will be JSON
     encoded.
-    
+
     """
     def encode(v):
         if isinstance(v, str):

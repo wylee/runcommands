@@ -17,11 +17,11 @@ def install(config, where='.env', upgrade=False):
 @command
 def install_completion(config, shell='bash', to='~/.bashrc.d', overwrite=True):
     """Install command line completion script.
-    
+
     Currently, only Bash is supported. The script will be copied to the
     directory ``~/.bashrc.d`` by default. If the script already exists
     at that location, it will be overwritten by default.
-    
+
     """
     source = 'runcommands:completion/{shell}/runcommands.rc'.format(shell=shell)
     source = asset_path(source)
@@ -64,16 +64,16 @@ def lint(config):
 @command
 def clean(config, verbose=False):
     """Clean up.
-    
+
     Removes:
-    
+
         - ./build/
         - ./dist/
         - **/__pycache__
         - **/*.py[co]
-    
+
     Skips hidden directories.
-    
+
     """
     def rm(name):
         if os.path.isfile(name):
