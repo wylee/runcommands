@@ -71,7 +71,7 @@ def run(_,
         if match:
             name = match.group('name')
             command_run_args = {}
-            command_run_args.update(read_run_args_from_file(section, config_parser))
+            command_run_args.update(read_run_args(section, config_parser))
             command_run_args.update(cli_args)
             all_command_run_args[name] = command_run_args
 
@@ -112,7 +112,8 @@ def run(_,
         runner.run(command_argv, all_command_run_args)
 
 
-def read_run_args_from_file(section, parser=None):
+def read_run_args(section, parser=None):
+    """Read run args from file and environment."""
     if parser is None:
         parser = make_run_args_config_parser()
 
@@ -132,18 +133,11 @@ def read_run_args_from_file(section, parser=None):
 
     sections = [section for section in sections if section in parser]
 
-    if not sections:
-        return {}
-
     items = {}
     for section in sections:
         items.update(parser[section])
 
-    if not items:
-        return {}
-
     arg_map = run.arg_map
-    arg_parser = run.get_arg_parser()
     option_template = '--{name}={value}'
     argv = []
 
@@ -192,12 +186,27 @@ def read_run_args_from_file(section, parser=None):
             item = option_template.format(name=name, value=value)
             argv.append(item)
 
-    args, remaining = arg_parser.parse_known_args(argv)
+    if argv:
+        arg_parser = run.get_arg_parser()
+        args, remaining = arg_parser.parse_known_args(argv)
+        if remaining:
+            raise RunCommandsError('Unknown args read from setup.cfg: %s' % ' '.join(remaining))
+        args = vars(args)
+    else:
+        args = {}
 
-    if remaining:
-        raise RunCommandsError('Unknown args read from setup.cfg: %s' % ' '.join(remaining))
+    prefix = 'RUNCOMMANDS_'
+    prefix_len = len(prefix)
+    for key in os.environ:
+        if not key.startswith(prefix):
+            continue
+        name = key[prefix_len:].lower()
+        if name not in run.optionals:
+            raise RunCommandsError('Unknown arg from {key}: {name}'.format_map(locals()))
+        value = os.environ[key]
+        args[name] = value
 
-    return vars(args)
+    return args
 
 
 def make_run_args_config_parser():
