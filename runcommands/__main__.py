@@ -3,6 +3,7 @@ import sys
 from .config import RawConfig
 from .exc import RunCommandsError
 from .run import run, partition_argv, read_run_args_from_file
+from .util import printer
 
 
 def main(argv=None):
@@ -14,7 +15,8 @@ def main(argv=None):
         run.implementation(
             None, all_argv=all_argv, run_argv=run_argv, command_argv=command_argv,
             cli_args=cli_args, **run_args)
-    except RunCommandsError:
+    except RunCommandsError as exc:
+        printer.error(exc, file=sys.stderr)
         return 1
     return 0
 
