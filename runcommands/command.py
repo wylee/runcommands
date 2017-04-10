@@ -6,7 +6,7 @@ import time
 from collections import OrderedDict
 from enum import Enum
 
-from .const import DEFAULT_ENV
+from .const import DEFAULT_CONFIG_FILE, DEFAULT_ENV
 from .exc import CommandError, RunCommandsError
 from .util import Hide, cached_property, get_hr, printer
 
@@ -155,7 +155,8 @@ class Command:
             all_run_args.update(_run_args or {})
             run_args = all_run_args
 
-            config = RawConfig(
+            config = Config(
+                commands_module=run_args.get('module', DEFAULT_CONFIG_FILE),
                 config_file=run_args.get('config_file'),
                 env=self.get_run_env(run_args.get('env')),
                 run=RawConfig(echo=run_args.get('echo', False), hide=run_args.get('hide', False)),
@@ -602,4 +603,4 @@ class DictAddAction(argparse.Action):
 
 
 # Avoid circular import
-from .config import ConfigError, RawConfig  # noqa
+from .config import Config, ConfigError, RawConfig  # noqa
