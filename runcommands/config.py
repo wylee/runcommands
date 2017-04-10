@@ -56,10 +56,12 @@ class RawConfig(OrderedDict):
         return parser
 
     @classmethod
-    def _decode_value(cls, name, value):
+    def _decode_value(cls, name, value, tolerant=False):
         try:
             value = json.loads(value)
         except ValueError:
+            if tolerant:
+                return value
             msg = 'Could not read {name} from config (not valid JSON): {value}'
             raise ConfigError(msg.format_map(locals()))
         return value

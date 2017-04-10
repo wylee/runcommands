@@ -591,13 +591,10 @@ class DictAddAction(argparse.Action):
                 'Bad format for {self.option_strings[0]}; expected: name=<value>; got: {item}'
                 .format_map(locals()))
 
-        if not value:
-            value = 'null'
-
-        try:
-            value = RawConfig._decode_value(name, value)
-        except ConfigError:
-            pass
+        if value:
+            value = RawConfig._decode_value(name, value, tolerant=True)
+        else:
+            value = None
 
         items[name] = value
 
