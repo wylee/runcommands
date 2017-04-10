@@ -71,7 +71,7 @@ def run(_,
         if match:
             name = match.group('name')
             command_run_args = {}
-            command_run_args.update(read_run_args_from_file(config_parser, section))
+            command_run_args.update(read_run_args_from_file(section, config_parser))
             command_run_args.update(cli_args)
             all_command_run_args[name] = command_run_args
 
@@ -112,7 +112,10 @@ def run(_,
         runner.run(command_argv, all_command_run_args)
 
 
-def read_run_args_from_file(parser, section):
+def read_run_args_from_file(section, parser=None):
+    if parser is None:
+        parser = make_run_args_config_parser()
+
     if isinstance(section, Command):
         name = section.name
         if name == 'runcommands':

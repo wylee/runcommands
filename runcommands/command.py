@@ -146,13 +146,13 @@ class Command:
         return result
 
     def console_script(self, argv=None, run_args=None, **kwargs):
-        from .run import make_run_args_config_parser, read_run_args_from_file
+        from .run import read_run_args_from_file
 
         if argv is None:
             argv = sys.argv[1:]
 
         try:
-            all_run_args = read_run_args_from_file(make_run_args_config_parser(), self)
+            all_run_args = read_run_args_from_file(self)
             all_run_args.update(run_args or {})
             run_args = all_run_args
 
