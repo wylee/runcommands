@@ -123,7 +123,7 @@ def read_run_args_from_file(parser, section):
 
     arg_map = run_command.arg_map
     arg_parser = run_command.get_arg_parser()
-    option_template = '--{name} {value}'
+    option_template = '--{name}={value}'
     argv = []
 
     for name, value in items.items():
