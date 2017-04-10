@@ -145,15 +145,30 @@ class Command:
 
         return result
 
-    def console_script(self, argv=None, **kwargs):
+    def console_script(self, argv=None, run_args=None, **kwargs):
+        from .run import make_run_args_config_parser, read_run_args_from_file
+
         if argv is None:
             argv = sys.argv[1:]
+
         try:
-            config = RawConfig(debug=False)
+            all_run_args = read_run_args_from_file(make_run_args_config_parser(), self)
+            all_run_args.update(run_args or {})
+            run_args = all_run_args
+
+            config = RawConfig(
+                config_file=run_args.get('config_file'),
+                env=self.get_run_env(run_args.get('env')),
+                run=RawConfig(echo=run_args.get('echo', False), hide=run_args.get('hide', False)),
+                debug=run_args.get('debug', False),
+                options=run_args.get('options', {}),
+            )
+
             self.run(config, argv, **kwargs)
         except RunCommandsError as exc:
             printer.error(exc, file=sys.stderr)
             return 1
+
         return 0
 
     def __call__(self, config, *args, **kwargs):
