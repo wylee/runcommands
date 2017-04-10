@@ -3,7 +3,7 @@ import sys
 from configparser import ConfigParser
 
 from . import __version__
-from .command import Command
+from .command import command, Command
 from .const import DEFAULT_COMMANDS_MODULE, DEFAULT_CONFIG_FILE
 from .exc import RunCommandsError, RunnerError
 from .runner import CommandRunner
@@ -102,6 +102,13 @@ run_command = Command(run)
 
 
 def read_run_args_from_file(parser, section):
+    if isinstance(section, Command):
+        name = section.name
+        if name == 'runcommands':
+            section = 'runcommands'
+        else:
+            section = 'runcommands:{name}'.format(name=name)
+
     if section == 'runcommands':
         sections = ['runcommands']
     elif section.startswith('runcommands:'):
