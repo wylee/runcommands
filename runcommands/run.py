@@ -190,7 +190,9 @@ def read_run_args(section, parser=None):
         arg_parser = run.get_arg_parser()
         args, remaining = arg_parser.parse_known_args(argv)
         if remaining:
-            raise RunCommandsError('Unknown args read from setup.cfg: %s' % ' '.join(remaining))
+            raise RunCommandsError(
+                'Unknown args read from {file_name}: {remaining}'
+                .format(file_name=file_name, remaining=' '.join(remaining)))
         args = vars(args)
     else:
         args = {}
