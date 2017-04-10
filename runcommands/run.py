@@ -64,7 +64,7 @@ def run(_,
         echo = True
 
     all_command_run_args = {}
-    config_parser = make_run_args_config_parser()
+    config_parser, file_name = make_run_args_config_parser()
 
     for section in config_parser:
         match = re.search(r'^runcommands:(?P<name>.+)$', section)
@@ -115,7 +115,7 @@ def run(_,
 def read_run_args(section, parser=None):
     """Read run args from file and environment."""
     if parser is None:
-        parser = make_run_args_config_parser()
+        parser, file_name = make_run_args_config_parser()
 
     if isinstance(section, Command):
         name = section.name
@@ -220,8 +220,10 @@ def make_run_args_config_parser():
             with open(file_name) as config_parser_fp:
                 config_parser.read_file(config_parser_fp)
             break
+    else:
+        file_name = None
 
-    return config_parser
+    return config_parser, file_name
 
 
 def partition_argv(argv=None):
