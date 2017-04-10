@@ -130,12 +130,13 @@ class Command:
         # access to only the default config).
         return specified_env or self.default_env
 
-    def run(self, config, argv):
+    def run(self, config, argv, **kwargs):
         if self.timed:
             start_time = time.monotonic()
 
-        kwargs = self.parse_args(config, argv)
-        result = self(config, **kwargs)
+        all_args = self.parse_args(config, argv)
+        all_args.update(kwargs)
+        result = self(config, **all_args)
 
         if self.timed:
             hide = kwargs.get('hide', config._get_dotted('run.hide', 'none'))
@@ -144,12 +145,12 @@ class Command:
 
         return result
 
-    def console_script(self, argv=None):
+    def console_script(self, argv=None, **kwargs):
         if argv is None:
             argv = sys.argv[1:]
         try:
             config = RawConfig(debug=False)
-            self.run(config, argv)
+            self.run(config, argv, **kwargs)
         except RunCommandsError as exc:
             printer.error(exc, file=sys.stderr)
             return 1
