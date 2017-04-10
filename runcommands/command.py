@@ -85,7 +85,7 @@ class Command:
             self.types['hide'] = bool_or(Hide)
 
     @classmethod
-    def command(cls, name_or_wrapped=None, description=None, help=None, type=None, choices=None,
+    def command(cls, name=None, description=None, help=None, type=None, choices=None,
                 env=None, default_env=None, config=None, timed=False):
         args = dict(
             description=description,
@@ -98,11 +98,9 @@ class Command:
             timed=timed,
         )
 
-        if callable(name_or_wrapped):
-            wrapped = name_or_wrapped
-            return Command(implementation=wrapped, **args)
-        else:
-            name = name_or_wrapped
+        if callable(name):
+            # @command used as a bare decorator.
+            return Command(implementation=name, **args)
 
         def wrapper(wrapped):
             return Command(implementation=wrapped, name=name, **args)
