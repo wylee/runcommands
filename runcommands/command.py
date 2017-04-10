@@ -145,15 +145,14 @@ class Command:
 
         return result
 
-    def console_script(self, argv=None, run_args=None, **kwargs):
+    def console_script(self, _argv=None, _run_args=None, **kwargs):
         from .run import read_run_args_from_file
 
-        if argv is None:
-            argv = sys.argv[1:]
+        argv = sys.argv[1:] if _argv is None else _argv
 
         try:
             all_run_args = read_run_args_from_file(self)
-            all_run_args.update(run_args or {})
+            all_run_args.update(_run_args or {})
             run_args = all_run_args
 
             config = RawConfig(
