@@ -220,6 +220,8 @@ class Command:
 
         if param.is_positional:
             return [name]
+        elif param.is_keyword_only:
+            return []
 
         arg_name = name.replace('_', '-')
         arg_name = arg_name.lower()
@@ -328,8 +330,12 @@ class Command:
     @cached_property
     def param_map(self):
         """Map parameters to command-line arg names."""
-        parameters = self.parameters.items()
-        return OrderedDict((n, self.arg_names_for_param(p)) for (n, p) in parameters)
+        param_map = OrderedDict()
+        for name, param in self.parameters.items():
+            arg_names = self.arg_names_for_param(param)
+            if arg_names:
+                param_map[name] = arg_names
+        return param_map
 
     def get_arg_parser(self, config=None):
         if config is None:
@@ -466,6 +472,7 @@ class Parameter:
 
         self.is_positional = default is empty
         self.is_optional = not self.is_positional
+        self.is_keyword_only = self.kind is parameter.KEYWORD_ONLY
 
         if type_ is not None:
             self.type = type_
@@ -501,6 +508,7 @@ class HelpParameter(Parameter):
         self.default = False
         self.is_positional = False
         self.is_optional = True
+        self.is_keyword_only = False
         self.type = bool
         self.is_bool = True
         self.is_dict = False
