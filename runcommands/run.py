@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from configparser import ConfigParser
 
@@ -10,7 +11,8 @@ from .runner import CommandRunner
 from .util import printer
 
 
-def run(config,
+@command(name='runcommands')
+def run(_,
         module=DEFAULT_COMMANDS_MODULE,
         # config
         config_file=None,
@@ -25,7 +27,12 @@ def run(config,
         # info/help
         info=False,
         list_commands=False,
-        list_envs=False):
+        list_envs=False,
+        *,
+        all_argv=(),
+        run_argv=(),
+        command_argv=(),
+        cli_args=()):
     """Run one or more commands in succession.
 
     For example, assume the commands ``local`` and ``remote`` have been
@@ -44,11 +51,6 @@ def run(config,
     a value and not a command name.
 
     """
-    argv = config.argv
-    run_argv = config.run_argv
-    command_argv = config.command_argv
-    run_args = config.run_args
-
     show_info = info or list_commands or list_envs or not command_argv or debug
     print_and_exit = info or list_commands or list_envs
 
@@ -56,10 +58,22 @@ def run(config,
         print('RunCommands', __version__)
 
     if debug:
-        printer.debug('All args:', argv)
+        printer.debug('All args:', all_argv)
         printer.debug('Run args:', run_argv)
         printer.debug('Command args:', command_argv)
         echo = True
+
+    all_command_run_args = {}
+    config_parser = make_run_args_config_parser()
+
+    for section in config_parser:
+        match = re.search(r'^runcommands:(?P<name>.+)$', section)
+        if match:
+            name = match.group('name')
+            command_run_args = {}
+            command_run_args.update(read_run_args_from_file(config_parser, section))
+            command_run_args.update(cli_args)
+            all_command_run_args[name] = command_run_args
 
     if config_file is None:
         if os.path.isfile(DEFAULT_CONFIG_FILE):
@@ -68,7 +82,7 @@ def run(config,
     options = options.copy()
 
     for name, value in options.items():
-        if name in run_command.optionals:
+        if name in run.optionals:
             raise RunnerError(
                 'Cannot pass {name} via --option; use --{option_name} instead'
                 .format(name=name, option_name=name.replace('_', '-')))
@@ -95,10 +109,7 @@ def run(config,
         printer.warning('\nNo command(s) specified')
         runner.print_usage()
     else:
-        runner.run(command_argv, run_args)
-
-
-run_command = Command(run)
+        runner.run(command_argv, all_command_run_args)
 
 
 def read_run_args_from_file(parser, section):
@@ -128,8 +139,8 @@ def read_run_args_from_file(parser, section):
     if not items:
         return {}
 
-    arg_map = run_command.arg_map
-    arg_parser = run_command.get_arg_parser()
+    arg_map = run.arg_map
+    arg_parser = run.get_arg_parser()
     option_template = '--{name}={value}'
     argv = []
 
@@ -214,8 +225,8 @@ def partition_argv(argv=None):
 
     run_argv = []
     option = None
-    arg_map = run_command.arg_map
-    parser = run_command.get_arg_parser()
+    arg_map = run.arg_map
+    parser = run.get_arg_parser()
     parse_optional = parser._parse_optional
 
     for i, arg in enumerate(argv):

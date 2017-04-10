@@ -1,6 +1,6 @@
 from ..command import command
 from ..const import DEFAULT_COMMANDS_MODULE
-from ..run import run_command
+from ..run import run
 from ..runner import CommandRunner
 
 
@@ -17,7 +17,7 @@ def complete(config, module=DEFAULT_COMMANDS_MODULE, words=(), index=0):
         for word in reversed(words[:index]):
             if word in commands:
                 return commands[word]
-        return run_command
+        return run
 
     def print_commands():
         print(' '.join(commands))
