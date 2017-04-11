@@ -227,6 +227,9 @@ class Command:
             printer.debug('Parsing args for command `{self.name}`: {argv}'.format(**locals()))
         parsed_args = self.get_arg_parser(config).parse_args(argv)
         parsed_args = vars(parsed_args)
+        for k, v in parsed_args.items():
+            if v == '':
+                parsed_args[k] = None
         return parsed_args
 
     def arg_names_for_param(self, param):
