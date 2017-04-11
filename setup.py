@@ -33,6 +33,7 @@ setup(
         'dev': [
             'coverage',
             'flake8',
+            'Sphinx',
         ],
         'paramiko': [
             'paramiko>=2.1.2',

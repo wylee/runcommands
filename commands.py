@@ -322,6 +322,16 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
         local(config, ('git commit', init_module, changelog, msg))
 
 
+@command
+def build_docs(config, source='docs', destination='docs/_build', type_='html'):
+    local(config, (
+        'sphinx-build',
+        '-b', type_,
+        source,
+        destination,
+    ))
+
+
 if __name__ == '__main__':
     from runcommands.__main__ import main
     sys.exit(main())
