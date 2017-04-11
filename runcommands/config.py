@@ -8,7 +8,7 @@ from locale import getpreferredencoding
 from subprocess import check_output
 
 from .command import command
-from .exc import ConfigError
+from .exc import ConfigError, ConfigKeyError
 from .util import abort, abs_path, load_object
 
 
@@ -27,6 +27,13 @@ class RawConfig(OrderedDict):
             self._read_from_file(config_file, self.get('env'))
         if _overrides:
             self._update_dotted(_overrides)
+
+    def __getitem__(self, name):
+        try:
+            value = super().__getitem__(name)
+        except KeyError:
+            raise ConfigKeyError(name) from None
+        return value
 
     def __getattr__(self, name):
         if name.startswith('_'):
@@ -219,7 +226,11 @@ class Config(RawConfig):
 
     def _do_interpolation(self, obj, interpolated):
         if isinstance(obj, str):
-            new_value = obj.format(**self)
+            try:
+                new_value = obj.format(**self)
+            except ConfigKeyError as exc:
+                context = 'while interpolating into "{obj}"'.format(obj=obj)
+                raise ConfigKeyError(exc.args[0], context) from None
             if new_value != obj:
                 obj = new_value
                 interpolated.append(obj)
