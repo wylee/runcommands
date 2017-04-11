@@ -10,4 +10,4 @@ function _complete_runcommands {
 
     COMPREPLY=( $(compgen -W "${candidates}" -- $2) )
 }
-complete -F _complete_runcommands -o default run runcmd runcommand runcommands
+complete -F _complete_runcommands -o default run runcmd runcommand runcommands commands.py

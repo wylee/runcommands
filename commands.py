@@ -1,7 +1,14 @@
+#!/usr/bin/env python3
 import datetime
 import os
 import re
 import shutil
+import sys
+
+
+if 'runcommands' not in sys.path:
+    sys.path.insert(0, os.path.abspath('.'))
+
 
 from runcommands import command
 from runcommands.commands import *
@@ -309,3 +316,8 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
             'Commit message', default='Resume development at {next_version}'.format_map(locals()))
         msg = '-m "{msg}"'.format_map(locals())
         local(config, ('git commit', init_module, changelog, msg))
+
+
+if __name__ == '__main__':
+    from runcommands.__main__ import main
+    sys.exit(main())
