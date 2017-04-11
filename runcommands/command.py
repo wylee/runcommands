@@ -444,7 +444,7 @@ class Command:
                     kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
                 elif param.is_list:
-                    kwargs['action'] = 'append'
+                    kwargs['action'] = ListAppendAction
                     kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
                 else:
@@ -597,6 +597,19 @@ class DictAddAction(argparse.Action):
             value = None
 
         items[name] = value
+
+
+class ListAppendAction(argparse.Action):
+
+    def __call__(self, parser, namespace, value, option_string=None):
+        if not hasattr(namespace, self.dest):
+            setattr(namespace, self.dest, [])
+        items = getattr(namespace, self.dest)
+        if value:
+            value = RawConfig._decode_value(len(items), value, tolerant=True)
+        else:
+            value = None
+        items.append(value)
 
 
 # Avoid circular import
