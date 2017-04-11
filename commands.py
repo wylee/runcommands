@@ -9,7 +9,30 @@ from runcommands.util import abort, asset_path, confirm, printer, prompt
 
 
 @command
-def install(config, where='.env', upgrade=False):
+def virtualenv(config, where='.env', python='python3', overwrite=False):
+    exists = os.path.exists(where)
+
+    def create():
+        local(config, ('virtualenv', '-p', python, where))
+        printer.success(
+            'Virtualenv created; activate it by running `source {where}/bin/activate`'
+            .format_map(locals()))
+
+    if exists:
+        if overwrite:
+            printer.warning('Overwriting virtualenv', where, 'with', python)
+            shutil.rmtree(where)
+            create()
+        else:
+            printer.info('Virtualenv', where, 'exists; pass --overwrite to re-create it')
+    else:
+        printer.info('Creating virtualenv', where, 'with', python)
+        create()
+
+
+@command
+def install(config, where='.env', upgrade=False, overwrite=False):
+    virtualenv(config, where=where, overwrite=overwrite)
     pip = '{where}/bin/pip'.format(where=where)
     local(config, (pip, 'install', '--upgrade' if upgrade else '', '-e .[dev]'))
 
