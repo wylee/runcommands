@@ -13,14 +13,15 @@ from .util import abs_path, printer
 
 class CommandRunner:
 
-    def __init__(self, commands_module, config_file=None, env=None, options=None, echo=False,
-                 hide=False, debug=False):
+    def __init__(self, commands_module, config_file=None, env=None, default_env=None, options=None,
+                 echo=False, hide=False, debug=False):
         self.commands_module = commands_module
         self.commands = self.load_commands_from_module(commands_module)
 
         # Defaults
         self.config_file = config_file
         self.env = env
+        self.default_env = default_env
         self.options = options if options is not None else {}
         self.echo = echo
         self.hide = hide
@@ -74,6 +75,7 @@ class CommandRunner:
                 command_run_args = run_args[command.name]
                 config_file = command_run_args.get('config_file', self.config_file)
                 env = command_run_args.get('env', self.env)
+                default_env = command_run_args.get('default_env', self.default_env)
                 echo = command_run_args.get('echo', self.echo)
                 hide = command_run_args.get('hide', self.hide)
                 debug = command_run_args.get('debug', self.debug)
@@ -81,6 +83,7 @@ class CommandRunner:
             else:
                 config_file = self.config_file
                 env = self.env
+                default_env = self.default_env
                 echo = self.echo
                 hide = self.hide
                 debug = self.debug
@@ -89,7 +92,8 @@ class CommandRunner:
             config = Config(
                 commands_module=self.commands_module,
                 config_file=config_file,
-                env=command.get_run_env(env),
+                env=command.get_run_env(env, default_env),
+                default_env=default_env,
                 run=RawConfig(echo=echo, hide=hide),
                 debug=debug,
                 _overrides=options,

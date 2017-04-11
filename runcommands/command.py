@@ -1,6 +1,5 @@
 import argparse
 import inspect
-import os
 import sys
 import time
 from collections import OrderedDict
@@ -39,14 +38,12 @@ class Command:
         env (str): Env to run command in. If this is specified, the
             command *will* be run in this env and may *only* be run in
             this env. If this is set to :global:`DEFAULT_ENV`, the
-            command will be run in the env specified by the
-            ``RUNCOMMANDS_DEFAULT_ENV`` environment variable.
+            command will be run in the configured default env.
         default_env (str): Default env to run command in. If this is
             specified, the command will be run in this env by default
             and may also be run in any other env. If this is set to
-            :global:`DEFAULT_ENV`, the command will be run in the env
-            specified by the ``RUNCOMMANDS_DEFAULT_ENV`` environment
-            variable by default.
+            :global:`DEFAULT_ENV`, the command will be run in the
+            configured default env.
         config ({'dotted.name': value}): Additional or override config.
             This will supplement or override config read from other
             sources. Passed args take precedence over this config just
@@ -61,13 +58,6 @@ class Command:
                  choices=(), env=None, default_env=None, config=None, timed=False):
         if env is not None and default_env is not None:
             raise CommandError('Only one of `env` or `default_env` may be specified')
-
-        if env is DEFAULT_ENV:
-            env = os.environ['RUNCOMMANDS_DEFAULT_ENV']
-
-        if default_env is DEFAULT_ENV:
-            default_env = os.environ['RUNCOMMANDS_DEFAULT_ENV']
-
         self.implementation = implementation
         self.name = name if name is not None else implementation.__name__.replace('_', '-')
         self.description = description
@@ -107,28 +97,56 @@ class Command:
 
         return wrapper
 
-    def get_run_env(self, specified_env):
-        if self.env is True:
-            # Command has no default env and requires one to be
-            # specified.
-            if specified_env is None:
-                raise CommandError(
-                    'The `{self.name}` command requires an env to be specified'
-                    .format_map(locals()))
-            return specified_env
-        elif self.env:
-            # Command may only be run in a designated env; make sure the
-            # specified env matches that env.
-            if specified_env and specified_env != self.env:
-                raise CommandError(
-                    'The `{self.name}` command may be run only in the "{self.env}" env but the '
-                    '"{specified_env}" env was specified'.format_map(locals()))
-            return self.env
-        # If an env was specified, use that; otherwise fall back to the
-        # default env for this command. The env may be None, which means
-        # the command will be run in no env (which means it will have
-        # access to only the default config).
-        return specified_env or self.default_env
+    def get_run_env(self, specified_env, global_default_env):
+        env = self.env
+        default_env = self.default_env
+
+        if env is not None:
+            if env is DEFAULT_ENV:
+                env = global_default_env
+
+            if env is True:
+                # The command has no default env and requires one to be
+                # specified.
+                if not specified_env:
+                    raise CommandError(
+                        'The `{self.name}` command requires an env to be specified'
+                        .format_map(locals()))
+                run_env = specified_env
+            elif env is False:
+                # The command explicitly doesn't run in an env.
+                if specified_env:
+                    raise CommandError(
+                        'The `{self.name}` command may *not* be run in an env but '
+                        'the "{specified_env}" env was specified'.format_map(locals()))
+                run_env = None
+            else:
+                # The command may only be run in a designated env; make
+                # sure the specified env matches that env.
+                if specified_env and specified_env != env:
+                    raise CommandError(
+                        'The `{self.name}` command may be run only in the "{env}" env but '
+                        'the "{specified_env}" env was specified'.format_map(locals()))
+                run_env = env
+        elif default_env is not None:
+            if specified_env:
+                # If an env was specified, the command will be run in that env.
+                run_env = specified_env
+            elif default_env is True or default_env is DEFAULT_ENV:
+                # If no env was specified *and* the command indicates that it
+                # should be run in the global default env, the command will be
+                # run in the global default env.
+                run_env = global_default_env
+            else:
+                # Otherwise, the command will be run in whatever default env
+                # was indicated in the command definition.
+                run_env = default_env
+        else:
+            # The command was configured without any env options, so use
+            # the specified env (which may be None).
+            run_env = specified_env
+
+        return run_env
 
     def run(self, config, argv, **kwargs):
         if self.timed:
@@ -154,11 +172,13 @@ class Command:
             all_run_args = read_run_args(self)
             all_run_args.update(_run_args or {})
             run_args = all_run_args
+            default_env = run_args.get('default_env')
 
             config = Config(
                 commands_module=run_args.get('module', DEFAULT_CONFIG_FILE),
                 config_file=run_args.get('config_file'),
-                env=self.get_run_env(run_args.get('env')),
+                env=self.get_run_env(run_args.get('env'), default_env),
+                default_env=default_env,
                 run=RawConfig(echo=run_args.get('echo', False), hide=run_args.get('hide', False)),
                 debug=run_args.get('debug', False),
                 options=run_args.get('options', {}),
