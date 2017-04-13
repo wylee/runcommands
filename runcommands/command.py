@@ -630,4 +630,4 @@ class ListAppendAction(argparse.Action):
 
 
 # Avoid circular import
-from .config import Config, RawConfig, RunConfig  # noqa
+from .config import Config, RawConfig, RunConfig  # noqa: E402

@@ -10,9 +10,9 @@ if 'runcommands' not in sys.path:
     sys.path.insert(0, os.path.abspath('.'))
 
 
-from runcommands import command
-from runcommands.commands import *
-from runcommands.util import abort, asset_path, confirm, printer, prompt
+from runcommands import command  # noqa: E402
+from runcommands.commands import *  # noqa: E402,F403
+from runcommands.util import abort, asset_path, confirm, printer, prompt  # noqa: E402
 
 
 @command
@@ -87,7 +87,7 @@ def tox(config):
 
 @command
 def lint(config):
-    result = local(config, 'flake8 runcommands', abort_on_failure=False)
+    result = local(config, 'flake8 .', abort_on_failure=False)
     pieces_of_lint = len(result.stdout_lines)
     if pieces_of_lint:
         s = '' if pieces_of_lint == 1 else 's'
@@ -228,7 +228,6 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
         if next_version is None:
             msg = 'Cannot automatically determine next version from {version}'.format_map(locals())
             abort(3, msg)
-
 
     next_version_dev = '{next_version}.dev0'.format_map(locals())
 
