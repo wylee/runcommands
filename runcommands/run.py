@@ -279,7 +279,7 @@ def partition_argv(argv=None):
             # a command name).
             break
     else:
-        # All args were consumed by command; none remain.
+        # All args were consumed by run command; none remain.
         i += 1
 
     remaining = argv[i:]

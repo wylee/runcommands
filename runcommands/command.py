@@ -5,7 +5,7 @@ import time
 from collections import OrderedDict
 from enum import Enum
 
-from .const import DEFAULT_CONFIG_FILE, DEFAULT_ENV
+from .const import DEFAULT_ENV
 from .exc import CommandError, RunCommandsError
 from .util import Hide, cached_property, get_hr, printer
 
@@ -630,4 +630,4 @@ class ListAppendAction(argparse.Action):
 
 
 # Avoid circular import
-from .config import Config, ConfigError, RawConfig, RunConfig  # noqa
+from .config import Config, RawConfig, RunConfig  # noqa
