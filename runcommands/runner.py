@@ -6,7 +6,7 @@ from itertools import chain
 from shutil import get_terminal_size
 
 from .command import Command
-from .config import Config, RawConfig
+from .config import Config, RawConfig, RunConfig
 from .exc import RunnerError
 from .util import abs_path, printer
 
@@ -26,6 +26,17 @@ class CommandRunner:
         self.echo = echo
         self.hide = hide
         self.debug = debug
+
+        self.run_config = RunConfig(
+            commands_module=commands_module,
+            config_file=config_file,
+            env=env,
+            default_env=default_env,
+            options=options,
+            echo=echo,
+            hide=hide,
+            debug=debug,
+        )
 
     def load_commands_from_module(self, commands_module):
         raise_does_not_exist = False
@@ -70,35 +81,10 @@ class CommandRunner:
         commands_to_run = []
         while argv:
             command, command_argv = self.partition_args(commands, argv)
-
-            if command.name in run_args:
-                command_run_args = run_args[command.name]
-                config_file = command_run_args.get('config_file', self.config_file)
-                env = command_run_args.get('env', self.env)
-                default_env = command_run_args.get('default_env', self.default_env)
-                echo = command_run_args.get('echo', self.echo)
-                hide = command_run_args.get('hide', self.hide)
-                debug = command_run_args.get('debug', self.debug)
-                options = command_run_args.get('options', self.options)
-            else:
-                config_file = self.config_file
-                env = self.env
-                default_env = self.default_env
-                echo = self.echo
-                hide = self.hide
-                debug = self.debug
-                options = self.options
-
-            config = Config(
-                commands_module=self.commands_module,
-                config_file=config_file,
-                env=command.get_run_env(env, default_env),
-                default_env=default_env,
-                run=RawConfig(echo=echo, hide=hide),
-                debug=debug,
-                _overrides=options,
-            )
-
+            run_config = RunConfig(self.run_config._clone())
+            run_config.update(run_args.get(command.name, {}))
+            run_config.env = command.get_run_env(run_config.env, run_config.default_env)
+            config = Config(env=run_config.env, run=run_config, _overrides=run_config.options)
             commands_to_run.append(CommandToRun(command, config, command_argv))
             num_consumed = len(command_argv) + 1
             argv = argv[num_consumed:]
@@ -174,7 +160,7 @@ class CommandToRun:
         self.name = command.name
         self.command = command
         self.config = config
-        self.env = config.env
+        self.env = config._get_dotted('run.env', None)
         self.argv = argv
 
     def run(self):

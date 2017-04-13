@@ -169,21 +169,11 @@ class Command:
         argv = sys.argv[1:] if _argv is None else _argv
 
         try:
-            all_run_args = read_run_args(self)
-            all_run_args.update(_run_args or {})
-            run_args = all_run_args
-            default_env = run_args.get('default_env')
-
-            config = Config(
-                commands_module=run_args.get('module', DEFAULT_CONFIG_FILE),
-                config_file=run_args.get('config_file'),
-                env=self.get_run_env(run_args.get('env'), default_env),
-                default_env=default_env,
-                run=RawConfig(echo=run_args.get('echo', False), hide=run_args.get('hide', False)),
-                debug=run_args.get('debug', False),
-                options=run_args.get('options', {}),
-            )
-
+            run_config = RunConfig()
+            run_config.update(read_run_args(self))
+            run_config.update(_run_args or {})
+            run_config.env = self.get_run_env(run_config.env, run_config.default_env)
+            config = Config(env=run_config.env, run=run_config, _overrides=run_config.options)
             self.run(config, argv, **kwargs)
         except RunCommandsError as exc:
             printer.error(exc, file=sys.stderr)
@@ -196,7 +186,9 @@ class Command:
             config = config._clone()
             config._update_dotted(self.config)
 
-        if config.debug:
+        debug = config._get_dotted('run.debug', None)
+
+        if debug:
             printer.debug('Command called:', self.name)
             printer.debug('    Received positional args:', args)
             printer.debug('    Received keyword args:', kwargs)
@@ -235,7 +227,7 @@ class Command:
         set_run_default('echo')
         set_run_default('hide')
 
-        if config.debug:
+        if debug:
             printer.debug('Running command:', self.name)
             printer.debug('    Final positional args:', repr(args))
             printer.debug('    Final keyword args:', repr(kwargs))
@@ -243,8 +235,10 @@ class Command:
         return self.implementation(config, *args, **kwargs)
 
     def parse_args(self, config, argv):
-        if config.debug:
+        debug = config._get_dotted('run.debug', None)
+        if debug:
             printer.debug('Parsing args for command `{self.name}`: {argv}'.format(**locals()))
+
         parsed_args = self.get_arg_parser(config).parse_args(argv)
         parsed_args = vars(parsed_args)
         for k, v in parsed_args.items():
@@ -378,7 +372,7 @@ class Command:
 
     def get_arg_parser(self, config=None):
         if config is None:
-            config = RawConfig()
+            config = RawConfig(run=RunConfig())
 
         if self.description:
             description = self.description
@@ -636,4 +630,4 @@ class ListAppendAction(argparse.Action):
 
 
 # Avoid circular import
-from .config import Config, ConfigError, RawConfig  # noqa
+from .config import Config, ConfigError, RawConfig, RunConfig  # noqa

@@ -1,6 +1,6 @@
 import sys
 
-from .config import RawConfig
+from .config import RawConfig, RunConfig
 from .exc import RunCommandsError
 from .run import run, partition_argv, read_run_args
 from .util import printer
@@ -9,7 +9,7 @@ from .util import printer
 def main(argv=None):
     try:
         all_argv, run_argv, command_argv = partition_argv(argv)
-        cli_args = run.parse_args(RawConfig(debug=False), run_argv)
+        cli_args = run.parse_args(RawConfig(run=RunConfig()), run_argv)
         run_args = read_run_args(run)
         run_args.update(cli_args)
         run.implementation(

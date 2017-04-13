@@ -6,7 +6,8 @@ from ..runner import CommandRunner
 
 @command
 def complete(config, module=DEFAULT_COMMANDS_MODULE, words=(), index=0):
-    runner = CommandRunner(module, debug=config.debug)
+    debug = config._get_dotted('run.debug', None)
+    runner = CommandRunner(module, debug=debug)
     commands = runner.commands
 
     words = [word[1:-1] for word in words]  # Strip quotes

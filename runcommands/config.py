@@ -8,6 +8,7 @@ from locale import getpreferredencoding
 from subprocess import check_output
 
 from .command import command
+from .const import DEFAULT_COMMANDS_MODULE
 from .exc import ConfigError, ConfigKeyError
 from .util import abort, abs_path, load_object
 
@@ -23,8 +24,8 @@ class RawConfig(OrderedDict):
     def __init__(self, *args, _overrides={}, _read_file=True, **kwargs):
         super().__init__(*args, **kwargs)
         if _read_file:
-            config_file = self.get('config_file')
-            self._read_from_file(config_file, self.get('env'))
+            config_file = self._get_dotted('run.config_file', None)
+            self._read_from_file(config_file, self._get_dotted('run.env', None))
         if _overrides:
             self._update_dotted(_overrides)
 
@@ -203,6 +204,32 @@ class RawConfig(OrderedDict):
                     out.append('{indent}{k} => {v}'.format(**locals()))
 
         return '\n'.join(out)
+
+
+class RunConfig(RawConfig):
+
+    """Container for run-related config options."""
+
+    _known_options = {
+        'commands_module': DEFAULT_COMMANDS_MODULE,
+        'config_file': None,
+        'env': None,
+        'default_env': None,
+        'options': None,
+        'echo': False,
+        'hide': False,
+        'debug': False,
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(self._known_options)
+        self.update(*args)
+        self.update(**kwargs)
+
+    def __setitem__(self, name, value):
+        if name not in self._known_options:
+            raise ConfigKeyError(name, 'not allowed in RunConfig')
+        super().__setitem__(name, value)
 
 
 class Config(RawConfig):
