@@ -261,6 +261,8 @@ class ConfigParser(RawConfigParser):
 
 
 def version_getter(config):
+    if not os.path.isdir('.git'):
+        return None
     encoding = getpreferredencoding(do_setlocale=False)
     version = check_output(['git', 'rev-parse', '--short', 'HEAD'])
     version = version.decode(encoding).strip()
