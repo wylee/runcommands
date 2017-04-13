@@ -81,6 +81,11 @@ def test(config):
 
 
 @command
+def tox(config):
+    local(config, 'tox')
+
+
+@command
 def lint(config):
     result = local(config, 'flake8 runcommands', abort_on_failure=False)
     pieces_of_lint = len(result.stdout_lines)

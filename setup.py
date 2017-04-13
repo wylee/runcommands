@@ -36,7 +36,10 @@ setup(
         ],
         'paramiko': [
             'paramiko>=2.1.2',
-        ]
+        ],
+        'tox': [
+            'tox',
+        ],
     },
     entry_points={
         'console_scripts': [
