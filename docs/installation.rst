@@ -19,3 +19,18 @@ To install the project for development::
     git clone https://github.com/wylee/runcommands
     cd runcommands
     ./commands.py install
+
+Shell Completion
+================
+
+.. note:: Only Bash completion is supported currently.
+
+Copy the `completion script`_ from the source distribution into your
+`~/.bashrc` or some other file that you `source` into your `~/.bashrc`.
+Make sure you `source` your `~/.bashrc` after initially copying the
+completion script.
+
+Alternatively, if you've cloned the |project| repo, you can
+`run install-completion` from the clone directory.
+
+.. _completion script: https://github.com/wylee/runcommands/blob/master/runcommands/completion/bash/runcommands.rc
