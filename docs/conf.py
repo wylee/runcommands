@@ -13,6 +13,7 @@ from runcommands import __version__  # noqa: E402
 project = 'RunCommands'
 author = 'Wyatt Baldwin'
 copyright = '{year} Wyatt Baldwin'.format(year=date.today().year)
+github_url = 'https://github.com/wylee/runcommands'
 
 version = __version__
 release = version
@@ -47,7 +48,7 @@ default_role = 'literal'
 # This is appended to the bottom of all docs.
 rst_epilog = """
 .. |project| replace:: {project}
-.. |github_url| replace:: https://github.com/wylee/runcommands
+.. |github_url| replace:: {github_url}
 """.format_map(locals())
 
 # Options for autodoc extension -------------------------------------------
@@ -71,6 +72,9 @@ html_theme_options = {
     'page_width': '1200px',
     'fixed_sidebar': True,
     'sidebar_width': '300px',
+    'extra_nav_links': {
+        'Source (GitHub)': github_url,
+    },
 }
 
 html_sidebars = {
