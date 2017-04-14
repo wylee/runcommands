@@ -55,6 +55,8 @@ def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, 
     ``config.bin.dirs`` to the front of ``$PATH``
 
     """
+    debug = config._get_dotted('run.debug', None)
+
     if sudo and run_as:
         abort(1, 'Only one of --sudo or --run-as may be passed')
     if sudo:
@@ -72,9 +74,9 @@ def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, 
     try:
         return runner.run(
             cmd, cd=cd, path=path, prepend_path=prepend_path, append_path=append_path, echo=echo,
-            hide=hide, timeout=timeout, use_pty=use_pty, debug=config.debug)
+            hide=hide, timeout=timeout, use_pty=use_pty, debug=debug)
     except RunAborted as exc:
-        if config.debug:
+        if debug:
             raise
         abort(1, str(exc))
     except RunError as exc:
@@ -104,6 +106,8 @@ def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
             ``sudo -u <run_as>``
 
     """
+    debug = config._get_dotted('run.debug', None)
+
     cmd = args_to_str(cmd, format_kwargs=(config if inject_context else None))
     user = args_to_str(user, format_kwargs=config)
     host = args_to_str(host, format_kwargs=config)
@@ -125,9 +129,9 @@ def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
         return runner.run(
             cmd, host, user=user, cd=cd, path=path, prepend_path=prepend_path,
             append_path=append_path, sudo=sudo, run_as=run_as, echo=echo, hide=hide,
-            timeout=timeout, debug=config.debug)
+            timeout=timeout, debug=debug)
     except RunAborted as exc:
-        if config.debug:
+        if debug:
             raise
         abort(1, str(exc))
     except RunError as exc:

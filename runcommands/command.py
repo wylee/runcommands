@@ -1,26 +1,24 @@
 import argparse
 import inspect
-import os
+import sys
 import time
 from collections import OrderedDict
 from enum import Enum
 
-from .exc import RunCommandsError
+from .const import DEFAULT_ENV
+from .exc import CommandError, RunCommandsError
 from .util import Hide, cached_property, get_hr, printer
 
 
-__all__ = ['DEFAULT_ENV', 'command']
-
-
-DEFAULT_ENV = object()
+__all__ = ['command']
 
 
 class Command:
 
     """Command.
-    
+
     Wraps a callable and provides a command line argument parser.
-    
+
     Args:
         implementation (callable)
         name (str): Name of command as it will be called from the
@@ -40,35 +38,26 @@ class Command:
         env (str): Env to run command in. If this is specified, the
             command *will* be run in this env and may *only* be run in
             this env. If this is set to :global:`DEFAULT_ENV`, the
-            command will be run in the env specified by the
-            ``RUNCOMMANDS_DEFAULT_ENV`` environment variable.
+            command will be run in the configured default env.
         default_env (str): Default env to run command in. If this is
             specified, the command will be run in this env by default
             and may also be run in any other env. If this is set to
-            :global:`DEFAULT_ENV`, the command will be run in the env
-            specified by the ``RUNCOMMANDS_DEFAULT_ENV`` environment
-            variable by default.
+            :global:`DEFAULT_ENV`, the command will be run in the
+            configured default env.
         config ({'dotted.name': value}): Additional or override config.
             This will supplement or override config read from other
             sources. Passed args take precedence over this config just
             like other config.
         timed (bool): Whether the command should be timed. Will print an
             info message showing how long the command took to complete
-            when ``True``. Defaults to ``False``. 
-    
+            when ``True``. Defaults to ``False``.
+
     """
 
     def __init__(self, implementation, name=None, description=None, help=None, type=None,
                  choices=(), env=None, default_env=None, config=None, timed=False):
         if env is not None and default_env is not None:
             raise CommandError('Only one of `env` or `default_env` may be specified')
-
-        if env is DEFAULT_ENV:
-            env = os.environ['RUNCOMMANDS_DEFAULT_ENV']
-
-        if default_env is DEFAULT_ENV:
-            default_env = os.environ['RUNCOMMANDS_DEFAULT_ENV']
-
         self.implementation = implementation
         self.name = name if name is not None else implementation.__name__.replace('_', '-')
         self.description = description
@@ -86,7 +75,7 @@ class Command:
             self.types['hide'] = bool_or(Hide)
 
     @classmethod
-    def command(cls, name_or_wrapped=None, description=None, help=None, type=None, choices=None,
+    def command(cls, name=None, description=None, help=None, type=None, choices=None,
                 env=None, default_env=None, config=None, timed=False):
         args = dict(
             description=description,
@@ -99,46 +88,73 @@ class Command:
             timed=timed,
         )
 
-        if callable(name_or_wrapped):
-            wrapped = name_or_wrapped
-            return Command(implementation=wrapped, **args)
-        else:
-            name = name_or_wrapped
+        if callable(name):
+            # @command used as a bare decorator.
+            return Command(implementation=name, **args)
 
         def wrapper(wrapped):
             return Command(implementation=wrapped, name=name, **args)
 
         return wrapper
 
-    def get_run_env(self, specified_env):
-        if self.env is True:
-            # Command has no default env and requires one to be
-            # specified.
-            if specified_env is None:
-                raise CommandError(
-                    'The `{self.name}` command requires an env to be specified'
-                    .format_map(locals()))
-            return specified_env
-        elif self.env:
-            # Command may only be run in a designated env; make sure the
-            # specified env matches that env.
-            if specified_env and specified_env != self.env:
-                raise CommandError(
-                    'The `{self.name}` command may be run only in the "{self.env}" env but the '
-                    '"{specified_env}" env was specified'.format_map(locals()))
-            return self.env
-        # If an env was specified, use that; otherwise fall back to the
-        # default env for this command. The env may be None, which means
-        # the command will be run in no env (which means it will have
-        # access to only the default config).
-        return specified_env or self.default_env
+    def get_run_env(self, specified_env, global_default_env):
+        env = self.env
+        default_env = self.default_env
 
-    def run(self, config, args):
+        if env is not None:
+            if env is DEFAULT_ENV:
+                env = global_default_env
+
+            if env is True:
+                # The command has no default env and requires one to be
+                # specified.
+                if not specified_env:
+                    raise CommandError(
+                        'The `{self.name}` command requires an env to be specified'
+                        .format_map(locals()))
+                run_env = specified_env
+            elif env is False:
+                # The command explicitly doesn't run in an env.
+                if specified_env:
+                    raise CommandError(
+                        'The `{self.name}` command may *not* be run in an env but '
+                        'the "{specified_env}" env was specified'.format_map(locals()))
+                run_env = None
+            else:
+                # The command may only be run in a designated env; make
+                # sure the specified env matches that env.
+                if specified_env and specified_env != env:
+                    raise CommandError(
+                        'The `{self.name}` command may be run only in the "{env}" env but '
+                        'the "{specified_env}" env was specified'.format_map(locals()))
+                run_env = env
+        elif default_env is not None:
+            if specified_env:
+                # If an env was specified, the command will be run in that env.
+                run_env = specified_env
+            elif default_env is True or default_env is DEFAULT_ENV:
+                # If no env was specified *and* the command indicates that it
+                # should be run in the global default env, the command will be
+                # run in the global default env.
+                run_env = global_default_env
+            else:
+                # Otherwise, the command will be run in whatever default env
+                # was indicated in the command definition.
+                run_env = default_env
+        else:
+            # The command was configured without any env options, so use
+            # the specified env (which may be None).
+            run_env = specified_env
+
+        return run_env
+
+    def run(self, config, argv, **kwargs):
         if self.timed:
             start_time = time.monotonic()
 
-        kwargs = self.parse_args(config, args)
-        result = self(config, **kwargs)
+        all_args = self.parse_args(config, argv)
+        all_args.update(kwargs)
+        result = self(config, **all_args)
 
         if self.timed:
             hide = kwargs.get('hide', config._get_dotted('run.hide', 'none'))
@@ -147,12 +163,32 @@ class Command:
 
         return result
 
+    def console_script(self, _argv=None, _run_args=None, **kwargs):
+        from .run import read_run_args
+
+        argv = sys.argv[1:] if _argv is None else _argv
+
+        try:
+            run_config = RunConfig()
+            run_config.update(read_run_args(self))
+            run_config.update(_run_args or {})
+            run_config.env = self.get_run_env(run_config.env, run_config.default_env)
+            config = Config(env=run_config.env, run=run_config, _overrides=run_config.options)
+            self.run(config, argv, **kwargs)
+        except RunCommandsError as exc:
+            printer.error(exc, file=sys.stderr)
+            return 1
+
+        return 0
+
     def __call__(self, config, *args, **kwargs):
         if self.config:
             config = config._clone()
             config._update_dotted(self.config)
 
-        if config.debug:
+        debug = config._get_dotted('run.debug', None)
+
+        if debug:
             printer.debug('Command called:', self.name)
             printer.debug('    Received positional args:', args)
             printer.debug('    Received keyword args:', kwargs)
@@ -191,7 +227,7 @@ class Command:
         set_run_default('echo')
         set_run_default('hide')
 
-        if config.debug:
+        if debug:
             printer.debug('Running command:', self.name)
             printer.debug('    Final positional args:', repr(args))
             printer.debug('    Final keyword args:', repr(kwargs))
@@ -199,10 +235,15 @@ class Command:
         return self.implementation(config, *args, **kwargs)
 
     def parse_args(self, config, argv):
-        if config.debug:
+        debug = config._get_dotted('run.debug', None)
+        if debug:
             printer.debug('Parsing args for command `{self.name}`: {argv}'.format(**locals()))
+
         parsed_args = self.get_arg_parser(config).parse_args(argv)
         parsed_args = vars(parsed_args)
+        for k, v in parsed_args.items():
+            if v == '':
+                parsed_args[k] = None
         return parsed_args
 
     def arg_names_for_param(self, param):
@@ -212,6 +253,8 @@ class Command:
 
         if param.is_positional:
             return [name]
+        elif param.is_keyword_only:
+            return []
 
         arg_name = name.replace('_', '-')
         arg_name = arg_name.lower()
@@ -320,12 +363,16 @@ class Command:
     @cached_property
     def param_map(self):
         """Map parameters to command-line arg names."""
-        parameters = self.parameters.items()
-        return OrderedDict((n, self.arg_names_for_param(p)) for (n, p) in parameters)
+        param_map = OrderedDict()
+        for name, param in self.parameters.items():
+            arg_names = self.arg_names_for_param(param)
+            if arg_names:
+                param_map[name] = arg_names
+        return param_map
 
     def get_arg_parser(self, config=None):
         if config is None:
-            config = RawConfig()
+            config = RawConfig(run=RunConfig())
 
         if self.description:
             description = self.description
@@ -414,7 +461,7 @@ class Command:
                     kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
                 elif param.is_list:
-                    kwargs['action'] = 'append'
+                    kwargs['action'] = ListAppendAction
                     kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
                 else:
@@ -442,6 +489,9 @@ class Command:
     def __str__(self):
         return self.usage
 
+    def __repr__(self):
+        return 'Command(name={self.name})'.format(self=self)
+
 
 command = Command.command
 
@@ -455,6 +505,7 @@ class Parameter:
 
         self.is_positional = default is empty
         self.is_optional = not self.is_positional
+        self.is_keyword_only = self.kind is parameter.KEYWORD_ONLY
 
         if type_ is not None:
             self.type = type_
@@ -490,6 +541,7 @@ class HelpParameter(Parameter):
         self.default = False
         self.is_positional = False
         self.is_optional = True
+        self.is_keyword_only = False
         self.type = bool
         self.is_bool = True
         self.is_dict = False
@@ -500,9 +552,9 @@ class HelpParameter(Parameter):
 
 def bool_or(inner_type):
     """Used to indicate that an arg can be a flag or an option.
-    
+
     Used like this::
-    
+
         @command(type={'hide': bool_or(str)})
         def local(config, cmd, hide=False):
             "Run the specified command, possibly hiding its output."
@@ -556,21 +608,26 @@ class DictAddAction(argparse.Action):
                 'Bad format for {self.option_strings[0]}; expected: name=<value>; got: {item}'
                 .format_map(locals()))
 
-        if not value:
-            value = 'null'
-
-        try:
-            value = RawConfig._decode_value(name, value)
-        except ConfigError:
-            pass
+        if value:
+            value = RawConfig._decode_value(name, value, tolerant=True)
+        else:
+            value = None
 
         items[name] = value
 
 
-class CommandError(RunCommandsError):
+class ListAppendAction(argparse.Action):
 
-    pass
+    def __call__(self, parser, namespace, value, option_string=None):
+        if not hasattr(namespace, self.dest):
+            setattr(namespace, self.dest, [])
+        items = getattr(namespace, self.dest)
+        if value:
+            value = RawConfig._decode_value(len(items), value, tolerant=True)
+        else:
+            value = None
+        items.append(value)
 
 
 # Avoid circular import
-from .config import ConfigError, RawConfig  # noqa
+from .config import Config, RawConfig, RunConfig  # noqa: E402

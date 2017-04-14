@@ -8,7 +8,8 @@ from locale import getpreferredencoding
 from subprocess import check_output
 
 from .command import command
-from .exc import RunCommandsError
+from .const import DEFAULT_COMMANDS_MODULE
+from .exc import ConfigError, ConfigKeyError
 from .util import abort, abs_path, load_object
 
 
@@ -23,10 +24,17 @@ class RawConfig(OrderedDict):
     def __init__(self, *args, _overrides={}, _read_file=True, **kwargs):
         super().__init__(*args, **kwargs)
         if _read_file:
-            config_file = self.get('config_file')
-            self._read_from_file(config_file, self.get('env'))
+            config_file = self._get_dotted('run.config_file', None)
+            self._read_from_file(config_file, self._get_dotted('run.env', None))
         if _overrides:
             self._update_dotted(_overrides)
+
+    def __getitem__(self, name):
+        try:
+            value = super().__getitem__(name)
+        except KeyError:
+            raise ConfigKeyError(name) from None
+        return value
 
     def __getattr__(self, name):
         if name.startswith('_'):
@@ -56,10 +64,12 @@ class RawConfig(OrderedDict):
         return parser
 
     @classmethod
-    def _decode_value(cls, name, value):
+    def _decode_value(cls, name, value, tolerant=False):
         try:
             value = json.loads(value)
         except ValueError:
+            if tolerant:
+                return value
             msg = 'Could not read {name} from config (not valid JSON): {value}'
             raise ConfigError(msg.format_map(locals()))
         return value
@@ -196,6 +206,32 @@ class RawConfig(OrderedDict):
         return '\n'.join(out)
 
 
+class RunConfig(RawConfig):
+
+    """Container for run-related config options."""
+
+    _known_options = {
+        'commands_module': DEFAULT_COMMANDS_MODULE,
+        'config_file': None,
+        'env': None,
+        'default_env': None,
+        'options': None,
+        'echo': False,
+        'hide': False,
+        'debug': False,
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(self._known_options)
+        self.update(*args)
+        self.update(**kwargs)
+
+    def __setitem__(self, name, value):
+        if name not in self._known_options:
+            raise ConfigKeyError(name, 'not allowed in RunConfig')
+        super().__setitem__(name, value)
+
+
 class Config(RawConfig):
 
     """Config that adds defaults and does interpolation on values."""
@@ -217,7 +253,11 @@ class Config(RawConfig):
 
     def _do_interpolation(self, obj, interpolated):
         if isinstance(obj, str):
-            new_value = obj.format(**self)
+            try:
+                new_value = obj.format(**self)
+            except ConfigKeyError as exc:
+                context = 'while interpolating into "{obj}"'.format(obj=obj)
+                raise ConfigKeyError(exc.args[0], context) from None
             if new_value != obj:
                 obj = new_value
                 interpolated.append(obj)
@@ -242,17 +282,14 @@ class Config(RawConfig):
         return super().setdefault(name, default)
 
 
-class ConfigError(RunCommandsError):
-
-    pass
-
-
 class ConfigParser(RawConfigParser):
 
     optionxform = lambda self, name: name
 
 
 def version_getter(config):
+    if not os.path.isdir('.git'):
+        return None
     encoding = getpreferredencoding(do_setlocale=False)
     version = check_output(['git', 'rev-parse', '--short', 'HEAD'])
     version = version.decode(encoding).strip()
@@ -262,42 +299,42 @@ def version_getter(config):
 @command
 def show_config(config, name=(), flat=False, values=False, exclude=(), defaults=True):
     """Show config.
-    
+
     By default, all config items are shown using a nested format::
-    
+
         > show-config
         remote =>
             host => example.com
             user => user
-        
+
     To show the items in a flat list, use ``--flat``::
-    
+
         > show-config -f
         remote.host => example.com
         remote.user => user
-    
+
     To show selected items only, use ``--name`` one more times::
-    
+
         > show-config -n remote.host
         remote.host => example.com
-    
+
     To show just just values, pass ``--values``::
-    
+
         > show-config -n remote.host -v
         example.com
-        
+
         > ssh $(show-config -n remote.host -v)
-    
+
     .. note:: ``--values`` implies ``--flat``.
-    
+
     To exclude config items, use ``--exclude`` with dotted key names::
-    
+
         > show-config -n remote -e remote.host -f
         remote.user => ec2-user
-    
+
     To exclude ``defaults.`` config items (default args for commands),
     pass ``--no-defaults``.
-    
+
     """
     flat = flat or values
 

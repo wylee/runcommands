@@ -1,17 +1,77 @@
+#!/usr/bin/env python3
 import datetime
 import os
 import re
 import shutil
+import sys
 
-from runcommands import command
-from runcommands.commands import *
-from runcommands.util import abort, confirm, printer, prompt
+
+if 'runcommands' not in sys.path:
+    sys.path.insert(0, os.path.abspath('.'))
+
+
+from runcommands import command  # noqa: E402
+from runcommands.commands import *  # noqa: E402,F403
+from runcommands.util import abort, asset_path, confirm, printer, prompt  # noqa: E402
 
 
 @command
-def install(config, where='.env', upgrade=False):
+def virtualenv(config, where='.env', python='python3', overwrite=False):
+    exists = os.path.exists(where)
+
+    def create():
+        local(config, ('virtualenv', '-p', python, where))
+        printer.success(
+            'Virtualenv created; activate it by running `source {where}/bin/activate`'
+            .format_map(locals()))
+
+    if exists:
+        if overwrite:
+            printer.warning('Overwriting virtualenv', where, 'with', python)
+            shutil.rmtree(where)
+            create()
+        else:
+            printer.info('Virtualenv', where, 'exists; pass --overwrite to re-create it')
+    else:
+        printer.info('Creating virtualenv', where, 'with', python)
+        create()
+
+
+@command
+def install(config, where='.env', upgrade=False, overwrite=False):
+    virtualenv(config, where=where, overwrite=overwrite)
     pip = '{where}/bin/pip'.format(where=where)
     local(config, (pip, 'install', '--upgrade' if upgrade else '', '-e .[dev]'))
+
+
+@command
+def install_completion(config, shell='bash', to='~/.bashrc.d', overwrite=True):
+    """Install command line completion script.
+
+    Currently, only Bash is supported. The script will be copied to the
+    directory ``~/.bashrc.d`` by default. If the script already exists
+    at that location, it will be overwritten by default.
+
+    """
+    source = 'runcommands:completion/{shell}/runcommands.rc'.format(shell=shell)
+    source = asset_path(source)
+
+    destination = os.path.expanduser(to)
+
+    if os.path.isdir(destination):
+        to = os.path.join(to, 'runcommands.rc')
+        destination = os.path.join(destination, 'runcommands.rc')
+
+    printer.info('Installing', shell, 'completion script to', to)
+
+    if os.path.exists(destination):
+        if not overwrite:
+            overwrite = confirm(config, 'Overwrite?', abort_on_unconfirmed=True)
+        if overwrite:
+            printer.info('Overwriting', to)
+
+    shutil.copyfile(source, destination)
+    printer.info('Installed; remember to `source {to}`'.format(to=to))
 
 
 @command
@@ -21,8 +81,13 @@ def test(config):
 
 
 @command
+def tox(config):
+    local(config, 'tox')
+
+
+@command
 def lint(config):
-    result = local(config, 'flake8 runcommands', abort_on_failure=False)
+    result = local(config, 'flake8 .', abort_on_failure=False)
     pieces_of_lint = len(result.stdout_lines)
     if pieces_of_lint:
         s = '' if pieces_of_lint == 1 else 's'
@@ -34,16 +99,16 @@ def lint(config):
 @command
 def clean(config, verbose=False):
     """Clean up.
-    
+
     Removes:
-    
+
         - ./build/
         - ./dist/
         - **/__pycache__
         - **/*.py[co]
-    
+
     Skips hidden directories.
-    
+
     """
     def rm(name):
         if os.path.isfile(name):
@@ -164,7 +229,6 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
             msg = 'Cannot automatically determine next version from {version}'.format_map(locals())
             abort(3, msg)
 
-
     next_version_dev = '{next_version}.dev0'.format_map(locals())
 
     # Find the first line that starts with '##'. Extract the version and
@@ -256,3 +320,18 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
             'Commit message', default='Resume development at {next_version}'.format_map(locals()))
         msg = '-m "{msg}"'.format_map(locals())
         local(config, ('git commit', init_module, changelog, msg))
+
+
+@command
+def build_docs(config, source='docs', destination='docs/_build', type_='html'):
+    local(config, (
+        'sphinx-build',
+        '-b', type_,
+        source,
+        destination,
+    ))
+
+
+if __name__ == '__main__':
+    from runcommands.__main__ import main
+    sys.exit(main())

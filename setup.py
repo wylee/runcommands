@@ -25,15 +25,22 @@ setup(
     long_description=long_description,
     url='https://bitbucket.org/wyatt/runcommands',
     packages=find_packages(),
+    package_data={
+        'runcommands.completion': ['*/*'],
+    },
     install_requires=install_requires,
     extras_require={
         'dev': [
             'coverage',
             'flake8',
+            'Sphinx',
         ],
         'paramiko': [
             'paramiko>=2.1.2',
-        ]
+        ],
+        'tox': [
+            'tox',
+        ],
     },
     entry_points={
         'console_scripts': [
@@ -41,6 +48,7 @@ setup(
             'runcmd = runcommands.__main__:main',
             'runcommand = runcommands.__main__:main',
             'runcommands = runcommands.__main__:main',
+            'runcommands-complete = runcommands.completion:complete.console_script',
         ],
     },
     classifiers=[
