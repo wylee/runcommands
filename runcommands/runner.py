@@ -84,7 +84,7 @@ class CommandRunner:
             run_config = RunConfig(self.run_config._clone())
             run_config.update(run_args.get(command.name, {}))
             run_config.env = command.get_run_env(run_config.env, run_config.default_env)
-            config = Config(env=run_config.env, run=run_config, _overrides=run_config.options)
+            config = Config(run=run_config, _overrides=run_config.options)
             commands_to_run.append(CommandToRun(command, config, command_argv))
             num_consumed = len(command_argv) + 1
             argv = argv[num_consumed:]

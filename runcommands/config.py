@@ -238,9 +238,14 @@ class Config(RawConfig):
 
     def __init__(self, *args, _interpolate=True, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.setdefault('cwd', os.getcwd, lazy=True)
         self.setdefault('current_user', getpass.getuser, lazy=True)
         self.setdefault('version', self._get_default_version, lazy=True)
+
+        self.setdefault('env', lambda: self._get_dotted('run.env', None), lazy=True)
+        self.setdefault('debug', lambda: self._get_dotted('run.debug', None), lazy=True)
+
         if _interpolate:
             self._interpolate()
 

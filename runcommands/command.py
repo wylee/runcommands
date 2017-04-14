@@ -173,7 +173,7 @@ class Command:
             run_config.update(read_run_args(self))
             run_config.update(_run_args or {})
             run_config.env = self.get_run_env(run_config.env, run_config.default_env)
-            config = Config(env=run_config.env, run=run_config, _overrides=run_config.options)
+            config = Config(run=run_config, _overrides=run_config.options)
             self.run(config, argv, **kwargs)
         except RunCommandsError as exc:
             printer.error(exc, file=sys.stderr)
