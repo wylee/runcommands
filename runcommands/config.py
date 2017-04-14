@@ -196,7 +196,9 @@ class RawConfig(OrderedDict):
             if isinstance(v, RawConfig):
                 if not flat:
                     out.append('{indent}{k} =>'.format(**locals()))
-                out.append(v._to_string(flat, values_only, exclude, level + 1, qualified_k))
+                v = v._to_string(flat, values_only, exclude, level + 1, qualified_k)
+                if v:
+                    out.append(v)
             else:
                 if values_only:
                     out.append(str(v))
@@ -357,7 +359,9 @@ def show_config(config, name=(), flat=False, values=False, exclude=(), defaults=
                 if isinstance(value, RawConfig):
                     if not flat:
                         print(n, '=>')
-                    print(value._to_string(flat, values, exclude, 1, n))
+                    value = value._to_string(flat, values, exclude, 1, n)
+                    if value:
+                        print(value)
                 else:
                     if values:
                         print(value)
