@@ -1,8 +1,39 @@
 # RunCommands
 
-## 1.0a15 - unreleased
+## 1.0a15 - 2017-04-13
 
-In progress...
+- Default run options can now be specified for individual commands in
+  `setup.cfg` or `runcommands.cfg` (in sections like `[runcommands:local]`).
+- Default `list` and `dict` run options read from `setup.cfg` are now handled
+  correctly.
+- Added support for environment variables corresponding to various run options
+  (`RUNCOMMANDS_ECHO`, `RUNCOMMANDS_HIDE`, etc). They can be set directly or
+  via the `runcommands.configure()` function. Environment variables take
+  precedence over run options read from `setup.cfg`.
+- Made it easy to export console scripts for individual commands (by adding
+  something like `deploy = my.package:deploy.console_script` to a project's
+  `console_scripts` entry point).
+- `list` options are now processed the same way `dict` options are: attempt to
+  parse them as JSON and fall back to str if that fails.
+- Empty command line options are now converted to `None`. Empty values can be
+  passed using `--opt=` or `--opt ''`.
+- Revamped env handling.
+- Added handling of keyword-only command function args. Keyword-only args can
+  only be passed in direct/programmatic calls to a command; they aren't
+  included in the command line options.
+- Made the project bootstrappable. It should be possible now to `git clone` the
+  project and then run `./commands.py install` to create a virtualenv for
+  development.
+- Reorganized and cleaned up a bunch of stuff.
+- Started writing Sphinx/RTD docs.
+- Added tox configuration.
+
+### Fixed
+
+- Fixed the `@command` decorator's first arg: renamed it from `name_or_wrapped`
+  to `name`.
+- When getting the default version via get in `Config`, return `None` if the
+  current directory isn't a git repo.
 
 ## 1.0a14 - 2017-04-06
 
