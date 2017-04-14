@@ -180,10 +180,13 @@ def confirm(config, prompt='Really?', color='warning', yes_values=('y', 'yes'),
             abort_on_unconfirmed=False, abort_options=None):
     prompt = prompt.format(**config)
     prompt = '{prompt} [{yes_value}/N] '.format(prompt=prompt, yes_value=yes_values[0])
+
     if isinstance(yes_values, str):
         yes_values = (yes_values,)
-    if color is not None:
+
+    if color:
         prompt = printer.colorize(prompt, color=color)
+
     try:
         answer = input(prompt)
     except KeyboardInterrupt:
@@ -192,8 +195,20 @@ def confirm(config, prompt='Really?', color='warning', yes_values=('y', 'yes'),
     else:
         answer = answer.strip().lower()
         confirmed = answer in yes_values
-    if not confirmed and abort_on_unconfirmed:
-        abort(**(abort_options or {}))
+
+    if not confirmed and abort_on_unconfirmed in (True, 0):
+        if abort_options is None:
+            abort_options = {}
+
+        if abort_on_unconfirmed is True:
+            abort_options.setdefault('code', 0)
+        elif isinstance(abort_on_unconfirmed, int):
+            abort_options.setdefault('code', abort_on_unconfirmed)
+        elif isinstance(abort_on_unconfirmed, str):
+            abort_options.setdefault('message', abort_on_unconfirmed)
+
+        abort(**abort_options)
+
     return confirmed
 
 
