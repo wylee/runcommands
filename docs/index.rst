@@ -41,6 +41,7 @@ Contents
     running-commands
     built-in-commands
     configuration
+    api/index
 
 Indices and tables
 ==================
