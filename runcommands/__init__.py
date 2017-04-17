@@ -5,7 +5,7 @@ from .command import bool_or, command
 from .const import DEFAULT_ENV
 
 
-__all__ = ['__version__', 'DEFAULT_ENV', 'bool_or', 'command']
+__all__ = ['__version__', 'DEFAULT_ENV', 'bool_or', 'command', 'configure']
 __version__ = '1.0a16.dev0'
 
 
