@@ -4,6 +4,9 @@ RunCommands
 A simple command runner that uses ``argparse`` from the Python standard library
 under the hood. Python 3 only (3.3 and up).
 
+Basic Usage
+===========
+
 Define a command:
 
 .. code-block:: python

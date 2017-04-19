@@ -5,8 +5,8 @@ from .command import bool_or, command
 from .const import DEFAULT_ENV
 
 
-__all__ = ['__version__', 'DEFAULT_ENV', 'bool_or', 'command']
-__version__ = '1.0a15'
+__all__ = ['__version__', 'DEFAULT_ENV', 'bool_or', 'command', 'configure']
+__version__ = '1.0a16'
 
 
 def configure(commands_module=None, config_file=None, default_env=None, env=None, echo=None,

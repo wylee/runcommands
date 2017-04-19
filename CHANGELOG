@@ -1,5 +1,17 @@
 # RunCommands
 
+## 1.0a16 - 2017-04-18
+
+- Added more documentation.
+- `configure()` is now "officially" exported from the top level package (by
+  adding it to `__all__`).
+- The `env` and `debug` config keys are now both copied from the `RunConfig` to
+  the top level `Config` so you can do `config.env` instead of `config.run.env`
+  in commands. This is somewhat for backward compatibility and somewhat just
+  for convenience.
+- Improved `util.confirms()`'s `abort_on_unconfirmed` option.
+- Fixed a little glitch in the output of `show-config`.
+
 ## 1.0a15 - 2017-04-13
 
 - Default run options can now be specified for individual commands in
