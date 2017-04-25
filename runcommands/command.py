@@ -158,16 +158,24 @@ class Command:
 
         return run_env
 
-    def run(self, config, argv, **kwargs):
+    def run(self, run_config, argv, **kwargs):
         if self.timed:
             start_time = time.monotonic()
+
+        run_env = self.get_run_env(run_config.env, run_config.default_env)
+        run_config = run_config._clone(env=run_env)
+
+        # NOTE: The config file is read here. Config from the command's
+        #       definition and command line options are merged in here
+        #       so that interpolation will be applied to them too.
+        config = Config(self.config.copy(), run=run_config._clone())
 
         all_args = self.parse_args(config, argv)
         all_args.update(kwargs)
         result = self(config, **all_args)
 
         if self.timed:
-            hide = kwargs.get('hide', config._get_dotted('run.hide', 'none'))
+            hide = kwargs.get('hide', config.run.hide)
             if not Hide.hide_stdout(hide):
                 self.print_elapsed_time(time.monotonic() - start_time)
 
@@ -182,9 +190,7 @@ class Command:
             run_config = RunConfig()
             run_config.update(read_run_args(self))
             run_config.update(_run_args or {})
-            run_config.env = self.get_run_env(run_config.env, run_config.default_env)
-            config = Config(run=run_config, _overrides=run_config.options)
-            self.run(config, argv, **kwargs)
+            self.run(run_config, argv, **kwargs)
         except RunCommandsError as exc:
             printer.error(exc, file=sys.stderr)
             return 1
@@ -192,11 +198,12 @@ class Command:
         return 0
 
     def __call__(self, config, *args, **kwargs):
-        if self.config:
-            config = config._clone()
-            config._update_dotted(self.config)
-
-        debug = config._get_dotted('run.debug', None)
+        # Merge config from the command's definition along with options
+        # specified on the command line. We already do this in the run()
+        # method above, but we have to ensure it's done when the command
+        # is called directly too.
+        config = Config(config._clone(self.config.copy()))
+        debug = config.run.debug
 
         if debug:
             printer.debug('Command called:', self.name)
@@ -245,7 +252,7 @@ class Command:
         return self.implementation(config, *args, **kwargs)
 
     def parse_args(self, config, argv):
-        debug = config._get_dotted('run.debug', None)
+        debug = config.run.debug
         if debug:
             printer.debug('Parsing args for command `{self.name}`: {argv}'.format(**locals()))
 
@@ -382,7 +389,7 @@ class Command:
 
     def get_arg_parser(self, config=None):
         if config is None:
-            config = RawConfig(run=RunConfig())
+            config = Config()
 
         if self.description:
             description = self.description
@@ -619,7 +626,7 @@ class DictAddAction(argparse.Action):
                 .format_map(locals()))
 
         if value:
-            value = RawConfig._decode_value(name, value, tolerant=True)
+            value = Config._decode_value(name, value, tolerant=True)
         else:
             value = None
 
@@ -633,11 +640,11 @@ class ListAppendAction(argparse.Action):
             setattr(namespace, self.dest, [])
         items = getattr(namespace, self.dest)
         if value:
-            value = RawConfig._decode_value(len(items), value, tolerant=True)
+            value = Config._decode_value(len(items), value, tolerant=True)
         else:
             value = None
         items.append(value)
 
 
 # Avoid circular import
-from .config import Config, RawConfig, RunConfig  # noqa: E402
+from .config import Config, RunConfig  # noqa: E402

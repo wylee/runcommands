@@ -6,7 +6,7 @@ from ..runner import CommandRunner
 
 @command
 def complete(config, module=DEFAULT_COMMANDS_MODULE, words=(), index=0):
-    debug = config._get_dotted('run.debug', None)
+    debug = config.run.debug
     runner = CommandRunner(module, debug=debug)
     commands = runner.commands
 

@@ -55,7 +55,7 @@ def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, 
     ``config.bin.dirs`` to the front of ``$PATH``
 
     """
-    debug = config._get_dotted('run.debug', None)
+    debug = config.run.debug
 
     if sudo and run_as:
         abort(1, 'Only one of --sudo or --run-as may be passed')
@@ -106,7 +106,7 @@ def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
             ``sudo -u <run_as>``
 
     """
-    debug = config._get_dotted('run.debug', None)
+    debug = config.run.debug
 
     cmd = args_to_str(cmd, format_kwargs=(config if inject_context else None))
     user = args_to_str(user, format_kwargs=config)

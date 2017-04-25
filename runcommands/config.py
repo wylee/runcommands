@@ -4,6 +4,7 @@ import os
 from collections import Mapping, OrderedDict, Sequence
 from configparser import RawConfigParser
 from contextlib import contextmanager
+from copy import copy
 from locale import getpreferredencoding
 from subprocess import check_output
 
@@ -20,14 +21,6 @@ NO_DEFAULT = object()
 
 
 class RawConfig(OrderedDict):
-
-    def __init__(self, *args, _overrides={}, _read_file=True, **kwargs):
-        super().__init__(*args, **kwargs)
-        if _read_file:
-            config_file = self._get_dotted('run.config_file', None)
-            self._read_from_file(config_file, self._get_dotted('run.env', None))
-        if _overrides:
-            self._update_dotted(_overrides)
 
     def __getitem__(self, name):
         try:
@@ -47,65 +40,27 @@ class RawConfig(OrderedDict):
         self[name] = value
 
     def __setitem__(self, name, value):
-        if isinstance(value, dict):
-            value = RawConfig(value, _read_file=False)
+        if isinstance(value, Mapping) and not isinstance(value, RawConfig):
+            value = RawConfig(value)
         super().__setitem__(name, value)
 
-    @classmethod
-    def _make_config_parser(cls, file_name=None):
-        parser = ConfigParser()
-        if file_name:
-            file_name = abs_path(file_name)
-            try:
-                with open(file_name) as fp:
-                    parser.read_file(fp)
-            except FileNotFoundError:
-                raise ConfigError('Config file does not exist: {file_name}'.format_map(locals()))
-        return parser
+    def __copy__(self):
+        # Recursive shallow copy
+        config = self.__class__.__new__(self.__class__)
+        for k, v in self.items():
+            config[k] = copy(v)
+        return config
 
-    @classmethod
-    def _decode_value(cls, name, value, tolerant=False):
-        try:
-            value = json.loads(value)
-        except ValueError:
-            if tolerant:
-                return value
-            msg = 'Could not read {name} from config (not valid JSON): {value}'
-            raise ConfigError(msg.format_map(locals()))
-        return value
-
-    @classmethod
-    def _get_envs(cls, file_name):
-        parser = cls._make_config_parser(file_name)
-        sections = set(parser.sections())
-        for name in parser:
-            extends = parser.get(name, 'extends', fallback=None)
-            if extends:
-                extends = cls._decode_value('extends', extends)
-                sections.update(cls._get_envs(extends))
-        return sorted(sections)
-
-    def _clone(self, **overrides):
-        items = RawConfig()
-        for n, v in self.items():
-            if isinstance(v, RawConfig):
-                v = v._inner_clone()
-            items[n] = v
-        items._update_dotted(overrides)
-        return self.__class__(items)
-
-    def _inner_clone(self):
-        items = RawConfig()
-        for n, v in self.items():
-            if isinstance(v, RawConfig):
-                v = v._inner_clone()
-            items[n] = v
-        return self.__class__(items, _read_file=False)
+    def _clone(self, *args, **kwargs):
+        clone = copy(self)
+        for overrides in args:
+            clone._update_dotted(overrides)
+        clone._update_dotted(kwargs)
+        return clone
 
     @contextmanager
-    def _override(self, **overrides):
-        config = self._clone()
-        config._update_dotted(overrides)
+    def _override(self, *args, **kwargs):
+        config = self._clone(*args, **kwargs)
         yield config
 
     def _get_dotted(self, name, default=NO_DEFAULT):
@@ -146,30 +101,6 @@ class RawConfig(OrderedDict):
         if kwargs:
             for name, value in kwargs.items():
                 self._set_dotted(name, value)
-
-    def _read_from_file(self, file_name, env=None):
-        parser = self._make_config_parser(file_name)
-
-        if env:
-            if env in parser:
-                section = parser[env]
-                self['__ENV_SECTION_FOUND_IN_FILE__'] = file_name
-            else:
-                section = parser.defaults()
-        else:
-            section = parser.defaults()
-
-        extends = section.get('extends')
-        if extends:
-            extends = self._decode_value('extends', extends)
-            self._read_from_file(extends, env)
-
-        for name, value in section.items():
-            value = self._decode_value(name, value)
-            self._set_dotted(name, value)
-
-        if env and '__ENV_SECTION_FOUND_IN_FILE__' not in self:
-            raise ConfigError('Env/section not found while reading config: {env}'.format(env=env))
 
     def _to_string(self, flat=False, values_only=False, exclude=(), level=0, root=''):
         out = []
@@ -225,6 +156,7 @@ class RunConfig(RawConfig):
 
     def __init__(self, *args, **kwargs):
         super().__init__(self._known_options)
+        self['options'] = {}
         self.update(*args)
         self.update(**kwargs)
 
@@ -236,20 +168,99 @@ class RunConfig(RawConfig):
 
 class Config(RawConfig):
 
-    """Config that adds defaults and does interpolation on values."""
+    def __init__(self, *args, **kwargs):
+        bootstrap_config = RawConfig()
+        bootstrap_config._update_dotted(*args, **kwargs)
+        run_config = bootstrap_config.get('run')
+        run_config = RunConfig() if run_config is None else run_config
 
-    def __init__(self, *args, _interpolate=True, **kwargs):
-        super().__init__(*args, **kwargs)
+        self['run'] = run_config
+
+        # XXX: It's possible this could override run options. Not
+        #      sure if that's okay...
+        self._read_from_file(self.run.config_file, self.run.env)
+
+        self._update_dotted(*args, **kwargs)
 
         self.setdefault('cwd', os.getcwd, lazy=True)
         self.setdefault('current_user', getpass.getuser, lazy=True)
         self.setdefault('version', self._get_default_version, lazy=True)
+        self.setdefault('env', lambda: self.run.env, lazy=True)
+        self.setdefault('debug', lambda: self.run.debug, lazy=True)
 
-        self.setdefault('env', lambda: self._get_dotted('run.env', None), lazy=True)
-        self.setdefault('debug', lambda: self._get_dotted('run.debug', None), lazy=True)
+        # Run options are specified on the command line and have higher
+        # precedence than config options read from elsewhere.
+        if self.run.options:
+            self._update_dotted(self.run.options)
 
-        if _interpolate:
-            self._interpolate()
+        self._interpolate()
+
+    @classmethod
+    def _make_config_parser(cls, file_name=None, _cache={}):
+        if file_name:
+            file_name = abs_path(file_name)
+
+        if file_name in _cache:
+            return _cache[file_name]
+
+        parser = ConfigParser()
+
+        if file_name:
+            try:
+                with open(file_name) as fp:
+                    parser.read_file(fp)
+            except FileNotFoundError:
+                raise ConfigError('Config file does not exist: {file_name}'.format_map(locals()))
+
+        _cache[file_name] = parser
+
+        return parser
+
+    @classmethod
+    def _decode_value(cls, name, value, tolerant=False):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            if tolerant:
+                return value
+            msg = 'Could not read {name} from config (not valid JSON): {value}'
+            raise ConfigError(msg.format_map(locals()))
+        return value
+
+    @classmethod
+    def _get_envs(cls, file_name):
+        parser = cls._make_config_parser(file_name)
+        sections = set(parser.sections())
+        for name in parser:
+            extends = parser.get(name, 'extends', fallback=None)
+            if extends:
+                extends = cls._decode_value('extends', extends)
+                sections.update(cls._get_envs(extends))
+        return sorted(sections)
+
+    def _read_from_file(self, file_name, env=None):
+        parser = self._make_config_parser(file_name)
+
+        if env:
+            if env in parser:
+                section = parser[env]
+                self['__ENV_SECTION_FOUND_IN_FILE__'] = file_name
+            else:
+                section = parser.defaults()
+        else:
+            section = parser.defaults()
+
+        extends = section.get('extends')
+        if extends:
+            extends = self._decode_value('extends', extends)
+            self._read_from_file(extends, env)
+
+        for name, value in section.items():
+            value = self._decode_value(name, value)
+            self._set_dotted(name, value)
+
+        if env and '__ENV_SECTION_FOUND_IN_FILE__' not in self:
+            raise ConfigError('Env/section not found while reading config: {env}'.format(env=env))
 
     def _interpolate(self):
         interpolated = []
