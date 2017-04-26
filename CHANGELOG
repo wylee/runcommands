@@ -1,8 +1,19 @@
 # RunCommands
 
-## 1.0a17 - unreleased
+## 1.0a17 - 2017-04-26
 
-In progress...
+- When the `--debug` flag is passed to the main script, `RunCommandsError`
+  exceptions are now raised instead of being caught. Raising these exceptions
+  actually facilitates debugging. ;)
+- Default command options specified via config are now validated. Previously,
+  nonexistent default options would be silently ignored. Now a `CommandError`
+  will be raised.
+- When reading streams (e.g., when the `local` command is run), `EIO` errors
+  are now caught and ignored. We already do this when writing, so it makes
+  sense to do it also when reading. TODO: Review which OS/IO errors can be
+  caught and safely ignored.
+- Revamped config handling. Mainly, this is internal facing. Creation and
+  handling of config objects is simpler and more consistent.
 
 ## 1.0a16 - 2017-04-18
 
