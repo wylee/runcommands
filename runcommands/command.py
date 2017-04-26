@@ -20,9 +20,9 @@ class Command:
     Wraps a callable and provides a command line argument parser.
 
     This is typically used via the ``command`` decorator::
-    
+
         from runcommands import command
-        
+
         @command
         def my_command(config):
             pass
