@@ -6,7 +6,7 @@ from itertools import chain
 from shutil import get_terminal_size
 
 from .command import Command
-from .config import Config, RawConfig, RunConfig
+from .config import Config, RunConfig
 from .exc import RunnerError
 from .util import abs_path, printer
 
@@ -81,11 +81,9 @@ class CommandRunner:
         commands_to_run = []
         while argv:
             command, command_argv = self.partition_args(commands, argv)
-            run_config = RunConfig(self.run_config._clone())
-            run_config.update(run_args.get(command.name, {}))
-            run_config.env = command.get_run_env(run_config.env, run_config.default_env)
-            config = Config(run=run_config, _overrides=run_config.options)
-            commands_to_run.append(CommandToRun(command, config, command_argv))
+            command_run_args = run_args.get(command.name, {})
+            run_config = self.run_config._clone(command_run_args)
+            commands_to_run.append(CommandToRun(command, run_config, command_argv))
             num_consumed = len(command_argv) + 1
             argv = argv[num_consumed:]
 
@@ -122,7 +120,7 @@ class CommandRunner:
             printer.debug(*args, **kwargs)
 
     def print_envs(self):
-        envs = RawConfig._get_envs(self.config_file)
+        envs = Config._get_envs(self.config_file)
         if not envs:
             printer.warning('No envs available')
             return
@@ -154,17 +152,16 @@ class CommandRunner:
 
 class CommandToRun:
 
-    __slots__ = ('name', 'command', 'config', 'env', 'argv')
+    __slots__ = ('name', 'command', 'run_config', 'argv')
 
     def __init__(self, command, config, argv):
         self.name = command.name
         self.command = command
-        self.config = config
-        self.env = config._get_dotted('run.env', None)
+        self.run_config = config
         self.argv = argv
 
     def run(self):
-        return self.command.run(self.config, self.argv)
+        return self.command.run(self.run_config, self.argv)
 
     def __repr__(self):
-        return 'Command(name={self.name}, env={self.env}, args={self.argv})'.format(self=self)
+        return 'Command(name={self.name}, args={self.argv})'.format(self=self)

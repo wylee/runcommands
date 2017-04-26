@@ -29,6 +29,10 @@ def mirror_and_capture(in_, out, err, chunk_size, finish=False, poll_timeout=0.0
     def _read(read_from, write_to, mirror, buffer, num_bytes, remove=True):
         try:
             data = os.read(read_from, num_bytes)
+        except OSError as exc:
+            if exc.errno != errno.EIO:
+                raise
+            data = None
         except ValueError:
             data = None
         if data:
