@@ -1,5 +1,9 @@
 # RunCommands
 
+## 1.0a18 - unreleased
+
+In progress...
+
 ## 1.0a17 - 2017-04-26
 
 - When the `--debug` flag is passed to the main script, `RunCommandsError`
