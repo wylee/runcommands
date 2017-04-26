@@ -171,6 +171,8 @@ class RunConfig(RawConfig):
 class Config(RawConfig):
 
     def __init__(self, *args, **kwargs):
+        super().__init__()
+
         bootstrap_config = RawConfig()
         bootstrap_config._update_dotted(*args, **kwargs)
         run_config = bootstrap_config.get('run')
