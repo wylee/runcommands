@@ -1,4 +1,3 @@
-import locale
 import os
 import pty
 import shlex
@@ -67,7 +66,7 @@ class LocalRunner(Runner):
         err_buffer = []
 
         chunk_size = 8192
-        encoding = locale.getpreferredencoding(do_setlocale=False)
+        encoding = self.get_encoding()
 
         try:
             if use_pty:

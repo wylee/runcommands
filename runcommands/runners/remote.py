@@ -1,6 +1,5 @@
 import atexit
 import getpass
-import locale
 import sys
 from functools import partial
 
@@ -46,9 +45,6 @@ class RemoteRunner(Runner):
         remote_cmd = ' '.join(remote_cmd)
 
         return remote_cmd
-
-    def get_encoding(self):
-        return locale.getpreferredencoding(do_setlocale=False)
 
     def munge_path(self, path, prepend_path, append_path):
         if path is prepend_path is append_path is None:
@@ -115,7 +111,7 @@ class RemoteRunnerParamiko(RemoteRunner):
         err_buffer = []
 
         chunk_size = 8192
-        encoding = locale.getpreferredencoding(do_setlocale=False)
+        encoding = self.get_encoding()
 
         try:
             client = self.get_client(host, user, debug=debug)
