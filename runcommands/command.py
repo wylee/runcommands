@@ -214,6 +214,13 @@ class Command:
         defaults = config._get_dotted(self.defaults_path, None)
 
         if defaults:
+            nonexistent_defaults = [n for n in defaults if n not in params]
+            if nonexistent_defaults:
+                nonexistent_defaults = ', '.join(nonexistent_defaults)
+                raise CommandError(
+                    'Nonexistent default options specified for {self.name}: {nonexistent_defaults}'
+                    .format_map(locals()))
+
             positionals = OrderedDict()
             for name, value in zip(self.positionals, args):
                 positionals[name] = value
