@@ -11,6 +11,7 @@ else:
     from paramiko.client import AutoAddPolicy, SSHClient
     from paramiko.ssh_exception import SSHException
 
+from ..exc import RunCommandsError
 from ..util import Hide, printer
 from .base import Runner
 from .exc import RunError
@@ -23,6 +24,20 @@ __all__ = ['RemoteRunnerParamiko', 'RemoteRunnerSSH']
 
 
 class RemoteRunner(Runner):
+
+    name = None
+
+    @classmethod
+    def from_name(cls, name, *args, **kwargs):
+        if isinstance(name, RemoteRunner):
+            return name
+        subclass_map = {c.name: c for c in RemoteRunner.__subclasses__() if c.name}
+        for subclass_name, subclass in subclass_map.items():
+            if subclass_name == name:
+                return subclass(*args, **kwargs)
+        raise RunCommandsError(
+            'RemoteRunner corresponding to "{name}" not found; expected one of: {names}'
+            .format(name=name, names=', '.join(subclass_map)))
 
     def get_remote_command(self, cmd, user, cd, path, sudo, run_as):
         remote_cmd = []
@@ -49,6 +64,8 @@ class RemoteRunner(Runner):
 
 class RemoteRunnerSSH(RemoteRunner):
 
+    name = 'ssh'
+
     def run(self, cmd, host, user=None, cd=None, path=None, prepend_path=None,
             append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
             debug=False):
@@ -68,6 +85,8 @@ class RemoteRunnerSSH(RemoteRunner):
 
 
 class RemoteRunnerParamiko(RemoteRunner):
+
+    name = 'paramiko'
 
     clients = {}
 

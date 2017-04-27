@@ -5,7 +5,7 @@ from ..util import abort, args_to_str, format_if, paths_to_str
 
 from .exc import RunAborted, RunError
 from .local import LocalRunner
-from .remote import RemoteRunnerParamiko, RemoteRunnerSSH
+from .remote import RemoteRunner
 
 
 __all__ = ['local', 'remote']
@@ -73,7 +73,7 @@ def local(config, cmd, cd=None, path=(), prepend_path=(), append_path=(), sudo=F
 @command
 def remote(config, cmd, host, user=None, cd=None, path=(), prepend_path=(),
            append_path=(), sudo=False, run_as=None, echo=False, hide=False, timeout=30,
-           abort_on_failure=True, inject_config=True, strategy=RemoteRunnerSSH):
+           abort_on_failure=True, inject_config=True, strategy='ssh'):
     """Run a command on the remote host via SSH.
 
     Args:
@@ -111,15 +111,7 @@ def remote(config, cmd, host, user=None, cd=None, path=(), prepend_path=(),
     prepend_path = path_converter(prepend_path)
     append_path = path_converter(append_path)
 
-    if isinstance(strategy, str):
-        if strategy == 'paramiko':
-            strategy = RemoteRunnerParamiko
-        elif strategy == 'ssh':
-            strategy = RemoteRunnerSSH
-        else:
-            raise ValueError('remote strategy must be one of "paramiko" or "ssh"')
-
-    runner = strategy()
+    runner = RemoteRunner.from_name(strategy)
 
     try:
         return runner.run(
