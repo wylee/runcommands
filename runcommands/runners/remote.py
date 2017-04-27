@@ -1,6 +1,5 @@
 import atexit
 import getpass
-import locale
 import sys
 from functools import partial
 
@@ -12,6 +11,7 @@ else:
     from paramiko.client import AutoAddPolicy, SSHClient
     from paramiko.ssh_exception import SSHException
 
+from ..exc import RunCommandsError
 from ..util import Hide, printer
 from .base import Runner
 from .exc import RunError
@@ -24,6 +24,20 @@ __all__ = ['RemoteRunnerParamiko', 'RemoteRunnerSSH']
 
 
 class RemoteRunner(Runner):
+
+    name = None
+
+    @classmethod
+    def from_name(cls, name, *args, **kwargs):
+        if isinstance(name, RemoteRunner):
+            return name
+        subclass_map = {c.name: c for c in RemoteRunner.__subclasses__() if c.name}
+        for subclass_name, subclass in subclass_map.items():
+            if subclass_name == name:
+                return subclass(*args, **kwargs)
+        raise RunCommandsError(
+            'RemoteRunner corresponding to "{name}" not found; expected one of: {names}'
+            .format(name=name, names=', '.join(subclass_map)))
 
     def get_remote_command(self, cmd, user, cd, path, sudo, run_as):
         remote_cmd = []
@@ -47,22 +61,10 @@ class RemoteRunner(Runner):
 
         return remote_cmd
 
-    def get_encoding(self):
-        return locale.getpreferredencoding(do_setlocale=False)
-
-    def munge_path(self, path, prepend_path, append_path):
-        if path is prepend_path is append_path is None:
-            return None
-        path = [path] if path else ['$PATH']
-        if prepend_path:
-            path = [prepend_path] + path
-        if append_path:
-            path += [append_path]
-        path = ':'.join(path)
-        return path
-
 
 class RemoteRunnerSSH(RemoteRunner):
+
+    name = 'ssh'
 
     def run(self, cmd, host, user=None, cd=None, path=None, prepend_path=None,
             append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
@@ -75,7 +77,7 @@ class RemoteRunnerSSH(RemoteRunner):
         #     <cmd>
         # EOBASH
         ssh_connection_str = '{user}@{host}'.format(user=user, host=host) if user else host
-        path = self.munge_path(path, prepend_path, append_path)
+        path = self.munge_path(path, prepend_path, append_path, '$PATH')
         remote_command = self.get_remote_command(cmd, user, cd, path, sudo, run_as)
         ssh_cmd = ['ssh', '-T', ssh_connection_str, remote_command]
         local_runner = LocalRunner()
@@ -83,6 +85,8 @@ class RemoteRunnerSSH(RemoteRunner):
 
 
 class RemoteRunnerParamiko(RemoteRunner):
+
+    name = 'paramiko'
 
     clients = {}
 
@@ -95,7 +99,7 @@ class RemoteRunnerParamiko(RemoteRunner):
             append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
             debug=False):
         user = user or getpass.getuser()
-        path = self.munge_path(path, prepend_path, append_path)
+        path = self.munge_path(path, prepend_path, append_path, '$PATH')
         remote_command = self.get_remote_command(cmd, user, cd, path, sudo, run_as)
 
         hide_stdout = Hide.hide_stdout(hide)
@@ -115,7 +119,7 @@ class RemoteRunnerParamiko(RemoteRunner):
         err_buffer = []
 
         chunk_size = 8192
-        encoding = locale.getpreferredencoding(do_setlocale=False)
+        encoding = self.get_encoding()
 
         try:
             client = self.get_client(host, user, debug=debug)
@@ -144,7 +148,7 @@ class RemoteRunnerParamiko(RemoteRunner):
 
             return_code = channel.exit_status
         except SSHException:
-            raise RunError(-255, '', '')
+            raise RunError(-255, '', '', encoding)
 
         result_args = (return_code, out_buffer, err_buffer, encoding)
 

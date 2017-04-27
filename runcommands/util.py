@@ -235,6 +235,13 @@ def confirm(config, prompt='Really?', color='warning', yes_values=('y', 'yes'),
     return confirmed
 
 
+def format_if(value, format_kwargs):
+    """Apply format args to value if value or return value as is."""
+    if not value:
+        return value
+    return value.format_map(format_kwargs)
+
+
 def load_object(obj) -> object:
     """Load an object.
 
@@ -263,6 +270,44 @@ def load_object(obj) -> object:
             for attr in attrs:
                 obj = getattr(obj, attr)
     return obj
+
+
+def paths_to_str(paths, format_kwargs={}, delimiter=os.pathsep, asset_paths=False,
+                 check_paths=False):
+    """Convert ``paths`` to a single string.
+
+    Args:
+        paths (str|list): A string like "/a/path:/another/path" or
+            a list of paths; may include absolute paths and/or asset
+            paths; paths that are relative will be left relative
+        format_kwargs (dict): Will be injected into each path
+        delimiter (str): The string used to separate paths
+        asset_paths (bool): Whether paths that look like asset paths
+            will be converted to absolute paths
+        check_paths (bool): Whether paths should be checked to ensure
+            they exist
+
+    """
+    if not paths:
+        return ''
+    if isinstance(paths, str):
+        paths = paths.split(delimiter)
+    processed_paths = []
+    for path in paths:
+        original = path
+        path = path.format_map(format_kwargs)
+        if not os.path.isabs(path):
+            if asset_paths and ':' in path:
+                try:
+                    path = asset_path(path)
+                except ValueError:
+                    path = None
+        if path is not None and os.path.isdir(path):
+            processed_paths.append(path)
+        elif check_paths:
+            f = locals()
+            printer.warning('Path does not exist: {path} (from {original})'.format_map(f))
+    return delimiter.join(processed_paths)
 
 
 def prompt(message, default=None, color=True):

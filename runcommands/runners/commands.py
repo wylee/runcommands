@@ -1,80 +1,64 @@
-import os
+from functools import partial
 
 from ..command import command
-from ..util import abort, abs_path, asset_path, args_to_str, as_list, printer
+from ..util import abort, args_to_str, format_if, paths_to_str
 
 from .exc import RunAborted, RunError
 from .local import LocalRunner
-from .remote import RemoteRunnerParamiko, RemoteRunnerSSH
+from .remote import RemoteRunner
 
 
 __all__ = ['local', 'remote']
 
 
-def get_default_prepend_path(config):
-    paths = as_list(config._get_dotted('bin.dirs', []))
-    processed_paths = []
-    for path in paths:
-        pristine_path = path
-        path = path.format(**config)
-        if not os.path.isabs(path):
-            if ':' in path:
-                try:
-                    path = asset_path(path)
-                except ValueError:
-                    path = None
-            else:
-                path = abs_path(path)
-        if path is not None and os.path.isdir(path):
-            processed_paths.append(path)
-        else:
-            printer.warning(
-                'Path does not exist: {path} (from {pristine_path})'
-                .format_map(locals()))
-    return ':'.join(processed_paths) or None
-
-
 @command
 def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, sudo=False,
           run_as=None, echo=False, hide=False, timeout=None, use_pty=True, abort_on_failure=True,
-          inject_context=True):
+          inject_config=True):
     """Run a command locally.
 
     Args:
         cmd (str|list): The command to run locally; if it contains
             format strings, those will be filled from ``config``
-        cd: Where to run the command on the remote host
-        path: Replace ``$PATH`` with path(s)
-        prepend_path: Add extra path(s) to front of ``$PATH``
-        append_path: Add extra path(s) to end of ``$PATH``
-        sudo: Run as sudo?
-        run_as: Run command as a different user with
+        cd (str): Where to run the command on the remote host
+        path (str|list): Replace ``$PATH`` with path(s)
+        prepend_path (str|list): Add extra path(s) to front of ``$PATH``
+        append_path (str|list): Add extra path(s) to end of ``$PATH``
+        sudo (bool): Run as sudo?
+        run_as (str): Run command as a different user with
             ``sudo -u <run_as>``
+        inject_config (bool): Whether to inject config into the ``cmd``,
+            ``cd``, the various path args, and ``run_as``
 
     If none of the path options are specified, the default is prepend
     ``config.bin.dirs`` to the front of ``$PATH``
 
     """
     debug = config.run.debug
+    format_kwargs = config if inject_config else {}
 
-    if sudo and run_as:
-        abort(1, 'Only one of --sudo or --run-as may be passed')
-    if sudo:
-        cmd = ('sudo', cmd)
-    elif run_as:
-        cmd = ('sudo', '-u', run_as, cmd)
+    cmd = args_to_str(cmd, format_kwargs=format_kwargs)
+    cd = format_if(cd, format_kwargs)
+    run_as = format_if(run_as, format_kwargs)
 
-    cmd = args_to_str(cmd, format_kwargs=(config if inject_context else None))
+    path_converter = partial(
+        paths_to_str, format_kwargs=format_kwargs, asset_paths=True, check_paths=True)
 
-    if path is prepend_path is append_path is None:
-        prepend_path = get_default_prepend_path(config)
+    path = path_converter(path)
+    prepend_path = path_converter(prepend_path)
+    append_path = path_converter(append_path)
+
+    # Prepend default paths if no paths were specified
+    path_specified = any(p for p in (path, prepend_path, append_path))
+    if not path_specified:
+        prepend_path = get_default_local_prepend_path(config)
 
     runner = LocalRunner()
 
     try:
         return runner.run(
-            cmd, cd=cd, path=path, prepend_path=prepend_path, append_path=append_path, echo=echo,
-            hide=hide, timeout=timeout, use_pty=use_pty, debug=debug)
+            cmd, cd=cd, path=path, prepend_path=prepend_path, append_path=append_path, sudo=sudo,
+            run_as=run_as, echo=echo, hide=hide, timeout=timeout, use_pty=use_pty, debug=debug)
     except RunAborted as exc:
         if debug:
             raise
@@ -85,45 +69,53 @@ def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, 
         return exc
 
 
+def get_default_local_prepend_path(config):
+    bin_dirs = config._get_dotted('bin.dirs', [])
+    return paths_to_str(bin_dirs, format_kwargs=config, asset_paths=True, check_paths=True)
+
+
 @command
 def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
            append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
-           abort_on_failure=True, inject_context=True, strategy=RemoteRunnerSSH):
+           abort_on_failure=True, inject_config=True, strategy='ssh'):
     """Run a command on the remote host via SSH.
 
     Args:
         cmd (str|list): The command to run on the remote host; if it
-            contains format strings, those will be filled from ``config``
-        user: The user to log in as; command will be run as this user
-            unless ``sudo`` or ``run_as`` is specified
-        host: The remote host
-        cd: Where to run the command on the remote host
-        path: Replace ``$PATH`` on remote host with path(s)
-        prepend_path: Add extra path(s) to front of remote ``$PATH``
-        append_path: Add extra path(s) to end of remote ``$PATH``
-        sudo: Run as sudo?
-        run_as: Run command as a different user with
+            contains format strings, those will be filled from
+            ``config``
+        user (str): The user to log in as; command will be run as this
+            user unless ``sudo`` or ``run_as`` is specified
+        host (str): The remote host
+        cd (str): Where to run the command on the remote host
+        path (str|list): Replace ``$PATH`` on remote host with path(s)
+        prepend_path (str|list): Add extra path(s) to front of remote
+            ``$PATH``
+        append_path (str|list): Add extra path(s) to end of remote
+            ``$PATH``
+        sudo (bool): Run as sudo?
+        run_as (str): Run command as a different user with
             ``sudo -u <run_as>``
+        inject_config (bool): Whether to inject config into the ``cmd``,
+            ``host``, ``user``, ``cd``, the various path args, and
+            ``run_as``
 
     """
     debug = config.run.debug
+    format_kwargs = config if inject_config else {}
+    path_converter = partial(paths_to_str, format_kwargs=format_kwargs)
 
-    cmd = args_to_str(cmd, format_kwargs=(config if inject_context else None))
-    user = args_to_str(user, format_kwargs=config)
-    host = args_to_str(host, format_kwargs=config)
-    cd = args_to_str(cd, format_kwargs=config)
-    path = args_to_str(path, format_kwargs=config)
-    run_as = args_to_str(run_as, format_kwargs=config)
+    cmd = args_to_str(cmd, format_kwargs=format_kwargs)
+    user = format_if(user, format_kwargs)
+    host = format_if(host, format_kwargs)
+    cd = format_if(cd, format_kwargs)
+    run_as = format_if(run_as, format_kwargs)
 
-    if isinstance(strategy, str):
-        if strategy == 'paramiko':
-            strategy = RemoteRunnerParamiko
-        elif strategy == 'ssh':
-            strategy = RemoteRunnerSSH
-        else:
-            raise ValueError('remote strategy must be one of "paramiko" or "ssh"')
+    path = path_converter(path)
+    prepend_path = path_converter(prepend_path)
+    append_path = path_converter(append_path)
 
-    runner = strategy()
+    runner = RemoteRunner.from_name(strategy)
 
     try:
         return runner.run(

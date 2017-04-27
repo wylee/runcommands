@@ -1,5 +1,13 @@
 # RunCommands
 
+## 1.0a18 - 2017-04-27
+
+- Renamed `runners.commands.get_default_prepend_path` utility function to
+  `get_default_local_prepend_path`.
+- Fixed some issues with creating & copying config objects. On Python 3.3
+  & 3.4, `OrderedDict.__init__` needs to be called.
+- Made some internal improvements to local & remote runners.
+
 ## 1.0a17 - 2017-04-26
 
 - When the `--debug` flag is passed to the main script, `RunCommandsError`

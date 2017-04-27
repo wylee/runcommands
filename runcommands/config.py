@@ -47,6 +47,8 @@ class RawConfig(OrderedDict):
     def __copy__(self):
         # Recursive shallow copy
         config = self.__class__.__new__(self.__class__)
+        # NOTE: The intent is to call OrderedDict's __init__ here.
+        super(RawConfig, config).__init__()
         for k, v in self.items():
             config[k] = copy(v)
         return config
@@ -169,6 +171,8 @@ class RunConfig(RawConfig):
 class Config(RawConfig):
 
     def __init__(self, *args, **kwargs):
+        super().__init__()
+
         bootstrap_config = RawConfig()
         bootstrap_config._update_dotted(*args, **kwargs)
         run_config = bootstrap_config.get('run')
