@@ -57,12 +57,6 @@ def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, 
     """
     debug = config.run.debug
 
-    if sudo and run_as:
-        abort(1, 'Only one of --sudo or --run-as may be passed')
-    if sudo:
-        cmd = ('sudo', cmd)
-    elif run_as:
-        cmd = ('sudo', '-u', run_as, cmd)
 
     cmd = args_to_str(cmd, format_kwargs=(config if inject_context else None))
 

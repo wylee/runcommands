@@ -18,16 +18,24 @@ class LocalRunner(Runner):
 
     """Run a command on the local host."""
 
-    def run(self, cmd, cd=None, path=None, prepend_path=None, append_path=None, echo=False,
-            hide=False, timeout=None, use_pty=True, debug=False):
+    def run(self, cmd, cd=None, path=None, prepend_path=None, append_path=None, sudo=False,
+            run_as=None, echo=False, hide=False, timeout=None, use_pty=True, debug=False):
         if isinstance(cmd, str):
             cmd_str = cmd
             exe = shlex.split(cmd)[0]
             shell = True
+            if sudo:
+                cmd = ' '.join(['sudo', cmd])
+            elif run_as:
+                cmd = ' '.join(['sudo', '-u', run_as, cmd])
         else:
             cmd_str = ' '.join(cmd)
             exe = cmd[0]
             shell = False
+            if sudo:
+                cmd = ['sudo'] + cmd
+            elif run_as:
+                cmd = ['sudo', '-u', run_as] + cmd
 
         cwd = os.path.normpath(os.path.abspath(cd)) if cd else None
 
