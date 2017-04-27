@@ -12,7 +12,7 @@ __all__ = ['local', 'remote']
 
 
 @command
-def local(config, cmd, cd=None, path=(), prepend_path=(), append_path=(), sudo=False,
+def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, sudo=False,
           run_as=None, echo=False, hide=False, timeout=None, use_pty=True, abort_on_failure=True,
           inject_config=True):
     """Run a command locally.
@@ -75,8 +75,8 @@ def get_default_local_prepend_path(config):
 
 
 @command
-def remote(config, cmd, host, user=None, cd=None, path=(), prepend_path=(),
-           append_path=(), sudo=False, run_as=None, echo=False, hide=False, timeout=30,
+def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
+           append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
            abort_on_failure=True, inject_config=True, strategy='ssh'):
     """Run a command on the remote host via SSH.
 
