@@ -51,8 +51,7 @@ def local(config, cmd, cd=None, path=(), prepend_path=(), append_path=(), sudo=F
     # Prepend default paths if no paths were specified
     path_specified = any(p for p in (path, prepend_path, append_path))
     if not path_specified:
-        bin_dirs = config._get_dotted('bin.dirs', [])
-        prepend_path = path_converter(bin_dirs)
+        prepend_path = get_default_local_prepend_path(config)
 
     runner = LocalRunner()
 
@@ -68,6 +67,11 @@ def local(config, cmd, cd=None, path=(), prepend_path=(), append_path=(), sudo=F
         if abort_on_failure:
             abort(2, 'Local command failed with exit code {exc.return_code}'.format_map(locals()))
         return exc
+
+
+def get_default_local_prepend_path(config):
+    bin_dirs = config._get_dotted('bin.dirs', [])
+    return paths_to_str(bin_dirs, format_kwargs=config, asset_paths=True, check_paths=True)
 
 
 @command
