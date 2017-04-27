@@ -42,15 +42,9 @@ class LocalRunner(Runner):
 
         env = os.environ.copy()
 
-        munge_path = path or prepend_path or append_path
+        path = self.munge_path(path, prepend_path, append_path, os.getenv('PATH'))
 
-        if munge_path:
-            path = [path] if path else [env['PATH']]
-            if prepend_path:
-                path = [prepend_path] + path
-            if append_path:
-                path += [append_path]
-            path = ':'.join(path)
+        if path:
             env['PATH'] = path
 
         if echo:
@@ -58,7 +52,7 @@ class LocalRunner(Runner):
             printer.echo('RUNNING:', cmd_str)
             if cwd:
                 printer.echo('    CWD:', cwd)
-            if munge_path:
+            if path:
                 printer.echo('   PATH:', path)
             printer.hr(color='echo')
 

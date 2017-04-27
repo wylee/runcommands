@@ -46,17 +46,6 @@ class RemoteRunner(Runner):
 
         return remote_cmd
 
-    def munge_path(self, path, prepend_path, append_path):
-        if path is prepend_path is append_path is None:
-            return None
-        path = [path] if path else ['$PATH']
-        if prepend_path:
-            path = [prepend_path] + path
-        if append_path:
-            path += [append_path]
-        path = ':'.join(path)
-        return path
-
 
 class RemoteRunnerSSH(RemoteRunner):
 
@@ -71,7 +60,7 @@ class RemoteRunnerSSH(RemoteRunner):
         #     <cmd>
         # EOBASH
         ssh_connection_str = '{user}@{host}'.format(user=user, host=host) if user else host
-        path = self.munge_path(path, prepend_path, append_path)
+        path = self.munge_path(path, prepend_path, append_path, '$PATH')
         remote_command = self.get_remote_command(cmd, user, cd, path, sudo, run_as)
         ssh_cmd = ['ssh', '-T', ssh_connection_str, remote_command]
         local_runner = LocalRunner()
@@ -91,7 +80,7 @@ class RemoteRunnerParamiko(RemoteRunner):
             append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
             debug=False):
         user = user or getpass.getuser()
-        path = self.munge_path(path, prepend_path, append_path)
+        path = self.munge_path(path, prepend_path, append_path, '$PATH')
         remote_command = self.get_remote_command(cmd, user, cd, path, sudo, run_as)
 
         hide_stdout = Hide.hide_stdout(hide)
