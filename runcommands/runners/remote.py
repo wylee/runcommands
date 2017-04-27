@@ -148,7 +148,7 @@ class RemoteRunnerParamiko(RemoteRunner):
 
             return_code = channel.exit_status
         except SSHException:
-            raise RunError(-255, '', '')
+            raise RunError(-255, '', '', encoding)
 
         result_args = (return_code, out_buffer, err_buffer, encoding)
 
