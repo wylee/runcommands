@@ -1,5 +1,9 @@
 # RunCommands
 
+## 1.0a19 - unreleased
+
+In progress...
+
 ## 1.0a18 - 2017-04-27
 
 - Renamed `runners.commands.get_default_prepend_path` utility function to
