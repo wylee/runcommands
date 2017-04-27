@@ -292,8 +292,8 @@ def paths_to_str(paths, format_kwargs={}, delimiter=os.pathsep, asset_paths=Fals
         return ''
     if isinstance(paths, str):
         paths = paths.split(delimiter)
-    formatted_paths = []
-    for i, path in enumerate(paths):
+    processed_paths = []
+    for path in paths:
         original = path
         path = path.format_map(format_kwargs)
         if not os.path.isabs(path):
@@ -303,11 +303,11 @@ def paths_to_str(paths, format_kwargs={}, delimiter=os.pathsep, asset_paths=Fals
                 except ValueError:
                     path = None
         if path is not None and os.path.isdir(path):
-            formatted_paths.append(path)
+            processed_paths.append(path)
         elif check_paths:
             f = locals()
             printer.warning('Path does not exist: {path} (from {original})'.format_map(f))
-    return delimiter.join(formatted_paths)
+    return delimiter.join(processed_paths)
 
 
 def prompt(message, default=None, color=True):
