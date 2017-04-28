@@ -6,7 +6,7 @@ from configparser import RawConfigParser
 from contextlib import contextmanager
 from copy import copy
 from locale import getpreferredencoding
-from subprocess import check_output
+from subprocess import check_output, CalledProcessError, DEVNULL
 
 from .command import command
 from .const import DEFAULT_COMMANDS_MODULE
@@ -313,7 +313,10 @@ def version_getter(config):
     if not os.path.isdir('.git'):
         return None
     encoding = getpreferredencoding(do_setlocale=False)
-    version = check_output(['git', 'rev-parse', '--short', 'HEAD'])
+    try:
+        version = check_output(['git', 'describe', '--exact-match'], stderr=DEVNULL)
+    except CalledProcessError:
+        version = check_output(['git', 'rev-parse', '--short', 'HEAD'])
     version = version.decode(encoding).strip()
     return version
 

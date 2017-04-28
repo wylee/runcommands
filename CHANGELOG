@@ -1,5 +1,10 @@
 # RunCommands
 
+## 1.0a19 - 2017-04-27
+
+- When getting the default version in `Config`, if a tag is checked out, use
+  the tag name instead of the short hash.
+
 ## 1.0a18 - 2017-04-27
 
 - Renamed `runners.commands.get_default_prepend_path` utility function to
