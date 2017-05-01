@@ -163,12 +163,9 @@ class Command:
             start_time = time.monotonic()
 
         run_env = self.get_run_env(run_config.env, run_config.default_env)
-        run_config = run_config._clone(env=run_env)
+        run_config = run_config.copy(env=run_env)
 
-        # NOTE: The config file is read here. Config from the command's
-        #       definition and command line options are merged in here
-        #       so that interpolation will be applied to them too.
-        config = Config(self.config.copy(), run=run_config._clone())
+        config = Config(run=run_config, **self.config.copy())
 
         all_args = self.parse_args(config, argv)
         all_args.update(kwargs)
@@ -202,7 +199,7 @@ class Command:
         # specified on the command line. We already do this in the run()
         # method above, but we have to ensure it's done when the command
         # is called directly too.
-        config = Config(config._clone(self.config.copy()))
+        config = config.copy(self.config.copy())
         debug = config.run.debug
 
         if debug:

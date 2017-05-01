@@ -43,6 +43,12 @@ class TestRawConfig(TestCase):
 
     # Access ----------------------------------------------------------
 
+    def test_get_via_get_method(self):
+        config = RawConfig()
+        config.x = 'x'
+        config.y = '{x}'
+        self.assertEqual(config.get('y'), 'x')
+
     def test_item_can_be_retrieved_via_attribute_access(self):
         config = RawConfig()
         config['name'] = 'value'
@@ -73,6 +79,53 @@ class TestRawConfig(TestCase):
         self.assertEqual(config['_name'], 'value')
         self.assertTrue(hasattr(config, '_name'))
         self.assertEqual(config._name, 'value')
+
+    # Removal ---------------------------------------------------------
+
+    def test_remove_attribute(self):
+        config = RawConfig()
+        config.x = 'x'
+        self.assertIn('x', config)
+        del config.x
+        self.assertNotIn('x', config)
+
+    def test_remove_item(self):
+        config = RawConfig()
+        config.x = 'x'
+        self.assertIn('x', config)
+        del config['x']
+        self.assertNotIn('x', config)
+
+    def test_remove_via_pop_method(self):
+        config = RawConfig()
+        config.x = 'x'
+        config.y = '{x}'
+        self.assertIn('y', config)
+        y = config.pop('y')
+        self.assertNotIn('y', config)
+        self.assertEqual(y, 'x')
+
+    # Iteration -------------------------------------------------------
+
+    def test_keys(self):
+        config = RawConfig()
+        config.a = 1
+        config.b = 2
+        self.assertEqual(list(config.keys()), ['a', 'b'])
+
+    def test_items(self):
+        config = RawConfig()
+        config.a = 1
+        config.b = 2
+        config.c = '{b}'
+        self.assertEqual(list(config.items()), [('a', 1), ('b', 2), ('c', '2')])
+
+    def test_values(self):
+        config = RawConfig()
+        config.a = 1
+        config.b = 2
+        config.c = '{b}'
+        self.assertEqual(list(config.values()), [1, 2, '2'])
 
 
 class TestRunConfig(TestCase):

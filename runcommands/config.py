@@ -3,7 +3,6 @@ import json
 import os
 from collections import Mapping, OrderedDict, Sequence
 from configparser import RawConfigParser
-from contextlib import contextmanager
 from copy import copy
 from locale import getpreferredencoding
 from subprocess import check_output, CalledProcessError, DEVNULL
@@ -12,6 +11,25 @@ from .command import command
 from .const import DEFAULT_COMMANDS_MODULE
 from .exc import ConfigError, ConfigKeyError
 from .util import abort, abs_path, load_object
+
+try:
+    # Python 3.5 and up
+    from collections import _OrderedDictItemsView, _OrderedDictValuesView
+except ImportError:
+    # Python 3.4 and below
+    from collections import ItemsView, ValuesView
+
+    class _OrderedDictItemsView(ItemsView):
+
+        def __reversed__(self):
+            for key in reversed(self._mapping):
+                yield (key, self._mapping[key])
+
+    class _OrderedDictValuesView(ValuesView):
+
+        def __reversed__(self):
+            for key in reversed(self._mapping):
+                yield self._mapping[key]
 
 
 __all__ = ['show_config']
@@ -22,48 +40,120 @@ NO_DEFAULT = object()
 
 class RawConfig(OrderedDict):
 
+    def __init__(self, *defaults, **overrides):
+        self._parent = None
+        super().__init__()
+        self._update_dotted(*defaults)
+        self._update_dotted(overrides)
+
     def __getitem__(self, name):
         try:
             value = super().__getitem__(name)
         except KeyError:
             raise ConfigKeyError(name) from None
+        if not isinstance(value, RawConfig):
+            value = self._interpolate(value)
         return value
 
+    def __setitem__(self, name, value):
+        super().__setitem__(name, value)
+        if isinstance(value, RawConfig):
+            value._parent = self
+
     def __getattr__(self, name):
-        if name.startswith('_'):
-            return super().__getattr__(name)
+        # This will be called only when the named attribute isn't found
+        # on the config instance. Attributes have priority over config
+        # keys with the same name.
+        if name.startswith('_OrderedDict__'):
+            return super().__getattribute__(name)
         return self[name]
 
     def __setattr__(self, name, value):
+        # Public names are added as dict items. Private names are set as
+        # attributes.
         if name.startswith('_'):
             return super().__setattr__(name, value)
         self[name] = value
 
-    def __setitem__(self, name, value):
-        if isinstance(value, Mapping) and not isinstance(value, RawConfig):
-            value = RawConfig(value)
-        super().__setitem__(name, value)
+    def __delattr__(self, name):
+        try:
+            super().__delattr__(name)
+        except AttributeError:
+            del self[name]
 
     def __copy__(self):
-        # Recursive shallow copy
-        config = self.__class__.__new__(self.__class__)
-        # NOTE: The intent is to call OrderedDict's __init__ here.
-        super(RawConfig, config).__init__()
+        config = self._make_empty()
         for k, v in self.items():
             config[k] = copy(v)
         return config
 
-    def _clone(self, *args, **kwargs):
+    def copy(self, *args, **kwargs):
         clone = copy(self)
         for overrides in args:
             clone._update_dotted(overrides)
         clone._update_dotted(kwargs)
         return clone
 
-    @contextmanager
-    def _override(self, *args, **kwargs):
-        config = self._clone(*args, **kwargs)
-        yield config
+    # -----------------------------------------------------------------
+    # These overrides are necessary because CPython implements a C
+    # version of OrderedDict that won't call our __getitem__.
+
+    def get(self, name, default=None):
+        try:
+            return self[name]
+        except KeyError:
+            return default
+
+    def pop(self, name, default=NO_DEFAULT):
+        try:
+            value = self[name]
+        except KeyError:
+            if default is NO_DEFAULT:
+                raise ConfigKeyError(name) from None
+            value = default
+        else:
+            del self[name]
+        return value
+
+    items = lambda self: _OrderedDictItemsView(self)
+    values = lambda self: _OrderedDictValuesView(self)
+
+    # -----------------------------------------------------------------
+
+    @classmethod
+    def _make_empty(cls):
+        instance = cls.__new__(cls)
+        RawConfig.__init__(instance)
+        return instance
+
+    @property
+    def _root(self):
+        return self if self._parent is None else self._parent._root
+
+    def _interpolate(self, obj):
+        interpolated = []
+        value = self._do_interpolation(obj, interpolated)
+        while interpolated:
+            interpolated = []
+            value = self._do_interpolation(value, interpolated)
+        return value
+
+    def _do_interpolation(self, obj, interpolated):
+        if isinstance(obj, str):
+            try:
+                new_value = obj.format(**self._root)
+            except KeyError as exc:
+                context = 'while interpolating into "{obj}"'.format(obj=obj)
+                raise ConfigKeyError(exc.args[0], context) from None
+            if new_value != obj:
+                obj = new_value
+                interpolated.append(obj)
+        elif isinstance(obj, Mapping):
+            for key in obj:
+                obj[key] = self._do_interpolation(obj[key], interpolated)
+        elif isinstance(obj, Sequence):
+            obj = obj.__class__(self._do_interpolation(thing, interpolated) for thing in obj)
+        return obj
 
     def _get_dotted(self, name, default=NO_DEFAULT):
         obj = self
@@ -104,40 +194,46 @@ class RawConfig(OrderedDict):
             for name, value in kwargs.items():
                 self._set_dotted(name, value)
 
+    def _iter_dotted(self, root=''):
+        for k in self:
+            v = self[k]
+            qualified_k = '.'.join((root, k)) if root else k
+            if not isinstance(v, RawConfig):
+                yield qualified_k
+            elif not v:
+                yield qualified_k
+            else:
+                for qualified_k in v._iter_dotted(qualified_k):
+                    yield qualified_k
+
     def _to_string(self, flat=False, values_only=False, exclude=(), level=0, root=''):
         out = []
-
-        flat = flat or values_only
-        indent = '' if flat else ' ' * (level * 4)
-
-        keys = sorted(self)
-        keys = [k for k in keys if not k.startswith('_')]
-        if level == 0 and 'defaults' in keys:
-            keys.remove('defaults')
-            keys.append('defaults')
-
-        for k in keys:
-            v = self[k]
-
-            qualified_k = '.'.join((root, k)) if root else k
-            if qualified_k in exclude:
-                continue
-
-            if flat:
-                k = qualified_k
-
-            if isinstance(v, RawConfig):
-                if not flat:
-                    out.append('{indent}{k} =>'.format(**locals()))
-                v = v._to_string(flat, values_only, exclude, level + 1, qualified_k)
-                if v:
-                    out.append(v)
-            else:
+        if flat or values_only:
+            keys = sorted(self._iter_dotted())
+            for k in keys:
+                v = self._get_dotted(k)
                 if values_only:
                     out.append(str(v))
                 else:
+                    if isinstance(v, RawConfig) and not v:
+                        v = ''
+                    out.append('{k} => {v}'.format(**locals()))
+        else:
+            keys = sorted(self)
+            indent = ' ' * (level * 4)
+            for k in keys:
+                v = self[k]
+                qualified_k = '.'.join((root, k)) if root else k
+                if qualified_k in exclude:
+                    continue
+                if isinstance(v, RawConfig):
+                    v = v._to_string(flat, values_only, exclude, level + 1, qualified_k)
+                    if v:
+                        out.append('{indent}{k} =>\n{v}'.format(**locals()))
+                    else:
+                        out.append('{indent}{k} =>'.format(**locals()))
+                else:
                     out.append('{indent}{k} => {v}'.format(**locals()))
-
         return '\n'.join(out)
 
 
@@ -156,11 +252,10 @@ class RunConfig(RawConfig):
         'debug': False,
     }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(self._known_options)
-        self['options'] = {}
-        self.update(*args)
-        self.update(**kwargs)
+    def __init__(self, *defaults, **overrides):
+        super().__init__(self._known_options, options=RawConfig())
+        self._update_dotted(*defaults)
+        self._update_dotted(overrides)
 
     def __setitem__(self, name, value):
         if name not in self._known_options:
@@ -170,34 +265,42 @@ class RunConfig(RawConfig):
 
 class Config(RawConfig):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__()
+    """A container for configuration options.
 
-        bootstrap_config = RawConfig()
-        bootstrap_config._update_dotted(*args, **kwargs)
-        run_config = bootstrap_config.get('run')
-        run_config = RunConfig() if run_config is None else run_config
+    It's constructed like so:
 
-        self['run'] = run_config
+        - Add base defaults
+        - Update with user-supplied defaults
+        - Update with options read from config file; these override
+          defaults
+        - Update with user-supplied overrides; these override defaults
+          and options read from config file
+        - Update with options specified on command line
 
-        # XXX: It's possible this could override run options. Not
-        #      sure if that's okay...
-        self._read_from_file(self.run.config_file, self.run.env)
+    """
 
-        self._update_dotted(*args, **kwargs)
+    def __init__(self, *defaults, run=None, **overrides):
+        run_config = RunConfig() if run is None else run
+        super().__init__(
+            run=run_config,
+            cwd=os.getcwd(),
+            current_user=getpass.getuser(),
+            version=self._get_default_version(),
+        )
+        self._update_dotted(*defaults)
+        self._read_from_file(run_config.config_file, run_config.env)
+        self._update_dotted(overrides)
+        self._update_dotted(run_config.options)
 
-        self.setdefault('cwd', os.getcwd, lazy=True)
-        self.setdefault('current_user', getpass.getuser, lazy=True)
-        self.setdefault('version', self._get_default_version, lazy=True)
-        self.setdefault('env', lambda: self.run.env, lazy=True)
-        self.setdefault('debug', lambda: self.run.debug, lazy=True)
-
-        # Run options are specified on the command line and have higher
-        # precedence than config options read from elsewhere.
-        if self.run.options:
-            self._update_dotted(self.run.options)
-
-        self._interpolate()
+    def __getitem__(self, name):
+        try:
+            value = super().__getitem__(name)
+        except KeyError as exc:
+            try:
+                value = super().__getitem__('run').__getitem__(name)
+            except KeyError:
+                raise exc from None
+        return value
 
     @classmethod
     def _make_config_parser(cls, file_name=None, _cache={}):
@@ -265,30 +368,6 @@ class Config(RawConfig):
 
         if env and '__ENV_SECTION_FOUND_IN_FILE__' not in self:
             raise ConfigError('Env/section not found while reading config: {env}'.format(env=env))
-
-    def _interpolate(self):
-        interpolated = []
-        self._do_interpolation(self, interpolated)
-        while interpolated:
-            interpolated = []
-            self._do_interpolation(self, interpolated)
-
-    def _do_interpolation(self, obj, interpolated):
-        if isinstance(obj, str):
-            try:
-                new_value = obj.format(**self)
-            except ConfigKeyError as exc:
-                context = 'while interpolating into "{obj}"'.format(obj=obj)
-                raise ConfigKeyError(exc.args[0], context) from None
-            if new_value != obj:
-                obj = new_value
-                interpolated.append(obj)
-        elif isinstance(obj, Mapping):
-            for key in obj:
-                obj[key] = self._do_interpolation(obj[key], interpolated)
-        elif isinstance(obj, Sequence):
-            obj = obj.__class__(self._do_interpolation(thing, interpolated) for thing in obj)
-        return obj
 
     def _get_default_version(self):
         getter = self.get('version_getter')

@@ -82,7 +82,7 @@ class CommandRunner:
         while argv:
             command, command_argv = self.partition_args(commands, argv)
             command_run_args = run_args.get(command.name, {})
-            run_config = self.run_config._clone(command_run_args)
+            run_config = self.run_config.copy(command_run_args)
             commands_to_run.append(CommandToRun(command, run_config, command_argv))
             num_consumed = len(command_argv) + 1
             argv = argv[num_consumed:]
