@@ -390,6 +390,7 @@ class Printer:
         if isatty(file):
             colorize_kwargs = kwargs.copy()
             colorize_kwargs.pop('end', None)
+            colorize_kwargs.pop('flush', None)
             string = self.colorize(*args, color=color, **colorize_kwargs)
             print(string, file=file, **kwargs)
         else:
