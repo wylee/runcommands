@@ -1,7 +1,7 @@
 from functools import partial
 
 from ..command import command
-from ..util import abort, args_to_str, format_if, paths_to_str
+from ..util import abort, abs_path, args_to_str, format_if, paths_to_str
 
 from .exc import RunAborted, RunError
 from .local import LocalRunner
@@ -38,7 +38,7 @@ def local(config, cmd, cd=None, path=None, prepend_path=None, append_path=None, 
     format_kwargs = config if inject_config else {}
 
     cmd = args_to_str(cmd, format_kwargs=format_kwargs)
-    cd = format_if(cd, format_kwargs)
+    cd = abs_path(cd, format_kwargs) if cd else cd
     run_as = format_if(run_as, format_kwargs)
 
     path_converter = partial(
