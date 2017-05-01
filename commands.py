@@ -4,7 +4,9 @@ import os
 import re
 import shutil
 import sys
+import unittest
 
+from coverage import Coverage
 
 if 'runcommands' not in sys.path:
     sys.path.insert(0, os.path.abspath('.'))
@@ -75,9 +77,30 @@ def install_completion(config, shell='bash', to='~/.bashrc.d', overwrite=True):
 
 
 @command
-def test(config):
-    local(config, 'python -m unittest discover .')
-    lint(config)
+def test(config, tests=(), fail_fast=False, with_coverage=True, with_lint=True):
+    printer.header('Running unit tests', ' with coverage' if with_coverage else '', '...', sep='')
+
+    runner = unittest.TextTestRunner(failfast=fail_fast)
+    loader = unittest.TestLoader()
+
+    if with_coverage:
+        coverage = Coverage(source=['runcommands'])
+        coverage.start()
+
+    if tests:
+        for name in tests:
+            runner.run(loader.loadTestsFromName(name))
+    else:
+        tests = loader.discover('.')
+        runner.run(tests)
+
+    if with_coverage:
+        coverage.stop()
+        coverage.report()
+
+    if with_lint:
+        printer.header('Checking for lint...')
+        lint(config)
 
 
 @command
