@@ -310,6 +310,16 @@ class ConfigParser(RawConfigParser):
 
 
 def version_getter(config):
+    """Get tag associated with HEAD; fall back to SHA1.
+
+    If HEAD is tagged, return the tag name; otherwise fall back to
+    HEAD's short SHA1 hash.
+
+    .. note:: Only annotated tags are considered.
+
+    TODO: Support non-annotated tags?
+
+    """
     if not os.path.isdir('.git'):
         return None
     encoding = getpreferredencoding(do_setlocale=False)
