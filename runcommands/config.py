@@ -372,7 +372,7 @@ class Config(RawConfig):
     def _get_default_version(self):
         getter = self.get('version_getter')
         if not getter:
-            getter = '{self.__class__.__module__}:version_getter'.format(self=self)
+            getter = version_getter
         if isinstance(getter, str):
             getter = load_object(getter)
         return getter(self)
