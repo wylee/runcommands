@@ -148,6 +148,18 @@ class TestRunConfig(TestCase):
 
 class TestConfig(TestCase):
 
+    def test_read_file(self):
+        config = Config()
+        self.assertEqual(config.version, 'X.Y.Z')
+        self.assertEqual(config.a, 1)
+        self.assertEqual(config.b, 2)
+        self.assertEqual(config.c, 2)
+        self.assertEqual(config.d.e, '2')
+        self.assertEqual(config._get_dotted('x.y.z'), 'xyz')
+        self.assertEqual(config.list.a, [1, 2, 3])
+        self.assertEqual(config.list.b, [1, 2, 3])
+        self.assertEqual(config.list.c, '[1, 2, 3]')
+
     def test_simple_interpolation(self):
         version = 'X.Y.Z'
         config = Config(run=RunConfig())
@@ -167,9 +179,3 @@ class TestConfig(TestCase):
         self.assertEqual(config.other, version)
         self.assertEqual(config.x.y, version)
         self.assertEqual(config.a.b.c, version)
-
-    def test_read_file(self):
-        config = Config()
-        self.assertEqual(config.version, 'X.Y.Z')
-        self.assertEqual(config.c, '2')
-        self.assertEqual(config.d.e, '2')

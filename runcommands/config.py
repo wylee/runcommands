@@ -9,7 +9,7 @@ from subprocess import check_output, CalledProcessError, DEVNULL
 
 from .command import command
 from .const import DEFAULT_COMMANDS_MODULE
-from .exc import ConfigError, ConfigKeyError
+from .exc import ConfigError, ConfigKeyError, ConfigTypeError, ConfigValueError
 from .util import abort, abs_path, load_object
 
 try:
@@ -53,6 +53,8 @@ class RawConfig(OrderedDict):
             raise ConfigKeyError(name) from None
         if not isinstance(value, RawConfig):
             value = self._interpolate(value)
+        if isinstance(value, JSONValue):
+            value = value.load()
         return value
 
     def __setitem__(self, name, value):
@@ -131,29 +133,28 @@ class RawConfig(OrderedDict):
         return self if self._parent is None else self._parent._root
 
     def _interpolate(self, obj):
-        interpolated = []
-        value = self._do_interpolation(obj, interpolated)
-        while interpolated:
-            interpolated = []
-            value = self._do_interpolation(value, interpolated)
-        return value
-
-    def _do_interpolation(self, obj, interpolated):
         if isinstance(obj, str):
-            try:
-                new_value = obj.format(**self._root)
-            except KeyError as exc:
-                context = 'while interpolating into "{obj}"'.format(obj=obj)
-                raise ConfigKeyError(exc.args[0], context) from None
-            if new_value != obj:
-                obj = new_value
-                interpolated.append(obj)
+            root = self._root
+            obj, changed = self._inject(obj, root)
+            while changed:
+                obj, changed = self._inject(obj, root)
         elif isinstance(obj, Mapping):
             for key in obj:
-                obj[key] = self._do_interpolation(obj[key], interpolated)
+                obj[key] = self._interpolate(obj[key])
         elif isinstance(obj, Sequence):
-            obj = obj.__class__(self._do_interpolation(thing, interpolated) for thing in obj)
+            obj = obj.__class__(self._interpolate(thing) for thing in obj)
         return obj
+
+    def _inject(self, value, root=None):
+        root = self._root if root is None else root
+        try:
+            new_value = value.format(**root)
+        except KeyError as exc:
+            context = 'while interpolating into "{value}"'.format(value=value)
+            raise ConfigKeyError(exc.args[0], context) from None
+        if isinstance(value, JSONValue) and not isinstance(new_value, JSONValue):
+            new_value = JSONValue(new_value)
+        return new_value, new_value != value
 
     def _get_dotted(self, name, default=NO_DEFAULT):
         obj = self
@@ -324,24 +325,13 @@ class Config(RawConfig):
         return parser
 
     @classmethod
-    def _decode_value(cls, name, value, tolerant=False):
-        try:
-            value = json.loads(value)
-        except ValueError:
-            if tolerant:
-                return value
-            msg = 'Could not read {name} from config (not valid JSON): {value}'
-            raise ConfigError(msg.format_map(locals()))
-        return value
-
-    @classmethod
     def _get_envs(cls, file_name):
         parser = cls._make_config_parser(file_name)
         sections = set(parser.sections())
         for name in parser:
             extends = parser.get(name, 'extends', fallback=None)
             if extends:
-                extends = cls._decode_value('extends', extends)
+                extends = JSONValue(extends, name='extends').load()
                 sections.update(cls._get_envs(extends))
         return sorted(sections)
 
@@ -359,12 +349,11 @@ class Config(RawConfig):
 
         extends = section.get('extends')
         if extends:
-            extends = self._decode_value('extends', extends)
+            extends = JSONValue(extends, name='extends').load()
             self._read_from_file(extends, env)
 
         for name, value in section.items():
-            value = self._decode_value(name, value)
-            self._set_dotted(name, value)
+            self._set_dotted(name, JSONValue(value, name=name))
 
         if env and '__ENV_SECTION_FOUND_IN_FILE__' not in self:
             raise ConfigError('Env/section not found while reading config: {env}'.format(env=env))
@@ -386,6 +375,53 @@ class Config(RawConfig):
 class ConfigParser(RawConfigParser):
 
     optionxform = lambda self, name: name
+
+
+class JSONValue(str):
+
+    def __new__(cls, *args, name=None):
+        instance = super().__new__(cls, *args)
+        instance.name = name
+        return instance
+
+    @classmethod
+    def from_object(cls, obj, name=None):
+        value = json.dumps(obj)
+        return cls(value, name=name)
+
+    @classmethod
+    def loads(cls, value, name=None, tolerant=False):
+        """JSON str -> object"""
+        try:
+            obj = json.loads(value)
+        except TypeError as exc:
+            if tolerant:
+                args = exc.args + (name,)
+                raise ConfigTypeError(*args) from None
+            obj = value
+        except ValueError as exc:
+            if not tolerant:
+                args = exc.args + (name,)
+                raise ConfigValueError(*args) from None
+            obj = value
+        return obj
+
+    @classmethod
+    def dumps(cls, obj, name=None):
+        """object -> JSON str"""
+        try:
+            value = json.dumps(obj)
+        except TypeError as exc:
+            args = exc.args + (name,)
+            raise ConfigTypeError(*args)
+        except ValueError as exc:
+            args = exc.args + (name,)
+            raise ConfigValueError(*args)
+        return value
+
+    def load(self, tolerant=False):
+        """JSON str (self) -> object"""
+        return self.loads(self, self.name, tolerant)
 
 
 def version_getter(config):

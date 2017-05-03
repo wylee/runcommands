@@ -630,7 +630,7 @@ class DictAddAction(argparse.Action):
                 .format_map(locals()))
 
         if value:
-            value = Config._decode_value(name, value, tolerant=True)
+            value = JSONValue(value, name=name).load(tolerant=True)
         else:
             value = None
 
@@ -644,11 +644,12 @@ class ListAppendAction(argparse.Action):
             setattr(namespace, self.dest, [])
         items = getattr(namespace, self.dest)
         if value:
-            value = Config._decode_value(len(items), value, tolerant=True)
+            name = str(len(items))
+            value = JSONValue(value, name=name).load(tolerant=True)
         else:
             value = None
         items.append(value)
 
 
 # Avoid circular import
-from .config import Config, RunConfig  # noqa: E402
+from .config import Config, JSONValue, RunConfig  # noqa: E402
