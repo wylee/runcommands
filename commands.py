@@ -78,7 +78,13 @@ def install_completion(config, shell='bash', to='~/.bashrc.d', overwrite=True):
 
 @command
 def test(config, tests=(), fail_fast=False, with_coverage=True, with_lint=True):
-    printer.header('Running unit tests', ' with coverage' if with_coverage else '', '...', sep='')
+    if tests:
+        num_tests = len(tests)
+        s = '' if num_tests == 1 else 's'
+        printer.header('Running {num_tests} test{s}...'.format_map(locals()))
+    else:
+        coverage_message = ' with coverage' if with_coverage else ''
+        printer.header('Running tests{coverage_message}...'.format_map(locals()))
 
     runner = unittest.TextTestRunner(failfast=fail_fast)
     loader = unittest.TestLoader()
@@ -92,15 +98,14 @@ def test(config, tests=(), fail_fast=False, with_coverage=True, with_lint=True):
             runner.run(loader.loadTestsFromName(name))
     else:
         tests = loader.discover('.')
-        runner.run(tests)
-
-    if with_coverage:
-        coverage.stop()
-        coverage.report()
-
-    if with_lint:
-        printer.header('Checking for lint...')
-        lint(config)
+        result = runner.run(tests)
+        if not result.errors:
+            if with_coverage:
+                coverage.stop()
+                coverage.report()
+            if with_lint:
+                printer.header('Checking for lint...')
+                lint(config)
 
 
 @command
