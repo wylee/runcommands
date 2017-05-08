@@ -379,8 +379,10 @@ class ConfigParser(RawConfigParser):
 
 class JSONValue(str):
 
-    def __new__(cls, *args, name=None):
-        instance = super().__new__(cls, *args)
+    def __new__(cls, string, *, name=None):
+        if not isinstance(string, str):
+            raise ConfigTypeError('Expected str; got %s' % string.__class__, name)
+        instance = super().__new__(cls, string)
         instance.name = name
         return instance
 
