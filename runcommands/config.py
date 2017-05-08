@@ -135,9 +135,12 @@ class RawConfig(OrderedDict):
     def _interpolate(self, obj):
         if isinstance(obj, str):
             root = self._root
-            obj, changed = self._inject(obj, root)
+            obj_type = type(obj)
+            changed = True
             while changed:
                 obj, changed = self._inject(obj, root)
+            if not isinstance(obj, obj_type):
+                obj = obj_type(obj)
         elif isinstance(obj, Mapping):
             for key in obj:
                 obj[key] = self._interpolate(obj[key])
@@ -147,14 +150,68 @@ class RawConfig(OrderedDict):
 
     def _inject(self, value, root=None):
         root = self._root if root is None else root
-        try:
-            new_value = value.format(**root)
-        except KeyError as exc:
-            context = 'while interpolating into "{value}"'.format(value=value)
-            raise ConfigKeyError(exc.args[0], context) from None
-        if isinstance(value, JSONValue) and not isinstance(new_value, JSONValue):
-            new_value = JSONValue(new_value)
-        return new_value, new_value != value
+
+        begin, end = '${', '}'
+
+        if begin not in value:
+            return value, False
+
+        new_value = value
+        begin_pos, end_pos = 0, None
+        len_begin, len_end = len(begin), len(end)
+        len_value = len(new_value)
+        f = locals()
+
+        while begin_pos < len_value:
+            # Find next ${.
+            begin_pos = new_value.find(begin, begin_pos)
+
+            if begin_pos == -1:
+                break
+
+            # Save everything before ${.
+            before = new_value[:begin_pos]
+
+            # Find } after ${.
+            begin_pos += len_begin
+            end_pos = new_value.find(end, begin_pos)
+            if end_pos == -1:
+                message = 'Unmatched {begin}...{end} in {value}'.format_map(f)
+                raise ConfigValueError(message) from None
+
+            # Get name between ${ and }, ignoring leading and trailing
+            # whitespace.
+            name = new_value[begin_pos:end_pos]
+            name = name.strip()
+
+            if not name:
+                message = 'Empty name in {value}'.format_map(f)
+                raise ConfigValueError(message) from None
+
+            # Save everything after }.
+            after_pos = end_pos + len_end
+            after = new_value[after_pos:]
+
+            # Retrieve string value for named setting (the "injection
+            # value").
+            try:
+                injection_value = root._get_dotted(name)
+            except KeyError:
+                context = 'while interpolating into {value}'.format_map(f)
+                raise ConfigKeyError(name, context=context) from None
+            else:
+                if not isinstance(injection_value, str):
+                    injection_value = JSONValue.dumps(injection_value, name=name)
+
+            # Combine before, inject value, and after to get the new
+            # value.
+            new_value = ''.join((before, injection_value, after))
+
+            # Continue after injected value.
+            begin_pos = len(before) + len(injection_value)
+            len_value = len(new_value)
+
+        return new_value, (new_value != value)
 
     def _get_dotted(self, name, default=NO_DEFAULT):
         obj = self

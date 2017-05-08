@@ -46,7 +46,7 @@ class TestRawConfig(TestCase):
     def test_get_via_get_method(self):
         config = RawConfig()
         config.x = 'x'
-        config.y = '{x}'
+        config.y = '${x}'
         self.assertEqual(config.get('y'), 'x')
 
     def test_item_can_be_retrieved_via_attribute_access(self):
@@ -99,7 +99,7 @@ class TestRawConfig(TestCase):
     def test_remove_via_pop_method(self):
         config = RawConfig()
         config.x = 'x'
-        config.y = '{x}'
+        config.y = '${x}'
         self.assertIn('y', config)
         y = config.pop('y')
         self.assertNotIn('y', config)
@@ -117,14 +117,14 @@ class TestRawConfig(TestCase):
         config = RawConfig()
         config.a = 1
         config.b = 2
-        config.c = '{b}'
+        config.c = '${b}'
         self.assertEqual(list(config.items()), [('a', 1), ('b', 2), ('c', '2')])
 
     def test_values(self):
         config = RawConfig()
         config.a = 1
         config.b = 2
-        config.c = '{b}'
+        config.c = '${b}'
         self.assertEqual(list(config.values()), [1, 2, '2'])
 
 
@@ -159,22 +159,26 @@ class TestConfig(TestCase):
         self.assertEqual(config.list.a, [1, 2, 3])
         self.assertEqual(config.list.b, [1, 2, 3])
         self.assertEqual(config.list.c, '[1, 2, 3]')
+        self.assertEqual(config.my.list, ['item'])
+        self.assertEqual(config.my.other_list, ['item'])
+        self.assertEqual(config.my.dict, {'key': ['item']})
+        self.assertEqual(config.dollar_sign, '$')
 
     def test_simple_interpolation(self):
         version = 'X.Y.Z'
         config = Config(run=RunConfig())
         config.version = version
-        config.other = '{version}'
+        config.other = '${version}'
         self.assertEqual(config.version, version)
         self.assertEqual(config.other, version)
 
-    def test_complex_interpolation(self):
+    def test_moderately_complex_interpolation(self):
         version = 'X.Y.Z'
         config = Config(run=RunConfig())
         config.version = version
-        config.other = '{version}'
-        config._set_dotted('x.y', '{other}')
-        config._set_dotted('a.b.c', '{x.y}')
+        config.other = '${version}'
+        config._set_dotted('x.y', '${other}')
+        config._set_dotted('a.b.c', '${x.y}')
         self.assertEqual(config.version, version)
         self.assertEqual(config.other, version)
         self.assertEqual(config.x.y, version)
