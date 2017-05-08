@@ -197,15 +197,12 @@ class RawConfig(OrderedDict):
 
     def _iter_dotted(self, root=''):
         for k in self:
-            v = self[k]
+            v = super().__getitem__(k)
             qualified_k = '.'.join((root, k)) if root else k
-            if not isinstance(v, RawConfig):
-                yield qualified_k
-            elif not v:
-                yield qualified_k
+            if isinstance(v, RawConfig) and v:
+                yield from v._iter_dotted(qualified_k)
             else:
-                for qualified_k in v._iter_dotted(qualified_k):
-                    yield qualified_k
+                yield qualified_k
 
     def _to_string(self, flat=False, values_only=False, exclude=(), level=0, root=''):
         out = []
