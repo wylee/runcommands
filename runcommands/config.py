@@ -397,7 +397,7 @@ class JSONValue(str):
         try:
             obj = json.loads(value)
         except TypeError as exc:
-            if tolerant:
+            if not tolerant:
                 args = exc.args + (name,)
                 raise ConfigTypeError(*args) from None
             obj = value
