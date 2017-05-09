@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from runcommands.config import RawConfig, RunConfig
-from runcommands.exc import ConfigKeyError
+from runcommands.exc import ConfigKeyError, ConfigValueError
 
 from .config import Config
 
@@ -163,6 +163,8 @@ class TestConfig(TestCase):
         self.assertEqual(config.my.other_list, ['item'])
         self.assertEqual(config.my.dict, {'key': ['item']})
         self.assertEqual(config.dollar_sign, '$')
+        self.assertEqual(config.not_interpolated.a, '${xyz}')
+        self.assertEqual(config.not_interpolated.b, '${')
 
     def test_simple_interpolation(self):
         version = 'X.Y.Z'
@@ -183,3 +185,24 @@ class TestConfig(TestCase):
         self.assertEqual(config.other, version)
         self.assertEqual(config.x.y, version)
         self.assertEqual(config.a.b.c, version)
+
+    def test_unclosed_interpolation_group(self):
+        config = Config(run=RunConfig())
+        config.name = '${xyz'
+        self.assertRaises(ConfigValueError, lambda: config.name)
+
+    def test_interpolation_escapes(self):
+        config = Config(run=RunConfig())
+        config.name = '$${'
+        self.assertEqual(config.name, '${')
+        config.name = '$${{'
+        self.assertEqual(config.name, '${{')
+
+    def test_dollar_signs(self):
+        config = Config(run=RunConfig())
+        config.name = '$'
+        self.assertEqual(config.name, '$')
+        config.name = '$$'
+        self.assertEqual(config.name, '$$')
+        config.name = '$$$'
+        self.assertEqual(config.name, '$$$')

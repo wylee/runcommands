@@ -140,6 +140,7 @@ class RawConfig(OrderedDict):
             changed = True
             while changed:
                 obj, changed = self._inject(obj, root)
+            obj = obj.replace('$${', '${')
             if not isinstance(obj, obj_type):
                 obj = obj_type(obj)
         elif isinstance(obj, Mapping):
@@ -169,6 +170,12 @@ class RawConfig(OrderedDict):
 
             if begin_pos == -1:
                 break
+
+            if begin_pos > 0:
+                peek_behind_index = begin_pos - 1
+                if new_value[peek_behind_index] == '$':
+                    begin_pos += 2
+                    continue
 
             # Save everything before ${.
             before = new_value[:begin_pos]
