@@ -134,6 +134,39 @@ class RawConfig(OrderedDict):
         return self if self._parent is None else self._parent._root
 
     def _interpolate(self, obj):
+        """Interpolate root config into ``obj``.
+
+        >>> config = RawConfig()
+        >>> config.a = 'a'
+        >>> config.b = '${a}'
+        >>> config.b
+        'a'
+
+        >>> config.a = {'a': 1}
+        >>> config.b = '${a}'
+        >>> config.b
+        '{"a": 1}'
+
+        Escaping to allow literal '${'
+
+        >>> config.a = '$${'
+        >>> config.a
+        '${'
+
+        >>> config.a = '$${xyz}'
+        >>> config.a
+        '${xyz}'
+
+        Literal dollar signs
+
+        >>> config.a = '$'
+        >>> config.a
+        '$'
+        >>> config.a = '$$'
+        >>> config.a
+        '$$'
+
+        """
         if isinstance(obj, str):
             root = self._root
             obj_type = type(obj)

@@ -1,9 +1,15 @@
+from doctest import DocTestSuite
 from unittest import TestCase
 
 from runcommands.config import RawConfig, RunConfig
 from runcommands.exc import ConfigKeyError, ConfigValueError
 
 from .config import Config
+
+
+def load_tests(loader, tests, ignore):
+    tests.addTests(DocTestSuite('runcommands.config'))
+    return tests
 
 
 class TestRawConfig(TestCase):
