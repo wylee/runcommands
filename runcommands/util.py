@@ -199,30 +199,6 @@ def args_to_str(args, joiner=' ', format_kwargs={}):
     return args
 
 
-def as_list(items, sep=','):
-    # Convert ``items`` to list.
-    #
-    # - None -> []
-    # - '' -> []
-    # - non-empty str -> items split on comma
-    # - list -> items
-    # - any other type -> items
-    if items is None:
-        items = []
-    elif isinstance(items, str):
-        if items == '':
-            items = []
-        else:
-            items = items.strip().split(sep)
-            items = [item.strip() for item in items]
-    return items
-
-
-def as_tuple(items, sep=','):
-    # Same as ``as_list`` with ``items`` converted to tuple.
-    return tuple(as_list(items, sep))
-
-
 def confirm(config, prompt='Really?', color='warning', yes_values=('y', 'yes'),
             abort_on_unconfirmed=False, abort_options=None):
     """Prompt for confirmation.
