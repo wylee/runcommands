@@ -35,6 +35,27 @@ class Hide(enum.Enum):
 
 class cached_property:
 
+    """Cache property value on first access.
+
+    >>> value = object()
+    >>>
+    >>> class C:
+    ...    @cached_property
+    ...    def x(self):
+    ...        return value
+    ...
+    >>> isinstance(C.x, cached_property)
+    True
+    >>> c = C()
+    >>> 'x' in c.__dict__
+    False
+    >>> c.x is value
+    True
+    >>> 'x' in c.__dict__
+    True
+
+    """
+
     def __init__(self, fget):
         self.fget = fget
         self.__name__ = fget.__name__
@@ -83,6 +104,20 @@ def abs_path(path, format_kwargs={}):
     path. If ``path`` is already an abs. path, it will be returned as
     is. Otherwise, it will be converted into a normalized abs. path.
 
+    >>> file_path = os.path.normpath(__file__)
+    >>> dir_name = os.path.dirname(file_path)
+    >>> file_name = os.path.basename(file_path)
+    >>> os.chdir(dir_name)
+    >>>
+    >>> abs_path(file_name) == file_path
+    True
+    >>> abs_path('runcommands:') == dir_name
+    True
+    >>> abs_path('runcommands:util.py') == file_path
+    True
+    >>> abs_path('/{xyz}', format_kwargs={'xyz': 'abc'})
+    '/abc'
+
     """
     if format_kwargs:
         path = path.format(**format_kwargs)
@@ -100,6 +135,18 @@ def asset_path(path, format_kwargs={}):
 
     ``path`` can be just a package name like 'package' or it can be
     a package name and a relative file system path like 'package:util'.
+
+    >>> file_path = os.path.normpath(__file__)
+    >>> dir_name = os.path.dirname(file_path)
+    >>> file_name = os.path.basename(file_path)
+    >>> os.chdir(dir_name)
+    >>>
+    >>> asset_path('runcommands') == dir_name
+    True
+    >>> asset_path('runcommands:util.py') == file_path
+    True
+    >>> asset_path('runcommands:{name}.py', format_kwargs={'name': 'util'}) == file_path
+    True
 
     """
     if format_kwargs:
