@@ -85,7 +85,8 @@ class RawConfig(OrderedDict):
 
     def __copy__(self):
         config = self._make_empty()
-        for k, v in self.items():
+        for k in self:
+            v = super().__getitem__(k)
             config[k] = copy(v)
         return config
 
