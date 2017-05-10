@@ -532,7 +532,9 @@ def version_getter(config):
     TODO: Support non-annotated tags?
 
     """
-    if not os.path.isdir('.git'):
+    try:
+        check_output(['git', 'rev-parse', '--is-inside-work-tree'], stderr=DEVNULL)
+    except CalledProcessError:
         return None
     encoding = getpreferredencoding(do_setlocale=False)
     try:
