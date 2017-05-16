@@ -4,7 +4,7 @@ import shlex
 import shutil
 import sys
 from functools import partial
-from subprocess import PIPE, Popen, TimeoutExpired
+from subprocess import PIPE, Popen, TimeoutExpired, call
 from time import monotonic
 
 from ..util import Hide, printer
@@ -135,6 +135,8 @@ class LocalRunner(Runner):
                 os.close(in_master)
                 os.close(out_master)
                 os.close(err_master)
+            # TODO: Make this cross-platform
+            call(['stty', 'sane'])
 
         result_args = (return_code, out_buffer, err_buffer, encoding)
 

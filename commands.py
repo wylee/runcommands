@@ -4,14 +4,16 @@ import os
 import re
 import shutil
 import sys
+import unittest
 
+from coverage import Coverage
 
 if 'runcommands' not in sys.path:
     sys.path.insert(0, os.path.abspath('.'))
 
 
 from runcommands import command  # noqa: E402
-from runcommands.commands import *  # noqa: E402,F403
+from runcommands.commands import local, remote, show_config  # noqa: E402,F401
 from runcommands.util import abort, asset_path, confirm, printer, prompt  # noqa: E402
 
 
@@ -75,9 +77,35 @@ def install_completion(config, shell='bash', to='~/.bashrc.d', overwrite=True):
 
 
 @command
-def test(config):
-    local(config, 'python -m unittest discover .')
-    lint(config)
+def test(config, tests=(), fail_fast=False, with_coverage=True, with_lint=True):
+    if tests:
+        num_tests = len(tests)
+        s = '' if num_tests == 1 else 's'
+        printer.header('Running {num_tests} test{s}...'.format_map(locals()))
+    else:
+        coverage_message = ' with coverage' if with_coverage else ''
+        printer.header('Running tests{coverage_message}...'.format_map(locals()))
+
+    runner = unittest.TextTestRunner(failfast=fail_fast)
+    loader = unittest.TestLoader()
+
+    if with_coverage:
+        coverage = Coverage(source=['runcommands'])
+        coverage.start()
+
+    if tests:
+        for name in tests:
+            runner.run(loader.loadTestsFromName(name))
+    else:
+        tests = loader.discover('.')
+        result = runner.run(tests)
+        if not result.errors:
+            if with_coverage:
+                coverage.stop()
+                coverage.report()
+            if with_lint:
+                printer.header('Checking for lint...')
+                lint(config)
 
 
 @command

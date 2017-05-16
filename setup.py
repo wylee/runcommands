@@ -39,6 +39,7 @@ setup(
             'paramiko>=2.1.2',
         ],
         'tox': [
+            'flake8',
             'tox',
         ],
     },
