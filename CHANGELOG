@@ -1,8 +1,67 @@
 # RunCommands
 
-## 1.0a20 - unreleased
+## 1.0a20 - 2017-05-16
 
-In progress...
+### Added
+
+- Started adding tests.
+- `stty sane` is now run when a local process exits. This feels pretty hacky
+  and probably won't work on Windows.
+
+### Changed
+
+- Re-revamped config stuff
+
+    Interpolation-related changes:
+
+        - Interpolation is now done when config values are retrieved instead of
+          interpolating all values up front. This allows a value to be changed
+          and any dependent values to be updated automatically.
+        - Interpolation now works with any value type, not just strings.
+        - It's now possible to do things like this in config files:
+
+            x = [1, 2, 3]
+            ; y will be a list
+            y = ${y}
+            ; z will be a string
+            z = "${y}"
+
+    Breaking changes:
+
+      - Renamed `RawConfig._clone()` to `copy()`.
+      - Removed `RawConfig._overrides()` context manager because it didn't seem
+        all that useful (just copy instead).
+      - `${...}` is now used instead of `{...}` for interpolation. Config
+        values are now parsed instead of using `str.format()`.
+      - When a `dict` or other mapping type is added to a config object, it
+        will no longer be converted to a `RawConfig` object.
+
+    Other changes:
+
+      - Added `RawConfig._iter_dotted()`; this was added to make
+        `RawConfig._to_string()` simpler, but it may have other uses.
+
+- Added `util` package and moved the utilities from the `util` module into
+  various modules in that package.
+
+### Fixed
+
+- Made `Config._get_default_version()` refer directly to
+  `config.version_getter()` instead of loading it from a string so it works in
+  subclasses.
+- Made `config.version_getter()` work if it's run from anywhere within a git
+  work tree and not just at the root.
+- The `cd` arg passed to `local` command is converted to an absolute path. This
+  is mainly to support asset paths (which was supported before).
+- Added support for `flush` to `Printer.print()` (by not passing it through
+  to `Printer.colorize()`).
+
+### Removed
+
+- `RawConfig._overrides()`
+- `RawConfig._clone()` (renamed to `copy()`)
+- `util.as_list()` and `util.as_tuple()`; these were holdovers from before
+  list-type options were supported.
 
 ## 1.0a19 - 2017-04-27
 
