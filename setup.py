@@ -27,6 +27,7 @@ setup(
     packages=find_packages(),
     package_data={
         'runcommands.completion': ['*/*'],
+        'runcommands.tests': ['*.cfg'],
     },
     install_requires=install_requires,
     extras_require={
