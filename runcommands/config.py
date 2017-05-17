@@ -388,6 +388,12 @@ class Config(RawConfig):
         self._update_dotted(overrides)
         self._update_dotted(run_config.options)
 
+    def __contains__(self, name):
+        contains = super().__contains__(name)
+        if not contains:
+            contains = super().__contains__('run') and name in super().__getitem__('run')
+        return contains
+
     def __getitem__(self, name):
         try:
             value = super().__getitem__(name)

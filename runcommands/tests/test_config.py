@@ -213,6 +213,12 @@ class TestConfig(TestCase):
         config.name = '$$$'
         self.assertEqual(config.name, '$$$')
 
+    def test_contains(self):
+        config = Config(run=RunConfig())
+        config['x'] = 'x'
+        self.assertIn('x', config)
+        self.assertIn('env', config)  # via run config
+
     def test_use_as_kwargs_in_format(self):
         config = Config(run=RunConfig())
         config['x'] = 'x'
