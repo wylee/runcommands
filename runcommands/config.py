@@ -391,11 +391,11 @@ class Config(RawConfig):
     def __getitem__(self, name):
         try:
             value = super().__getitem__(name)
-        except KeyError as exc:
+        except KeyError:
             try:
                 value = super().__getitem__('run').__getitem__(name)
             except KeyError:
-                raise exc from None
+                raise ConfigKeyError(name) from None
         return value
 
     @classmethod
