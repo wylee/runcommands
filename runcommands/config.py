@@ -313,7 +313,7 @@ class RawConfig(OrderedDict):
                 else:
                     if isinstance(v, RawConfig) and not v:
                         v = ''
-                    out.append('{k} => {v}'.format(**locals()))
+                    out.append('{k} => {v}'.format_map(locals()))
         else:
             keys = sorted(self)
             indent = ' ' * (level * 4)
@@ -325,11 +325,11 @@ class RawConfig(OrderedDict):
                 if isinstance(v, RawConfig):
                     v = v._to_string(flat, values_only, exclude, level + 1, qualified_k)
                     if v:
-                        out.append('{indent}{k} =>\n{v}'.format(**locals()))
+                        out.append('{indent}{k} =>\n{v}'.format_map(locals()))
                     else:
-                        out.append('{indent}{k} =>'.format(**locals()))
+                        out.append('{indent}{k} =>'.format_map(locals()))
                 else:
-                    out.append('{indent}{k} => {v}'.format(**locals()))
+                    out.append('{indent}{k} => {v}'.format_map(locals()))
         return '\n'.join(out)
 
 

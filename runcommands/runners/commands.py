@@ -128,5 +128,5 @@ def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
         abort(1, str(exc))
     except RunError as exc:
         if abort_on_failure:
-            abort(2, 'Remote command failed with exit code {exc.return_code}'.format(**locals()))
+            abort(2, 'Remote command failed with exit code {exc.return_code}'.format_map(locals()))
         return exc

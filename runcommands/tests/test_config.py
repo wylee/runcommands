@@ -212,3 +212,13 @@ class TestConfig(TestCase):
         self.assertEqual(config.name, '$$')
         config.name = '$$$'
         self.assertEqual(config.name, '$$$')
+
+    def test_use_as_kwargs_in_format(self):
+        config = Config(run=RunConfig())
+        config['x'] = 'x'
+
+        formatted_value = '{x}:{run.env}'.format(**config)
+        self.assertEqual(formatted_value, 'x:None')
+
+        formatted_value = '{x}:{env}'.format_map(config)
+        self.assertEqual(formatted_value, 'x:None')
