@@ -219,11 +219,40 @@ class TestConfig(TestCase):
         self.assertIn('x', config)
         self.assertIn('env', config)  # via run config
 
-    def test_use_as_kwargs_in_format(self):
+    def test_iter(self):
+        config = Config(run=RunConfig())
+        config.debug = 'DEBUG'
+
+        self.assertEqual(config.debug, 'DEBUG')
+        self.assertEqual(config.run.debug, False)
+
+        keys = list(config.keys())
+        iter_keys = list(iter(config))
+        values = list(config.values())
+        items = list(config.items())
+        item_keys = list(item[0] for item in items)
+        item_values = list(item[1] for item in items)
+
+        self.assertEqual(keys, iter_keys)
+        self.assertEqual(keys, item_keys)
+        self.assertEqual(values, item_values)
+        self.assertEqual(items, list(zip(keys, values)))
+
+        self.assertIn('run', keys)
+        self.assertIn('env', keys)
+        self.assertEqual(keys.count('debug'), 1)
+
+    def test_format(self):
         config = Config(run=RunConfig())
         config['x'] = 'x'
 
         formatted_value = '{x}:{run.env}'.format(**config)
+        self.assertEqual(formatted_value, 'x:None')
+
+        formatted_value = '{x}:{run.env}'.format_map(config)
+        self.assertEqual(formatted_value, 'x:None')
+
+        formatted_value = '{x}:{env}'.format(**config)
         self.assertEqual(formatted_value, 'x:None')
 
         formatted_value = '{x}:{env}'.format_map(config)

@@ -85,7 +85,7 @@ class RawConfig(OrderedDict):
 
     def __copy__(self):
         config = self._make_empty()
-        for k in self:
+        for k in super().__iter__():
             v = super().__getitem__(k)
             config[k] = copy(v)
         return config
@@ -294,7 +294,7 @@ class RawConfig(OrderedDict):
                 self._set_dotted(name, value)
 
     def _iter_dotted(self, root=''):
-        for k in self:
+        for k in super().__iter__():
             v = super().__getitem__(k)
             qualified_k = '.'.join((root, k)) if root else k
             if isinstance(v, RawConfig) and v:
@@ -403,6 +403,15 @@ class Config(RawConfig):
             except KeyError:
                 raise ConfigKeyError(name) from None
         return value
+
+    def __iter__(self):
+        yield from self.keys()
+
+    def keys(self):
+        yield from super().keys()
+        for k in super().get('run', ()):
+            if not super().__contains__(k):
+                yield k
 
     @classmethod
     def _make_config_parser(cls, file_name=None, _cache={}):
