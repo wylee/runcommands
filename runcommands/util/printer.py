@@ -40,7 +40,7 @@ class Printer:
         string.append(str(args[-1]))
         string = ''.join(string)
         if end:
-            string = '{string}{end}'.format(**locals())
+            string = '{string}{end}'.format_map(locals())
         return string
 
     def print(self, *args, color=Color.none, file=sys.stdout, **kwargs):

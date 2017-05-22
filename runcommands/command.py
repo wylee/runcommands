@@ -258,7 +258,7 @@ class Command:
     def parse_args(self, config, argv):
         debug = config.run.debug
         if debug:
-            printer.debug('Parsing args for command `{self.name}`: {argv}'.format(**locals()))
+            printer.debug('Parsing args for command `{self.name}`: {argv}'.format_map(locals()))
 
         parsed_args = self.get_arg_parser(config).parse_args(argv)
         parsed_args = vars(parsed_args)
@@ -334,7 +334,7 @@ class Command:
         m = int(m)
         hr = get_hr()
         msg = '{hr}\nElapsed time for {self.name} command: {m:d}m {s:.3f}s\n{hr}'
-        msg = msg.format(**locals())
+        msg = msg.format_map(locals())
         printer.info(msg)
 
     @cached_property

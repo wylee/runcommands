@@ -27,7 +27,7 @@ def args_to_str(args, joiner=' ', format_kwargs={}):
     #
     # After ``args`` has been joined into a single string, its leading and
     # trailing whitespace will be stripped and then ``format_args`` will be
-    # injected into it using ``str.format(**format_kwargs)``.
+    # injected into it using ``str.format_map(format_kwargs)``.
     if args is None:
         return ''
     if not isinstance(args, str):
@@ -38,7 +38,7 @@ def args_to_str(args, joiner=' ', format_kwargs={}):
             raise TypeError('args must be a str, list, or tuple')
     args = args.strip()
     if format_kwargs:
-        args = args.format(**format_kwargs)
+        args = args.format_map(format_kwargs)
     return args
 
 

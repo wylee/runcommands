@@ -27,7 +27,7 @@ def abs_path(path, format_kwargs={}):
 
     """
     if format_kwargs:
-        path = path.format(**format_kwargs)
+        path = path.format_map(format_kwargs)
     if not os.path.isabs(path):
         if ':' in path:
             path = asset_path(path)
@@ -57,7 +57,7 @@ def asset_path(path, format_kwargs={}):
 
     """
     if format_kwargs:
-        path = path.format(**format_kwargs)
+        path = path.format_map(format_kwargs)
 
     if ':' in path:
         package_name, *rel_path = path.split(':', 1)

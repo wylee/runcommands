@@ -27,7 +27,7 @@ def confirm(config, prompt='Really?', color='warning', yes_values=('y', 'yes'),
             ``abort_on_unconfirmed``)
 
     """
-    prompt = prompt.format(**config)
+    prompt = prompt.format_map(config)
     prompt = '{prompt} [{yes_value}/N] '.format(prompt=prompt, yes_value=yes_values[0])
 
     if isinstance(yes_values, str):

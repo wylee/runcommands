@@ -85,7 +85,7 @@ class RawConfig(OrderedDict):
 
     def __copy__(self):
         config = self._make_empty()
-        for k in self:
+        for k in super().__iter__():
             v = super().__getitem__(k)
             config[k] = copy(v)
         return config
@@ -294,7 +294,7 @@ class RawConfig(OrderedDict):
                 self._set_dotted(name, value)
 
     def _iter_dotted(self, root=''):
-        for k in self:
+        for k in super().__iter__():
             v = super().__getitem__(k)
             qualified_k = '.'.join((root, k)) if root else k
             if isinstance(v, RawConfig) and v:
@@ -313,7 +313,7 @@ class RawConfig(OrderedDict):
                 else:
                     if isinstance(v, RawConfig) and not v:
                         v = ''
-                    out.append('{k} => {v}'.format(**locals()))
+                    out.append('{k} => {v}'.format_map(locals()))
         else:
             keys = sorted(self)
             indent = ' ' * (level * 4)
@@ -325,11 +325,11 @@ class RawConfig(OrderedDict):
                 if isinstance(v, RawConfig):
                     v = v._to_string(flat, values_only, exclude, level + 1, qualified_k)
                     if v:
-                        out.append('{indent}{k} =>\n{v}'.format(**locals()))
+                        out.append('{indent}{k} =>\n{v}'.format_map(locals()))
                     else:
-                        out.append('{indent}{k} =>'.format(**locals()))
+                        out.append('{indent}{k} =>'.format_map(locals()))
                 else:
-                    out.append('{indent}{k} => {v}'.format(**locals()))
+                    out.append('{indent}{k} => {v}'.format_map(locals()))
         return '\n'.join(out)
 
 
@@ -388,15 +388,30 @@ class Config(RawConfig):
         self._update_dotted(overrides)
         self._update_dotted(run_config.options)
 
+    def __contains__(self, name):
+        contains = super().__contains__(name)
+        if not contains:
+            contains = super().__contains__('run') and name in super().__getitem__('run')
+        return contains
+
     def __getitem__(self, name):
         try:
             value = super().__getitem__(name)
-        except KeyError as exc:
+        except KeyError:
             try:
                 value = super().__getitem__('run').__getitem__(name)
             except KeyError:
-                raise exc from None
+                raise ConfigKeyError(name) from None
         return value
+
+    def __iter__(self):
+        yield from self.keys()
+
+    def keys(self):
+        yield from super().keys()
+        for k in super().get('run', ()):
+            if not super().__contains__(k):
+                yield k
 
     @classmethod
     def _make_config_parser(cls, file_name=None, _cache={}):

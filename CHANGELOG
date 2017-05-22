@@ -1,5 +1,13 @@
 # RunCommands
 
+## 1.0a21 - 2017-05-22
+
+- Made `Config.__contains__()` look in `run` config like `.__getitem__()` does.
+- Made `Config.keys()` and `.__iter__()` yield `run` config keys.
+- Made `Config.values()` yield `run` config values.
+- Made `Config.items()` yield `run` config items.
+- Changed all `str.format(**x)` to `str.format_map(x)` for consistency.
+
 ## 1.0a20 - 2017-05-16
 
 ### Added
