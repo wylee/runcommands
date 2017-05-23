@@ -126,6 +126,13 @@ class LocalRunner(Runner):
                         sys.stderr.write('[Run will be aborted when current subprocess exits]\n')
                         proc.send_signal(signal.SIGINT)
                         abort_requested = True
+                    except TimeoutExpired:
+                        sys.stderr.write(
+                            '[Run will be aborted when current subprocess exits '
+                            '(due to subprocess timeout)]\n')
+                        proc.terminate()
+                        proc.wait()
+                        raise
                     except:
                         proc.kill()
                         proc.wait()
