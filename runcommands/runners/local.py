@@ -2,6 +2,7 @@ import os
 import pty
 import shlex
 import shutil
+import signal
 import sys
 from functools import partial
 from subprocess import PIPE, Popen, TimeoutExpired, call
@@ -109,21 +110,30 @@ class LocalRunner(Runner):
                     (err_master, sys.stderr.fileno(), not hide_stderr, err_buffer),
                 )
 
+                abort_requested = False
                 read = partial(mirror_and_capture, in_, out, err, chunk_size)
 
-                try:
-                    while proc.poll() is None:
-                        read()
-                        check_timeout()
-
-                    while read(finish=True):
-                        check_timeout()
-
-                    return_code = proc.returncode
-                except:
-                    proc.kill()
-                    proc.wait()
-                    raise
+                while True:
+                    try:
+                        while proc.poll() is None:
+                            read()
+                            check_timeout()
+                        while read(finish=True):
+                            check_timeout()
+                        return_code = proc.returncode
+                    except KeyboardInterrupt:
+                        # Send SIGINT to program for handling.
+                        sys.stderr.write('[Run will be aborted when current subprocess exits]\n')
+                        proc.send_signal(signal.SIGINT)
+                        abort_requested = True
+                    except:
+                        proc.kill()
+                        proc.wait()
+                        raise
+                    else:
+                        if abort_requested:
+                            raise RunAborted('\nAborted')
+                        break
         except FileNotFoundError:
             raise RunAborted('Command not found: {exe}'.format(exe=exe))
         except KeyboardInterrupt:
@@ -136,8 +146,6 @@ class LocalRunner(Runner):
                 os.close(in_master)
                 os.close(out_master)
                 os.close(err_master)
-            # TODO: Make this cross-platform
-            call(['stty', 'sane'])
 
         result_args = (return_code, out_buffer, err_buffer, encoding)
 
