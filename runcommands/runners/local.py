@@ -147,7 +147,7 @@ class LocalRunner(Runner):
             raise RunAborted('\nAborted')
         except TimeoutExpired:
             raise RunAborted(
-                'Subprocess {cmd_str} timed out after {timeout}s'.format_map(locals()))
+                'Subprocess `{cmd_str}` timed out after {timeout}s'.format_map(locals()))
         finally:
             if use_pty:
                 os.close(in_master)
