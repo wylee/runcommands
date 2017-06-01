@@ -446,26 +446,33 @@ class Config(RawConfig):
         return sorted(sections)
 
     def _read_from_file(self, file_name, env=None):
-        parser = self._make_config_parser(file_name)
+        def read(f):
+            nonlocal env_found_in
 
-        if env:
-            if env in parser:
-                section = parser[env]
-                self['__ENV_SECTION_FOUND_IN_FILE__'] = file_name
+            parser = self._make_config_parser(f)
+
+            if env:
+                if env in parser:
+                    section = parser[env]
+                    if env_found_in is None:
+                        env_found_in = f
+                else:
+                    section = parser.defaults()
             else:
                 section = parser.defaults()
-        else:
-            section = parser.defaults()
 
-        extends = section.get('extends')
-        if extends:
-            extends = JSONValue(extends, name='extends').load()
-            self._read_from_file(extends, env)
+            extends = section.get('extends')
+            if extends:
+                extends = JSONValue(extends, name='extends').load()
+                read(extends)
 
-        for name, value in section.items():
-            self._set_dotted(name, JSONValue(value, name=name))
+            for name, value in section.items():
+                self._set_dotted(name, JSONValue(value, name=name))
 
-        if env and '__ENV_SECTION_FOUND_IN_FILE__' not in self:
+        env_found_in = None
+        read(file_name)
+
+        if env and env_found_in is None:
             raise ConfigError('Env/section not found while reading config: {env}'.format(env=env))
 
     def _get_default_version(self):
