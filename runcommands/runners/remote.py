@@ -109,6 +109,7 @@ class RemoteRunnerParamiko(RemoteRunner):
         if echo:
             printer.hr(color='echo')
             printer.echo('RUNNING:', cmd)
+            printer.echo('     ON:', host)
             if cd:
                 printer.echo('    CWD:', cd)
             if path:
