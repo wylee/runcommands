@@ -44,10 +44,7 @@ class LocalRunner(Runner):
         hide_stderr = Hide.hide_stderr(hide)
         echo = echo and not hide_stdout
 
-        if use_pty:
-            use_pty = pty and sys.stdout.isatty()
-            if not use_pty:
-                printer.warning('PTY not available')
+        use_pty = self.use_pty(use_pty)
 
         env = os.environ.copy()
 

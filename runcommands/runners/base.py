@@ -1,8 +1,11 @@
 import abc
 import locale
 import os
+import pty
+import sys
 
 from .result import Result
+from ..util import printer
 
 
 class Runner(metaclass=abc.ABCMeta):
@@ -28,3 +31,10 @@ class Runner(metaclass=abc.ABCMeta):
             path += [append_path]
         path = delimiter.join(path)
         return path
+
+    def use_pty(self, use_pty):
+        if use_pty:
+            use_pty = pty and sys.stdout.isatty()
+            if not use_pty:
+                printer.warning('PTY requested but PTY not available')
+        return use_pty
