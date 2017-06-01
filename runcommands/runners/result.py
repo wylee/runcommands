@@ -39,3 +39,9 @@ class Result:
 
     def __bool__(self):
         return self.succeeded
+
+    def __str__(self):
+        return self.stdout
+
+    def __repr__(self):
+        return repr(self.stdout)
