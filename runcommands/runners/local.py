@@ -5,7 +5,7 @@ import shutil
 import signal
 import sys
 from functools import partial
-from subprocess import PIPE, Popen, TimeoutExpired, call
+from subprocess import PIPE, Popen, TimeoutExpired
 from time import monotonic
 
 from ..util import Hide, printer
