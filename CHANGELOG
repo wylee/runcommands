@@ -1,5 +1,20 @@
 # RunCommands
 
+## 1.0a22 - 2017-06-05
+
+- When running a subprocess via the `local` command, on `Ctrl-C` `SIGINT` is
+  now sent to the subprocess for handling and the `local` command is aborted
+  only after/if the subprocess exits. The idea is to allow interactive commands
+  like `less` to exit cleanly and to obviate the need for the `stty sane` hack
+  added in the 1.0a20 release.
+- When a `local` subprocess times out, `Popen.terminate()` is now used to shut
+  down the subprocess instead of `.kill()`. `.terminate()` gives subprocesses
+  a chance to exit cleanly.
+- `remote` commands are now allocated a pseudo-terminal (using `ssh -t`) when
+  run interactively (when `stdout` is detected to be a TTY). This is to allow
+  interaction with remote commands that prompt for input. TODO: Investigate
+  downsides.
+
 ## 1.0a21 - 2017-05-22
 
 - Made `Config.__contains__()` look in `run` config like `.__getitem__()` does.

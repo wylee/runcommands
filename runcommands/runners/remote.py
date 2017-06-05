@@ -39,25 +39,36 @@ class RemoteRunner(Runner):
             'RemoteRunner corresponding to "{name}" not found; expected one of: {names}'
             .format(name=name, names=', '.join(subclass_map)))
 
-    def get_remote_command(self, cmd, user, cd, path, sudo, run_as):
-        remote_cmd = []
-
+    def get_remote_command(self, cmd, user, cd, path, sudo, run_as, use_pty):
         if sudo:
-            remote_cmd.append('sudo')
+            run_as = 'sudo -s'
         elif run_as and run_as != user:
-            remote_cmd.append('sudo -u {run_as}'.format(run_as=run_as))
+            run_as = 'sudo -u {run_as} -s'.format(run_as=run_as)
+        else:
+            run_as = ''
 
-        bash_cmd = ["bash <<'EOBASH'"]
+        eval_cmd = []
+
+        if use_pty:
+            eval_cmd.append('stty -onlcr')
+
         if cd:
-            bash_cmd.append('  cd {cd} || exit 1\n'.format(cd=cd))
-        if path:
-            bash_cmd.append('  export PATH="{path}"\n'.format(path=path))
-        bash_cmd.append('  {cmd}'.format(cmd=cmd))
-        bash_cmd.append('EOBASH')
-        bash_cmd = '\n'.join(bash_cmd)
-        remote_cmd.append(bash_cmd)
+            eval_cmd.append('cd {cd}'.format(cd=cd))
 
-        remote_cmd = ' '.join(remote_cmd)
+        if path:
+            eval_cmd.append('export PATH="{path}"'.format(path=path))
+
+        eval_cmd.append(cmd)
+        eval_cmd = ' &&\n    '.join(eval_cmd)
+
+        remote_cmd = """
+{run_as} eval $(cat <<'EOF'
+    {eval_cmd}
+EOF
+)
+"""
+        remote_cmd = remote_cmd.format_map(locals())
+        remote_cmd = remote_cmd.strip()
 
         return remote_cmd
 
@@ -68,20 +79,25 @@ class RemoteRunnerSSH(RemoteRunner):
 
     def run(self, cmd, host, user=None, cd=None, path=None, prepend_path=None,
             append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
-            debug=False):
+            use_pty=True, debug=False):
         # Runs a remote command by running ssh in a subprocess:
         #
-        # ssh -T someone@somehost sudo -u svusrXYZ bash <<'EOBASH'
-        #     cd <cd> || exit 1
-        #     export PATH="<path>"
+        # ssh -q -t someone@somehost sudo -u svusrXYZ -s eval $(cat <<'EOF'
+        #     cd <cd> &&
+        #     export PATH="<path>" &&
         #     <cmd>
-        # EOBASH
+        # EOF
+        use_pty = self.use_pty(use_pty)
         ssh_connection_str = '{user}@{host}'.format(user=user, host=host) if user else host
         path = self.munge_path(path, prepend_path, append_path, '$PATH')
-        remote_command = self.get_remote_command(cmd, user, cd, path, sudo, run_as)
-        ssh_cmd = ['ssh', '-T', ssh_connection_str, remote_command]
+        remote_command = self.get_remote_command(cmd, user, cd, path, sudo, run_as, use_pty)
+        ssh_cmd = ['ssh', '-q']
+        if use_pty:
+            ssh_cmd.append('-t')
+        ssh_cmd.extend((ssh_connection_str, remote_command))
         local_runner = LocalRunner()
-        return local_runner.run(ssh_cmd, echo=echo, hide=hide, timeout=timeout, debug=debug)
+        return local_runner.run(
+            ssh_cmd, echo=echo, hide=hide, timeout=timeout, use_pty=use_pty, debug=debug)
 
 
 class RemoteRunnerParamiko(RemoteRunner):
@@ -97,10 +113,11 @@ class RemoteRunnerParamiko(RemoteRunner):
 
     def run(self, cmd, host, user=None, cd=None, path=None, prepend_path=None,
             append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
-            debug=False):
+            use_pty=True, debug=False):
+        use_pty = self.use_pty(use_pty)
         user = user or getpass.getuser()
         path = self.munge_path(path, prepend_path, append_path, '$PATH')
-        remote_command = self.get_remote_command(cmd, user, cd, path, sudo, run_as)
+        remote_command = self.get_remote_command(cmd, user, cd, path, sudo, run_as, use_pty)
 
         hide_stdout = Hide.hide_stdout(hide)
         hide_stderr = Hide.hide_stderr(hide)
@@ -109,6 +126,7 @@ class RemoteRunnerParamiko(RemoteRunner):
         if echo:
             printer.hr(color='echo')
             printer.echo('RUNNING:', cmd)
+            printer.echo('     ON:', host)
             if cd:
                 printer.echo('    CWD:', cd)
             if path:
