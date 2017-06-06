@@ -77,7 +77,7 @@ def get_default_local_prepend_path(config):
 @command
 def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
            append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
-           abort_on_failure=True, inject_config=True, strategy='ssh'):
+           use_pty=True, abort_on_failure=True, inject_config=True, strategy='ssh'):
     """Run a command on the remote host via SSH.
 
     Args:
@@ -121,7 +121,7 @@ def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
         return runner.run(
             cmd, host, user=user, cd=cd, path=path, prepend_path=prepend_path,
             append_path=append_path, sudo=sudo, run_as=run_as, echo=echo, hide=hide,
-            timeout=timeout, debug=debug)
+            timeout=timeout, use_pty=use_pty, debug=debug)
     except RunAborted as exc:
         if debug:
             raise
