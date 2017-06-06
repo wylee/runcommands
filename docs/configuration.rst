@@ -57,7 +57,7 @@ A relative or absolute file system can be specified instead::
 Interpolation
 =============
 
-Config values can contain Python format strings like ``{remote.host}``. These
+Config values can contain Python format strings like ``${remote.host}``. These
 will be replaced with the corresponding config values.
 
 .. note:: Only works with string values.
