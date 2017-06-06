@@ -517,12 +517,12 @@ class JSONValue(str):
             if not tolerant:
                 args = exc.args + (name,)
                 raise ConfigTypeError(*args) from None
-            obj = value
+            obj = str(value)
         except ValueError as exc:
             if not tolerant:
                 args = exc.args + (name,)
                 raise ConfigValueError(*args) from None
-            obj = value
+            obj = str(value)
         return obj
 
     @classmethod
