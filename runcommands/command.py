@@ -80,6 +80,7 @@ class Command:
         self.timed = timed
         self.qualified_name = '.'.join((implementation.__module__, implementation.__qualname__))
         self.defaults_path = '.'.join(('defaults', self.qualified_name))
+        self.short_defaults_path = '.'.join(('defaults', self.name))
 
         if 'hide' in self.optionals and 'hide' not in self.types:
             self.types['hide'] = bool_or(Hide)
@@ -208,7 +209,7 @@ class Command:
             printer.debug('    Received keyword args:', kwargs)
 
         params = self.parameters
-        defaults = config._get_dotted(self.defaults_path, None)
+        defaults = self.get_defaults(config)
 
         if defaults:
             nonexistent_defaults = [n for n in defaults if n not in params]
@@ -254,6 +255,11 @@ class Command:
             printer.debug('    Final keyword args:', repr(kwargs))
 
         return self.implementation(config, *args, **kwargs)
+
+    def get_defaults(self, config):
+        defaults = config._get_dotted(self.defaults_path, {})
+        defaults.update(config._get_dotted(self.short_defaults_path, {}))
+        return defaults
 
     def parse_args(self, config, argv):
         debug = config.run.debug
@@ -416,7 +422,7 @@ class Command:
             argument_default=argparse.SUPPRESS,
         )
 
-        defaults = config._get_dotted(self.defaults_path, {})
+        defaults = self.get_defaults(config)
 
         for name, arg_names in self.param_map.items():
             param = self.parameters[name]

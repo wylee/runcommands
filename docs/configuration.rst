@@ -15,12 +15,12 @@ A config file looks like this, with sections for different environments::
 
     [stage]
     debug = true
-    defaults.runcommands.runners.commands.remote.host = "stage_host"
+    defaults.remote.host = "stage_host"
 
     [prod]
     debug = false
     remote.host = "prod_host"
-    defaults.runcommands.runners.commands.remote.host = "{remote.host}"
+    defaults.remote.host = "{remote.host}"
 
 Accessing Config
 ================
