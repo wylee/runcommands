@@ -118,6 +118,9 @@ class RawConfig(OrderedDict):
             del self[name]
         return value
 
+    def update(self, *args, **kwargs):
+        self.__do_update(args, kwargs, dotted=False)
+
     items = lambda self: _OrderedDictItemsView(self)
     values = lambda self: _OrderedDictValuesView(self)
 
@@ -281,6 +284,10 @@ class RawConfig(OrderedDict):
         obj[last_segment] = value
 
     def _update_dotted(self, *args, **kwargs):
+        self.__do_update(args, kwargs)
+
+    def __do_update(self, args, kwargs, dotted=True):
+        setter = self._set_dotted if dotted else self.__setitem__
         if args:
             items, *rest = args
             if rest:
@@ -288,10 +295,10 @@ class RawConfig(OrderedDict):
             if isinstance(items, Mapping):
                 items = items.items()
             for name, value in items:
-                self._set_dotted(name, value)
+                setter(name, value)
         if kwargs:
             for name, value in kwargs.items():
-                self._set_dotted(name, value)
+                setter(name, value)
 
     def _iter_dotted(self, root=''):
         for k in super().__iter__():
@@ -339,6 +346,7 @@ class RunConfig(RawConfig):
 
     _known_options = {
         'commands_module': DEFAULT_COMMANDS_MODULE,
+        'commands': None,
         'config_file': None,
         'env': None,
         'default_env': None,
@@ -349,7 +357,7 @@ class RunConfig(RawConfig):
     }
 
     def __init__(self, *defaults, **overrides):
-        super().__init__(self._known_options, options=RawConfig())
+        super().__init__(self._known_options, commands={}, options=RawConfig())
         self._update_dotted(*defaults)
         self._update_dotted(overrides)
 
@@ -517,12 +525,12 @@ class JSONValue(str):
             if not tolerant:
                 args = exc.args + (name,)
                 raise ConfigTypeError(*args) from None
-            obj = value
+            obj = str(value)
         except ValueError as exc:
             if not tolerant:
                 args = exc.args + (name,)
                 raise ConfigValueError(*args) from None
-            obj = value
+            obj = str(value)
         return obj
 
     @classmethod

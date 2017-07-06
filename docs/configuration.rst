@@ -15,12 +15,12 @@ A config file looks like this, with sections for different environments::
 
     [stage]
     debug = true
-    defaults.runcommands.runners.commands.remote.host = "stage_host"
+    defaults.remote.host = "stage_host"
 
     [prod]
     debug = false
     remote.host = "prod_host"
-    defaults.runcommands.runners.commands.remote.host = "{remote.host}"
+    defaults.remote.host = "{remote.host}"
 
 Accessing Config
 ================
@@ -57,7 +57,7 @@ A relative or absolute file system can be specified instead::
 Interpolation
 =============
 
-Config values can contain Python format strings like ``{remote.host}``. These
+Config values can contain Python format strings like ``${remote.host}``. These
 will be replaced with the corresponding config values.
 
 .. note:: Only works with string values.

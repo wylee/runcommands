@@ -80,6 +80,7 @@ class Command:
         self.timed = timed
         self.qualified_name = '.'.join((implementation.__module__, implementation.__qualname__))
         self.defaults_path = '.'.join(('defaults', self.qualified_name))
+        self.short_defaults_path = '.'.join(('defaults', self.name))
 
         if 'hide' in self.optionals and 'hide' not in self.types:
             self.types['hide'] = bool_or(Hide)
@@ -184,7 +185,7 @@ class Command:
         argv = sys.argv[1:] if _argv is None else _argv
 
         try:
-            run_config = RunConfig()
+            run_config = RunConfig(commands={self.name: self})
             run_config.update(read_run_args(self))
             run_config.update(_run_args or {})
             self.run(run_config, argv, **kwargs)
@@ -201,6 +202,15 @@ class Command:
         # is called directly too.
         config = config.copy(self.config.copy())
         debug = config.run.debug
+        commands = config.run.commands
+        replacement = commands.get(self.name)
+        replaced = replacement is not None and replacement is not self
+
+        if replaced:
+            if debug:
+                printer.debug('Command replaced:', self.name)
+                printer.debug('    ', self.qualified_name, '=>', replacement.qualified_name)
+            return replacement(config, *args, **kwargs)
 
         if debug:
             printer.debug('Command called:', self.name)
@@ -208,7 +218,7 @@ class Command:
             printer.debug('    Received keyword args:', kwargs)
 
         params = self.parameters
-        defaults = config._get_dotted(self.defaults_path, None)
+        defaults = self.get_defaults(config)
 
         if defaults:
             nonexistent_defaults = [n for n in defaults if n not in params]
@@ -254,6 +264,15 @@ class Command:
             printer.debug('    Final keyword args:', repr(kwargs))
 
         return self.implementation(config, *args, **kwargs)
+
+    def get_defaults(self, config):
+        defaults = config._get_dotted(self.defaults_path, RawConfig())
+        defaults.update(config._get_dotted(self.short_defaults_path, RawConfig()))
+        return defaults
+
+    def get_default(self, config, name, default=None):
+        defaults = self.get_defaults(config)
+        return defaults.get(name, default)
 
     def parse_args(self, config, argv):
         debug = config.run.debug
@@ -416,7 +435,7 @@ class Command:
             argument_default=argparse.SUPPRESS,
         )
 
-        defaults = config._get_dotted(self.defaults_path, {})
+        defaults = self.get_defaults(config)
 
         for name, arg_names in self.param_map.items():
             param = self.parameters[name]
@@ -652,4 +671,4 @@ class ListAppendAction(argparse.Action):
 
 
 # Avoid circular import
-from .config import Config, JSONValue, RunConfig  # noqa: E402
+from .config import Config, JSONValue, RawConfig, RunConfig  # noqa: E402
