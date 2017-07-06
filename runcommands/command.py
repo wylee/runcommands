@@ -202,6 +202,15 @@ class Command:
         # is called directly too.
         config = config.copy(self.config.copy())
         debug = config.run.debug
+        commands = config.run.commands
+        replacement = commands.get(self.name)
+        replaced = replacement is not None and replacement is not self
+
+        if replaced:
+            if debug:
+                printer.debug('Command replaced:', self.name)
+                printer.debug('    ', self.qualified_name, '=>', replacement.qualified_name)
+            return replacement(config, *args, **kwargs)
 
         if debug:
             printer.debug('Command called:', self.name)
