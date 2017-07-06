@@ -419,13 +419,11 @@ class Config(RawConfig):
         return value
 
     def __iter__(self):
-        yield from self.keys()
-
-    def keys(self):
-        yield from super().keys()
-        for k in super().get('run', ()):
-            if not super().__contains__(k):
-                yield k
+        yield from super().__iter__()
+        run_config = super().get('run')
+        if run_config is not None:
+            base_keys = set(super().__iter__())
+            yield from (k for k in run_config if k not in base_keys)
 
     @classmethod
     def _make_config_parser(cls, file_name=None, _cache={}):
