@@ -339,6 +339,7 @@ class RunConfig(RawConfig):
 
     _known_options = {
         'commands_module': DEFAULT_COMMANDS_MODULE,
+        'commands': None,
         'config_file': None,
         'env': None,
         'default_env': None,
@@ -349,7 +350,7 @@ class RunConfig(RawConfig):
     }
 
     def __init__(self, *defaults, **overrides):
-        super().__init__(self._known_options, options=RawConfig())
+        super().__init__(self._known_options, commands={}, options=RawConfig())
         self._update_dotted(*defaults)
         self._update_dotted(overrides)
 
