@@ -1,5 +1,12 @@
 # RunCommands
 
+## 1.0a24 - 2017-07-06
+
+- Fixed/simplified iteration in `Config`. The previous implementation worked on
+  Python 3.5 and 3.6 but not 3.3 and 3.4, causing infinite recursion on those
+  versions. The new implementation is simpler because it only defines
+  `__iter__()` instead of both `__iter__()` and `keys()`.
+
 ## 1.0a23 - 2017-07-06
 
 ### Major Changes

@@ -109,8 +109,12 @@ def test(config, tests=(), fail_fast=False, with_coverage=True, with_lint=True):
 
 
 @command
-def tox(config):
-    local(config, 'tox')
+def tox(config, envs=(), recreate=False):
+    local(config, (
+        'tox',
+        ('-e', ','.join(envs)) if envs else '',
+        '--recreate' if recreate else '',
+    ))
 
 
 @command
@@ -182,6 +186,7 @@ def clean(config, verbose=False):
 @command
 def release(config, version=None, date=None, tag_name=None, next_version=None, prepare=True,
             merge=True, create_tag=True, resume=True, yes=False):
+
     def update_line(file_name, line_number, content):
         with open(file_name) as fp:
             lines = fp.readlines()
@@ -291,6 +296,9 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
     printer.info('Next version:', next_version)
     msg = 'Continue with release?: {version} - {date}'.format_map(locals())
     yes or confirm(config, msg, abort_on_unconfirmed=True)
+
+    printer.header('Testing...')
+    tox(config)
 
     # Prepare
     if prepare:

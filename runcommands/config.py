@@ -14,10 +14,15 @@ from .util import abort, abs_path, load_object
 
 try:
     # Python 3.5 and up
-    from collections import _OrderedDictItemsView, _OrderedDictValuesView
+    from collections import _OrderedDictKeysView, _OrderedDictItemsView, _OrderedDictValuesView
 except ImportError:
     # Python 3.4 and below
-    from collections import ItemsView, ValuesView
+    from collections import KeysView, ItemsView, ValuesView
+
+    class _OrderedDictKeysView(KeysView):
+
+        def __reversed__(self):
+            yield from reversed(self._mapping)
 
     class _OrderedDictItemsView(ItemsView):
 
@@ -121,6 +126,7 @@ class RawConfig(OrderedDict):
     def update(self, *args, **kwargs):
         self.__do_update(args, kwargs, dotted=False)
 
+    keys = lambda self: _OrderedDictKeysView(self)
     items = lambda self: _OrderedDictItemsView(self)
     values = lambda self: _OrderedDictValuesView(self)
 
@@ -413,13 +419,11 @@ class Config(RawConfig):
         return value
 
     def __iter__(self):
-        yield from self.keys()
-
-    def keys(self):
-        yield from super().keys()
-        for k in super().get('run', ()):
-            if not super().__contains__(k):
-                yield k
+        yield from super().__iter__()
+        run_config = super().get('run')
+        if run_config is not None:
+            base_keys = set(super().__iter__())
+            yield from (k for k in run_config if k not in base_keys)
 
     @classmethod
     def _make_config_parser(cls, file_name=None, _cache={}):
