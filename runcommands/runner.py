@@ -29,6 +29,7 @@ class CommandRunner:
 
         self.run_config = RunConfig(
             commands_module=commands_module,
+            commands=self.commands,
             config_file=config_file,
             env=env,
             default_env=default_env,
