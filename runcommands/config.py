@@ -14,10 +14,15 @@ from .util import abort, abs_path, load_object
 
 try:
     # Python 3.5 and up
-    from collections import _OrderedDictItemsView, _OrderedDictValuesView
+    from collections import _OrderedDictKeysView, _OrderedDictItemsView, _OrderedDictValuesView
 except ImportError:
     # Python 3.4 and below
-    from collections import ItemsView, ValuesView
+    from collections import KeysView, ItemsView, ValuesView
+
+    class _OrderedDictKeysView(KeysView):
+
+        def __reversed__(self):
+            yield from reversed(self._mapping)
 
     class _OrderedDictItemsView(ItemsView):
 
@@ -121,6 +126,7 @@ class RawConfig(OrderedDict):
     def update(self, *args, **kwargs):
         self.__do_update(args, kwargs, dotted=False)
 
+    keys = lambda self: _OrderedDictKeysView(self)
     items = lambda self: _OrderedDictItemsView(self)
     values = lambda self: _OrderedDictValuesView(self)
 
