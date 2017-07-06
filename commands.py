@@ -109,8 +109,12 @@ def test(config, tests=(), fail_fast=False, with_coverage=True, with_lint=True):
 
 
 @command
-def tox(config, recreate=False):
-    local(config, ('tox', '--recreate' if recreate else ''))
+def tox(config, envs=(), recreate=False):
+    local(config, (
+        'tox',
+        ('-e', ','.join(envs)) if envs else '',
+        '--recreate' if recreate else '',
+    ))
 
 
 @command
