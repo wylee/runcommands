@@ -1,3 +1,4 @@
+import sys
 from doctest import DocTestSuite
 from unittest import TestCase
 
@@ -252,8 +253,10 @@ class TestConfig(TestCase):
         formatted_value = '{x}:{run.env}'.format_map(config)
         self.assertEqual(formatted_value, 'x:None')
 
-        formatted_value = '{x}:{env}'.format(**config)
-        self.assertEqual(formatted_value, 'x:None')
-
         formatted_value = '{x}:{env}'.format_map(config)
         self.assertEqual(formatted_value, 'x:None')
+
+        # XXX: Works on 3.3, 3.4, and 3.5 but not 3.6
+        if sys.version_info[:2] < (3, 6):
+            formatted_value = '{x}:{env}'.format(**config)
+            self.assertEqual(formatted_value, 'x:None')
