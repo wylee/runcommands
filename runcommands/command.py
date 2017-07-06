@@ -266,8 +266,8 @@ class Command:
         return self.implementation(config, *args, **kwargs)
 
     def get_defaults(self, config):
-        defaults = config._get_dotted(self.defaults_path, {})
-        defaults.update(config._get_dotted(self.short_defaults_path, {}))
+        defaults = config._get_dotted(self.defaults_path, RawConfig())
+        defaults.update(config._get_dotted(self.short_defaults_path, RawConfig()))
         return defaults
 
     def parse_args(self, config, argv):
@@ -667,4 +667,4 @@ class ListAppendAction(argparse.Action):
 
 
 # Avoid circular import
-from .config import Config, JSONValue, RunConfig  # noqa: E402
+from .config import Config, JSONValue, RawConfig, RunConfig  # noqa: E402
