@@ -270,6 +270,10 @@ class Command:
         defaults.update(config._get_dotted(self.short_defaults_path, RawConfig()))
         return defaults
 
+    def get_default(self, config, name, default=None):
+        defaults = self.get_defaults(config)
+        return defaults.get(name, default)
+
     def parse_args(self, config, argv):
         debug = config.run.debug
         if debug:
