@@ -1,8 +1,45 @@
 # RunCommands
 
-## 1.0a23 - unreleased
+## 1.0a23 - 2017-07-06
 
-In progress...
+### Major Changes
+
+- Replacement commands are now called automatically when commands are called
+  directly. A "replacement command" is a command with the same name as an
+  already-defined command. When the original command is called, it will check
+  to see if it has been replaced and call the replacement command if it has
+  been. The original command implementation can always be called via
+  `Command.implementation()`. This is intended to mirror CLI behavior (where
+  only replacement commands are available) and to make it easy to swap command
+  implementations in wrapper commands. [NOTE: This probably needs a bit more
+  thought put into it and perhaps a less-magical API].
+- Command default options can now be specified via a shorter config path:
+  `defaults.{command-name}.xyz`. The old method of using the full module path
+  is still supported, which may be useful when commands are replaced and the
+  original defaults shouldn't be applied to the replacement command. Defaults
+  specified via the short path are merged over defaults specified using the
+  module path.
+- Added `Command.get_default()` to make getting at individual default options
+  easy.
+
+### Other Changes
+
+- Added `use_pty` flag to `remote` command. It's passed through to the remote
+  runner strategy (strategies already had a `use_pty` flag).
+- Added `RawConfig.update()` so that `RawConfig.__getitem__()` will be used
+  when updating (like `get()` and `pop()`).
+- A `RawConfig` object is now always returned from `Command.get_defaults()`
+  instead of returning a plain `dict` when there are no defaults. This is for
+  consistency; not sure it has any practical/noticeable effect.
+- Added `commands` to default `RunConfig` options. `commands` is populated in
+  `Runner` with the commands it loads and in `Command.console_script()` with
+  the command being wrapped.
+
+### Fixed
+
+- When loading JSON values tolerantly (i.e., treating bad values as strings),
+  values are now explicitly cast to `str` to avoid returning non-string values
+  (in `JSONValue.loads()`).
 
 ## 1.0a22 - 2017-06-05
 
