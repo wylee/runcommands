@@ -1,5 +1,9 @@
 # RunCommands
 
+## 1.0a25 - unreleased
+
+In progress...
+
 ## 1.0a24 - 2017-07-06
 
 - Fixed/simplified iteration in `Config`. The previous implementation worked on
