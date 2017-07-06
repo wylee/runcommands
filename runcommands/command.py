@@ -185,7 +185,7 @@ class Command:
         argv = sys.argv[1:] if _argv is None else _argv
 
         try:
-            run_config = RunConfig()
+            run_config = RunConfig(commands={self.name: self})
             run_config.update(read_run_args(self))
             run_config.update(_run_args or {})
             self.run(run_config, argv, **kwargs)
