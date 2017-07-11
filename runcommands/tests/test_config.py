@@ -217,8 +217,9 @@ class TestConfig(TestCase):
     def test_contains(self):
         config = Config(run=RunConfig())
         config['x'] = 'x'
+        config.y = 'y'
         self.assertIn('x', config)
-        self.assertIn('env', config)  # via run config
+        self.assertIn('y', config)
 
     def test_iter(self):
         config = Config(run=RunConfig())
@@ -240,8 +241,8 @@ class TestConfig(TestCase):
         self.assertEqual(items, list(zip(keys, values)))
 
         self.assertIn('run', keys)
-        self.assertIn('env', keys)
-        self.assertEqual(keys.count('debug'), 1)
+        self.assertIn('debug', keys)
+        self.assertEqual(config.debug, 'DEBUG')
 
     def test_format(self):
         config = Config(run=RunConfig())
