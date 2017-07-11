@@ -40,8 +40,8 @@ def virtualenv(config, where='.env', python='python3', overwrite=False):
 
 
 @command
-def install(config, where='.env', upgrade=False, overwrite=False):
-    virtualenv(config, where=where, overwrite=overwrite)
+def install(config, where='.env', python='python3', upgrade=False, overwrite=False):
+    virtualenv(config, where=where, python=python, overwrite=overwrite)
     pip = '{where}/bin/pip'.format(where=where)
     local(config, (pip, 'install', '--upgrade' if upgrade else '', '-e .[dev]'))
 
