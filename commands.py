@@ -6,8 +6,6 @@ import shutil
 import sys
 import unittest
 
-from coverage import Coverage
-
 if 'runcommands' not in sys.path:
     sys.path.insert(0, os.path.abspath('.'))
 
@@ -90,6 +88,7 @@ def test(config, tests=(), fail_fast=False, with_coverage=True, with_lint=True):
     loader = unittest.TestLoader()
 
     if with_coverage:
+        from coverage import Coverage
         coverage = Coverage(source=['runcommands'])
         coverage.start()
 
