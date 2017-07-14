@@ -402,12 +402,6 @@ class Config(RawConfig):
         self._update_dotted(overrides)
         self._update_dotted(run_config.options)
 
-    def __contains__(self, name):
-        contains = super().__contains__(name)
-        if not contains:
-            contains = super().__contains__('run') and name in super().__getitem__('run')
-        return contains
-
     def __getitem__(self, name):
         try:
             value = super().__getitem__(name)
@@ -417,13 +411,6 @@ class Config(RawConfig):
             except KeyError:
                 raise ConfigKeyError(name) from None
         return value
-
-    def __iter__(self):
-        yield from super().__iter__()
-        run_config = super().get('run')
-        if run_config is not None:
-            base_keys = set(super().__iter__())
-            yield from (k for k in run_config if k not in base_keys)
 
     @classmethod
     def _make_config_parser(cls, file_name=None, _cache={}):

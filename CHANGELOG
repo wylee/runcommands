@@ -1,5 +1,20 @@
 # RunCommands
 
+## 1.0a25 - 2017-07-14
+
+- Changed mapping operations on `Config` so that `__contains__()` no longer
+  looks in the `run` config and `__iter__()` no longer yields `run` config
+  keys. I'm not sure why I thought would be useful in the first place, but it
+  was tricky to get right and confusing (and causing duplicates in the output
+  of the `show-config` command).
+- Added `--python` option to `install` command so the Python version for the
+  virtualenv can be specified.
+- All extras are no installed when the `install` command is run. This is so
+  testing dependencies will be installed.
+- Fixed a bootstrapping issue in `commands.py`: import `coverage.Coverage` in
+  the `test` command instead of globally because coverage might not be
+  installed yet.
+
 ## 1.0a24 - 2017-07-06
 
 - Fixed/simplified iteration in `Config`. The previous implementation worked on

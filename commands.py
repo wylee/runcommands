@@ -6,8 +6,6 @@ import shutil
 import sys
 import unittest
 
-from coverage import Coverage
-
 if 'runcommands' not in sys.path:
     sys.path.insert(0, os.path.abspath('.'))
 
@@ -40,10 +38,10 @@ def virtualenv(config, where='.env', python='python3', overwrite=False):
 
 
 @command
-def install(config, where='.env', upgrade=False, overwrite=False):
-    virtualenv(config, where=where, overwrite=overwrite)
+def install(config, where='.env', python='python3', upgrade=False, overwrite=False):
+    virtualenv(config, where=where, python=python, overwrite=overwrite)
     pip = '{where}/bin/pip'.format(where=where)
-    local(config, (pip, 'install', '--upgrade' if upgrade else '', '-e .[dev]'))
+    local(config, (pip, 'install', '--upgrade' if upgrade else '', '-e .[dev,paramiko,tox]'))
 
 
 @command
@@ -90,6 +88,7 @@ def test(config, tests=(), fail_fast=False, with_coverage=True, with_lint=True):
     loader = unittest.TestLoader()
 
     if with_coverage:
+        from coverage import Coverage
         coverage = Coverage(source=['runcommands'])
         coverage.start()
 
