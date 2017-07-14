@@ -1,5 +1,9 @@
 # RunCommands
 
+## 1.0a26 - unreleased
+
+In progress...
+
 ## 1.0a25 - 2017-07-14
 
 - Changed mapping operations on `Config` so that `__contains__()` no longer
