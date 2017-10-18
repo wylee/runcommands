@@ -1,5 +1,12 @@
 # RunCommands
 
+## 1.0a26 - 2017-10-18
+
+- Fixed a bug in `util.confirm()` relating to its abort-on-unconfirmed logic.
+  The abort logic was being triggered in practically all cases when something
+  wasn't confirmed (notably, in the default case where
+  `abort_on_unconfirmed=False`).
+
 ## 1.0a25 - 2017-07-14
 
 - Changed mapping operations on `Config` so that `__contains__()` no longer
