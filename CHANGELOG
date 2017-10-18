@@ -1,5 +1,9 @@
 # RunCommands
 
+## 1.0a27 - unreleased
+
+In progress...
+
 ## 1.0a26 - 2017-10-18
 
 - Fixed a bug in `util.confirm()` relating to its abort-on-unconfirmed logic.
