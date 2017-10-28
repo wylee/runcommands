@@ -62,13 +62,14 @@ class RemoteRunner(Runner):
                             mirror.write(text)
                     return data
 
-            def send(ready, sender, mirror, finish=False):
-                if finish or ready():
+            def send(ready, sender, mirror):
+                if ready():
                     rlist, _, __ = select([mirror], [], [], 0)
                     if mirror in rlist:
                         data = os.read(mirror, 1)
-                        if data:
-                            sender(data)
+                        if not use_pty:
+                            stdout.write(data.decode(encoding))
+                        sender(data)
                         return data
 
             stdin, stdout, stderr = sys.stdin, sys.stdout, sys.stderr
@@ -85,11 +86,9 @@ class RemoteRunner(Runner):
             try:
                 while not channel.exit_status_ready():
                     send_stdin()
+                    stdout.flush()  # Echo stdin immediately
                     receive_stdout()
                     receive_stderr()
-                    time.sleep(paramiko.io_sleep)
-
-                while send_stdin(finish=True):
                     time.sleep(paramiko.io_sleep)
 
                 while receive_stdout(finish=True):
