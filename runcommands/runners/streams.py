@@ -3,7 +3,7 @@ import os
 from select import select
 
 
-def mirror_and_capture(in_, out, err, chunk_size, finish=False, poll_timeout=0.05):
+def mirror_and_capture(in_, out, err, chunk_size, finish=False, poll_timeout=0):
     """Read streams; mirror and capture output.
 
     Read from a subprocess's stdout and mirror it to the console's

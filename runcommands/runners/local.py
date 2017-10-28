@@ -4,6 +4,7 @@ import shlex
 import shutil
 import signal
 import sys
+import time
 from functools import partial
 from subprocess import PIPE, Popen, TimeoutExpired
 from time import monotonic
@@ -117,8 +118,10 @@ class LocalRunner(Runner):
                         while proc.poll() is None:
                             read()
                             check_timeout()
+                            time.sleep(0.01)
                         while read(finish=True):
                             check_timeout()
+                            time.sleep(0.01)
                         return_code = proc.returncode
                     except KeyboardInterrupt:
                         # Send SIGINT to program for handling.
