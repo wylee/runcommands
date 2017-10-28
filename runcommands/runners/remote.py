@@ -1,7 +1,11 @@
 import atexit
 import getpass
+import os
 import sys
+import time
 from functools import partial
+from select import select
+from shutil import get_terminal_size
 
 try:
     import paramiko
@@ -14,10 +18,9 @@ else:
 from ..exc import RunCommandsError
 from ..util import Hide, printer
 from .base import Runner
-from .exc import RunError
+from .exc import RunAborted, RunError
 from .local import LocalRunner
 from .result import Result
-from .streams import mirror_and_capture
 
 
 __all__ = ['RemoteRunnerParamiko', 'RemoteRunnerSSH']
@@ -117,7 +120,9 @@ class RemoteRunnerParamiko(RemoteRunner):
         use_pty = self.use_pty(use_pty)
         user = user or getpass.getuser()
         path = self.munge_path(path, prepend_path, append_path, '$PATH')
-        remote_command = self.get_remote_command(cmd, user, cd, path, sudo, run_as, use_pty)
+
+        # XXX: Set use_pty=False to override `stty -onlcr`
+        remote_command = self.get_remote_command(cmd, user, cd, path, sudo, run_as, False)
 
         hide_stdout = Hide.hide_stdout(hide)
         hide_stderr = Hide.hide_stderr(hide)
@@ -136,35 +141,64 @@ class RemoteRunnerParamiko(RemoteRunner):
         out_buffer = []
         err_buffer = []
 
-        chunk_size = 8192
+        chunk_size = 1024
         encoding = self.get_encoding()
 
         try:
+            def recv(ready, receiver, mirror, buffer, hide_out, finish=False):
+                if finish or ready():
+                    data = receiver(chunk_size)
+                    if data:
+                        buffer.append(data)
+                        if not hide_out:
+                            text = data.decode(encoding)
+                            mirror.write(text)
+                    return data
+
+            def send(ready, sender, mirror, finish=False):
+                if finish or ready():
+                    rlist, _, __ = select([mirror], [], [], 0)
+                    if mirror in rlist:
+                        data = os.read(mirror, 1)
+                        if data:
+                            sender(data)
+                        return data
+
+            stdin, stdout, stderr = sys.stdin, sys.stdout, sys.stderr
+
             client = self.get_client(host, user, debug=debug)
-            client.load_system_host_keys()
-            client.set_missing_host_key_policy(AutoAddPolicy())
-            client.connect(host, username=user)
-            channel, stdin, stdout, stderr = self.exec_command(
-                client, remote_command, timeout=timeout)
+            channel = self.exec_command(client, remote_command, get_pty=use_pty, timeout=timeout)
 
-            # XXX: This doesn't work because stdin, stdout, and stderr
-            #      aren't real file objects (the don't have a fileno()
-            #      method).
-            in_, out, err = (
-                (sys.stdin.fileno(), stdin, True, None),
-                (stdout, sys.stdout.fileno(), not hide_stdout, out_buffer),
-                (stderr, sys.stderr.fileno(), not hide_stderr, err_buffer),
-            )
+            send_stdin = partial(send, channel.send_ready, channel.sendall, stdin.fileno())
+            receive_stdout = partial(recv, channel.recv_ready, channel.recv, stdout, out_buffer, hide_stdout)
+            receive_stderr = partial(recv, channel.recv_stderr_ready, channel.recv_stderr, stderr, err_buffer, hide_stderr)
 
-            read = partial(mirror_and_capture, in_, out, err, chunk_size, encoding)
+            reset_stdin = self.unbuffer_stdin(stdin)
 
-            while not channel.exit_status_ready():
-                read()
+            try:
+                while not channel.exit_status_ready():
+                    send_stdin()
+                    receive_stdout()
+                    receive_stderr()
+                    time.sleep(paramiko.io_sleep)
 
-            while read(finish=True):
-                pass
+                while send_stdin(finish=True):
+                    time.sleep(paramiko.io_sleep)
 
-            return_code = channel.exit_status
+                while receive_stdout(finish=True):
+                    time.sleep(paramiko.io_sleep)
+
+                while receive_stderr(finish=True):
+                    time.sleep(paramiko.io_sleep)
+
+                return_code = channel.recv_exit_status()
+            except KeyboardInterrupt:
+                if use_pty:
+                    channel.send('\x03')
+                raise RunAborted('\nAborted')
+            finally:
+                channel.close()
+                reset_stdin()
         except SSHException:
             raise RunError(-255, '', '', encoding)
 
@@ -175,20 +209,16 @@ class RemoteRunnerParamiko(RemoteRunner):
 
         return Result(*result_args)
 
-    def exec_command(self, client, command, bufsize=-1, timeout=None, get_pty=False,
-                     environment=None):
-        # This is a copy of paramiko.client.SSHClient.exec_command().
+    def exec_command(self, client, command, timeout=None, get_pty=False, environment=None):
         channel = client._transport.open_session(timeout=timeout)
         if get_pty:
-            channel.get_pty()
+            width, height = get_terminal_size()
+            channel.get_pty(width=width, height=height)
         channel.settimeout(timeout)
         if environment:
             channel.update_environment(environment)
         channel.exec_command(command)
-        stdin = channel.makefile('wb', bufsize)
-        stdout = channel.makefile('r', bufsize)
-        stderr = channel.makefile_stderr('r', bufsize)
-        return channel, stdin, stdout, stderr
+        return channel
 
     @classmethod
     def get_client(cls, host, user, debug=False):
