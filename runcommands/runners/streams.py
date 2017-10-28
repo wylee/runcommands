@@ -55,15 +55,9 @@ def mirror_and_capture(in_, out, err, chunk_size, finish=False, poll_timeout=0.0
 
     rlist, _, __ = select([in_read, out_read, err_read], [], [], poll_timeout)
 
-    # XXX: I'm not entirely sure why we have to first read 0 bytes and
-    #      then do a second read. Without the first read of 0 bytes,
-    #      programs that accept single characters without requiring a
-    #      newline behave strangely (e.g., less).
     if in_read in rlist:
+        # XXX: Why 0 and not 1?
         _read(in_read, in_write, mirror_in, in_buffer, 0)
-        in_rlist, _, __ = select([in_read], [], [], poll_timeout)
-        if in_read in in_rlist:
-            _read(in_read, in_write, mirror_in, in_buffer, chunk_size, remove=False)
 
     if out_read in rlist:
         _read(out_read, out_write, mirror_out, out_buffer, chunk_size)
