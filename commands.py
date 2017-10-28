@@ -41,7 +41,7 @@ def virtualenv(config, where='.env', python='python3', overwrite=False):
 def install(config, where='.env', python='python3', upgrade=False, overwrite=False):
     virtualenv(config, where=where, python=python, overwrite=overwrite)
     pip = '{where}/bin/pip'.format(where=where)
-    local(config, (pip, 'install', '--upgrade' if upgrade else '', '-e .[dev,paramiko,tox]'))
+    local(config, (pip, 'install', '--upgrade' if upgrade else '', '-e .[dev,tox]'))
 
 
 @command

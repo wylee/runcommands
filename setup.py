@@ -10,7 +10,9 @@ with open('runcommands/__init__.py') as fp:
 with open('README.rst') as fp:
     long_description = fp.read().strip()
 
-install_requires = []
+install_requires = [
+    'paramiko>=2.1.2',
+]
 
 if sys.version_info[:2] < (3, 4):
     install_requires.append('enum34')
@@ -35,9 +37,6 @@ setup(
             'coverage',
             'flake8',
             'Sphinx',
-        ],
-        'paramiko': [
-            'paramiko>=2.1.2',
         ],
         'tox': [
             'flake8',
