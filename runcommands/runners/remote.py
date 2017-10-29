@@ -1,6 +1,5 @@
 import atexit
 import getpass
-import os
 import sys
 import time
 from functools import partial
@@ -52,54 +51,41 @@ class RemoteRunner(Runner):
         encoding = self.get_encoding()
 
         try:
-            def recv(ready, receiver, mirror, buffer, hide_out, finish=False):
-                if finish or ready():
-                    data = receiver(chunk_size)
-                    if data:
-                        buffer.append(data)
-                        if not hide_out:
-                            text = data.decode(encoding)
-                            mirror.write(text)
-                    return data
-
-            def send(ready, sender, mirror):
-                if ready():
-                    rlist, _, __ = select([mirror], [], [], 0)
-                    if mirror in rlist:
-                        data = os.read(mirror, 1)
-                        if not use_pty:
-                            stdout.write(data.decode(encoding))
-                        sender(data)
-                        return data
-
-            stdin, stdout, stderr = sys.stdin, sys.stdout, sys.stderr
-
             client = self.get_client(host, user, debug=debug)
             channel = self.exec_command(client, remote_command, get_pty=use_pty, timeout=timeout)
 
-            send_stdin = partial(send, channel.send_ready, channel.sendall, stdin.fileno())
-            receive_stdout = partial(recv, channel.recv_ready, channel.recv, stdout, out_buffer, hide_stdout)
-            receive_stderr = partial(recv, channel.recv_stderr_ready, channel.recv_stderr, stderr, err_buffer, hide_stderr)
+            reset_stdin = self.unbuffer_stdin(sys.stdin)
 
-            reset_stdin = self.unbuffer_stdin(stdin)
+            send_stdin = partial(
+                self.send, channel.send_ready, channel.sendall, sys.stdin, sys.stdout, use_pty,
+                encoding)
+
+            recv_stdout = partial(
+                self.recv, channel.recv_ready, channel.recv, chunk_size, out_buffer, sys.stdout,
+                encoding, hide_stdout)
+
+            recv_stderr = partial(
+                self.recv, channel.recv_stderr_ready, channel.recv_stderr, chunk_size, err_buffer,
+                sys.stderr, encoding, hide_stderr)
 
             try:
                 while not channel.exit_status_ready():
                     send_stdin()
-                    stdout.flush()  # Echo stdin immediately
-                    receive_stdout()
-                    receive_stderr()
+                    recv_stdout()
+                    recv_stderr()
+                    sys.stdout.flush()  # Echo stdin immediately
                     time.sleep(paramiko.io_sleep)
 
-                while receive_stdout(finish=True):
+                while recv_stdout(finish=True):
                     time.sleep(paramiko.io_sleep)
 
-                while receive_stderr(finish=True):
+                while recv_stderr(finish=True):
                     time.sleep(paramiko.io_sleep)
 
                 return_code = channel.recv_exit_status()
             except KeyboardInterrupt:
                 if use_pty:
+                    # Send end-of-text (AKA Ctrl-C)
                     channel.send('\x03')
                 raise RunAborted('\nAborted')
             finally:
@@ -155,6 +141,26 @@ EOF
             channel.update_environment(environment)
         channel.exec_command(command)
         return channel
+
+    def send(self, ready, send, source, mirror, use_pty, encoding):
+        if ready():
+            rlist, _, __ = select([source], [], [], 0)
+            if source in rlist:
+                data = source.read(1)
+                if not use_pty:
+                    mirror.write(data.decode(encoding))
+                send(data)
+                return data
+
+    def recv(self, ready, recv, num_bytes, buffer, mirror, encoding, hide, finish=False):
+        if finish or ready():
+            data = recv(num_bytes)
+            if data:
+                buffer.append(data)
+                if not hide:
+                    text = data.decode(encoding)
+                    mirror.write(text)
+            return data
 
     @classmethod
     def get_client(cls, host, user, debug=False):
