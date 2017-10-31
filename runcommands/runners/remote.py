@@ -39,6 +39,10 @@ class RemoteRunner(Runner):
             printer.hr(color='echo')
             printer.echo('RUNNING:', cmd)
             printer.echo('     ON:', host)
+            if sudo:
+                printer.echo('     AS:', 'sudo')
+            elif run_as:
+                printer.echo('     AS:', run_as)
             if cd:
                 printer.echo('    CWD:', cd)
             if path:
