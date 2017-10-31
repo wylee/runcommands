@@ -12,7 +12,7 @@ from paramiko.ssh_exception import SSHException
 
 from ..util import Hide, printer
 from .base import Runner
-from .exc import RunAborted, RunError
+from .exc import RunAborted, RunError, RunValueError
 from .result import Result
 
 
@@ -25,6 +25,9 @@ class RemoteRunner(Runner):
     def run(self, cmd, host, user=None, cd=None, path=None, prepend_path=None,
             append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
             use_pty=True, debug=False):
+        if sudo and run_as:
+            raise RunValueError('Only one of `sudo` or `run_as` may be specified')
+
         use_pty = self.use_pty(use_pty)
         user = user or getpass.getuser()
         path = self.munge_path(path, prepend_path, append_path, '$PATH')

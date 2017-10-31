@@ -11,7 +11,7 @@ from time import monotonic
 
 from ..util import Hide, printer
 from .base import Runner
-from .exc import RunAborted, RunError
+from .exc import RunAborted, RunError, RunValueError
 from .result import Result
 from .streams import mirror_and_capture
 
@@ -22,6 +22,9 @@ class LocalRunner(Runner):
 
     def run(self, cmd, cd=None, path=None, prepend_path=None, append_path=None, sudo=False,
             run_as=None, echo=False, hide=False, timeout=None, use_pty=True, debug=False):
+        if sudo and run_as:
+            raise RunValueError('Only one of `sudo` or `run_as` may be specified')
+
         if isinstance(cmd, str):
             cmd_str = cmd
             exe = shlex.split(cmd)[0]
