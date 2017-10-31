@@ -8,6 +8,7 @@ from select import select
 from shutil import get_terminal_size
 
 import paramiko
+from paramiko.agent import AgentRequestHandler
 from paramiko.client import AutoAddPolicy, SSHClient
 from paramiko.config import SSHConfig, SSH_PORT
 from paramiko.ssh_exception import SSHException
@@ -70,6 +71,7 @@ class RemoteRunner(Runner):
         try:
             client, config = self.get_client(host, user, debug=debug)
             channel = self.get_channel(client, get_pty=use_pty, timeout=timeout)
+            forwarder = AgentRequestHandler(channel) if config['forwardagent'] else None
             channel.exec_command(remote_command)
             reset_stdin = self.unbuffer_stdin(sys.stdin)
 
@@ -106,6 +108,8 @@ class RemoteRunner(Runner):
                     channel.send('\x03')
                 raise RunAborted('\nAborted')
             finally:
+                if forwarder is not None:
+                    forwarder.close()
                 channel.close()
                 reset_stdin()
         except SSHException:
@@ -185,6 +189,7 @@ EOF
         key = (host, user)
         if key not in cls.clients:
             config = cls.get_host_config(host, config_path, debug)
+            config['forwardagent'] = config.get('forwardagent', 'no').lower() == 'yes'
 
             client = SSHClient()
             client.load_system_host_keys()
