@@ -1,5 +1,6 @@
 import atexit
 import sys
+import textwrap
 import time
 from functools import partial
 from select import select
@@ -34,6 +35,11 @@ class RemoteRunner(Runner):
         hide_stdout = Hide.hide_stdout(hide)
         hide_stderr = Hide.hide_stderr(hide)
         echo = echo and not hide_stdout
+
+        if debug:
+            printer.hr(color='debug')
+            printer.debug('REMOTE COMMAND:')
+            printer.debug(textwrap.indent(remote_command, ' ' * 4))
 
         if echo:
             printer.hr(color='echo')
