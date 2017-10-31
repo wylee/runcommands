@@ -103,6 +103,8 @@ class RemoteRunner(Runner):
                 channel.close()
                 reset_stdin()
         except SSHException:
+            if debug:
+                raise
             raise RunError(-255, '', '', encoding)
 
         result_args = (return_code, out_buffer, err_buffer, encoding)
