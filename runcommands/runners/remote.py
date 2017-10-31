@@ -1,4 +1,5 @@
 import atexit
+import os
 import sys
 import textwrap
 import time
@@ -8,12 +9,17 @@ from shutil import get_terminal_size
 
 import paramiko
 from paramiko.client import AutoAddPolicy, SSHClient
+from paramiko.config import SSHConfig, SSH_PORT
 from paramiko.ssh_exception import SSHException
 
 from ..util import Hide, printer
 from .base import Runner
 from .exc import RunAborted, RunError, RunValueError
 from .result import Result
+
+
+DEFAULT_SSH_PORT = SSH_PORT
+DEFAULT_SSH_CONFIG_PATH = '~/.ssh/config'
 
 
 class RemoteRunner(Runner):
@@ -62,9 +68,9 @@ class RemoteRunner(Runner):
         encoding = self.get_encoding()
 
         try:
-            client = self.get_client(host, user, debug=debug)
-            channel = self.exec_command(client, remote_command, get_pty=use_pty, timeout=timeout)
-
+            client, config = self.get_client(host, user, debug=debug)
+            channel = self.get_channel(client, get_pty=use_pty, timeout=timeout)
+            channel.exec_command(remote_command)
             reset_stdin = self.unbuffer_stdin(sys.stdin)
 
             send_stdin = partial(
@@ -144,7 +150,7 @@ EOF
 
         return remote_cmd
 
-    def exec_command(self, client, command, timeout=None, get_pty=False, environment=None):
+    def get_channel(self, client, timeout=None, get_pty=False, environment=None):
         channel = client._transport.open_session(timeout=timeout)
         if get_pty:
             width, height = get_terminal_size()
@@ -152,7 +158,6 @@ EOF
         channel.settimeout(timeout)
         if environment:
             channel.update_environment(environment)
-        channel.exec_command(command)
         return channel
 
     def send(self, ready, send, source, mirror, use_pty, encoding):
@@ -176,14 +181,23 @@ EOF
             return data
 
     @classmethod
-    def get_client(cls, host, user, debug=False):
+    def get_client(cls, host, user=None, config_path=DEFAULT_SSH_CONFIG_PATH, debug=False):
         key = (host, user)
         if key not in cls.clients:
+            config = cls.get_host_config(host, config_path, debug)
+
             client = SSHClient()
             client.load_system_host_keys()
             client.set_missing_host_key_policy(AutoAddPolicy())
-            client.connect(host, username=user)
-            cls.clients[key] = client
+
+            user = user or config.get('user')
+            host = config['hostname']
+            port = int(config.get('port', DEFAULT_SSH_PORT))
+            key_file = config.get('identityfile')
+
+            client.connect(host, username=user, key_filename=key_file)
+
+            cls.clients[key] = (client, config)
             if debug:
                 printer.debug('Created SSH connection for {user}@{host}'.format_map(locals()))
         else:
@@ -191,8 +205,29 @@ EOF
         return cls.clients[key]
 
     @classmethod
+    def get_config(cls, config_path=DEFAULT_SSH_CONFIG_PATH, debug=False):
+        config = SSHConfig()
+        config_path = os.path.expanduser(config_path)
+        config_path = os.path.expandvars(config_path)
+        if os.path.isfile(config_path):
+            with open(config_path) as fp:
+                config.parse(fp)
+        if debug:
+            host_names = ', '.join(config.get_hostnames())
+            printer.debug('Found SSH config for hosts:', host_names)
+        return config
+
+    @classmethod
+    def get_host_config(cls, host, config_path=DEFAULT_SSH_CONFIG_PATH, debug=False):
+        config = cls.get_config(config_path, debug)
+        host_config = config.lookup(host)
+        if debug:
+            printer.debug('SSH config for {host}'.format(host=host), host_config)
+        return host_config
+
+    @classmethod
     def cleanup(cls):
-        for client in cls.clients.values():
+        for client, config in cls.clients.values():
             client.close()
 
 
