@@ -1,5 +1,4 @@
 import atexit
-import getpass
 import sys
 import time
 from functools import partial
@@ -29,7 +28,6 @@ class RemoteRunner(Runner):
             raise RunValueError('Only one of `sudo` or `run_as` may be specified')
 
         use_pty = self.use_pty(use_pty)
-        user = user or getpass.getuser()
         path = self.munge_path(path, prepend_path, append_path, '$PATH')
         remote_command = self.get_command(cmd, user, cd, path, sudo, run_as)
 
