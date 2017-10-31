@@ -14,3 +14,10 @@ class RunError(RunCommandsError, Result):
     def __init__(self, return_code, stdout_data, stderr_data, encoding):
         super().__init__('Exited with return code {}'.format(return_code))
         Result.__init__(self, return_code, stdout_data, stderr_data, encoding)
+
+
+class RunValueError(RunCommandsError, ValueError):
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        ValueError.__init__(self, *args)
