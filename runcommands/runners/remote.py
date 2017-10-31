@@ -200,7 +200,23 @@ EOF
             port = int(config.get('port', DEFAULT_SSH_PORT))
             key_file = config.get('identityfile')
 
-            client.connect(host, username=user, key_filename=key_file)
+            if 'proxyjump' in config:
+                proxy_host = config['proxyjump']
+                proxy_client, proxy_config = cls.get_client(proxy_host, user, config_path, debug)
+                proxy_channel = proxy_client._transport.open_channel(
+                    kind='direct-tcpip',
+                    dest_addr=(host, port),
+                    src_addr=('', 0),
+                )
+                if proxy_config['forwardagent']:
+                    forwarder = AgentRequestHandler(proxy_channel)
+
+                    # XXX: Hacky
+                    proxy_config['forwarder'] = forwarder
+            else:
+                proxy_channel = None
+
+            client.connect(host, username=user, key_filename=key_file, sock=proxy_channel)
 
             cls.clients[key] = (client, config)
             if debug:
@@ -233,6 +249,10 @@ EOF
     @classmethod
     def cleanup(cls):
         for client, config in cls.clients.values():
+            # XXX: Hacky
+            if 'forwarder' in config:
+                config['forwarder'].close()
+
             client.close()
 
 
