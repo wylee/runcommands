@@ -184,37 +184,35 @@ EOF
 
     @classmethod
     def get_client(cls, host, user=None, config_path=DEFAULT_SSH_CONFIG_PATH, debug=False):
+        config = cls.get_host_config(host, config_path, debug)
+        user = user or config.get('user')
+        host = config['hostname']
         key = (host, user)
         if key not in cls.clients:
-            config = cls.get_host_config(host, config_path, debug)
-            config['forwardagent'] = config.get('forwardagent', 'no').lower() == 'yes'
-
             client = SSHClient()
             client.load_system_host_keys()
             client.set_missing_host_key_policy(AutoAddPolicy())
 
-            user = user or config.get('user')
-            host = config['hostname']
-            port = int(config.get('port', DEFAULT_SSH_PORT))
+            port = config['port']
             key_file = config.get('identityfile')
 
             if 'proxyjump' in config:
                 proxy_host = config['proxyjump']
                 proxy_client, proxy_config = cls.get_client(proxy_host, user, config_path, debug)
-                proxy_channel = proxy_client._transport.open_channel(
+                proxy = proxy_client._transport.open_channel(
                     kind='direct-tcpip',
                     dest_addr=(host, port),
                     src_addr=('', 0),
                 )
                 if proxy_config['forwardagent']:
-                    forwarder = AgentRequestHandler(proxy_channel)
+                    forwarder = AgentRequestHandler(proxy)
 
                     # XXX: Hacky
                     proxy_config['forwarder'] = forwarder
             else:
-                proxy_channel = None
+                proxy = None
 
-            client.connect(host, username=user, key_filename=key_file, sock=proxy_channel)
+            client.connect(host, port=port, username=user, key_filename=key_file, sock=proxy)
 
             cls.clients[key] = (client, config)
             if debug:
@@ -238,8 +236,10 @@ EOF
 
     @classmethod
     def get_host_config(cls, host, config_path=DEFAULT_SSH_CONFIG_PATH, debug=False):
-        config = cls.get_config(config_path, debug)
-        host_config = config.lookup(host)
+        all_config = cls.get_config(config_path, debug)
+        host_config = all_config.lookup(host)
+        host_config['forwardagent'] = host_config.get('forwardagent', 'no').lower() == 'yes'
+        host_config['port'] = int(host_config.get('port', DEFAULT_SSH_PORT))
         if debug:
             printer.debug('SSH config for {host}'.format(host=host), host_config)
         return host_config
