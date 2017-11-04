@@ -76,8 +76,7 @@ class RemoteRunner(Runner):
             reset_stdin = self.unbuffer_stdin(sys.stdin)
 
             send_stdin = partial(
-                self.send, channel.send_ready, channel.sendall, sys.stdin, sys.stdout, use_pty,
-                encoding)
+                self.send, channel.send_ready, channel.sendall, sys.stdin, sys.stdout, use_pty)
 
             recv_stdout = partial(
                 self.recv, channel.recv_ready, channel.recv, chunk_size, out_buffer, sys.stdout,
@@ -164,15 +163,15 @@ EOF
             channel.update_environment(environment)
         return channel
 
-    def send(self, ready, send, source, mirror, use_pty, encoding):
+    def send(self, ready, send, source, mirror, use_pty):
         if ready():
             rlist, _, __ = select([source], [], [], 0)
             if source in rlist:
-                data = source.read(1)
+                text = source.read(1)
                 if not use_pty:
-                    mirror.write(data.decode(encoding))
-                send(data)
-                return data
+                    mirror.write(text)
+                send(text)
+                return text
 
     def recv(self, ready, recv, num_bytes, buffer, mirror, encoding, hide, finish=False):
         if finish or ready():
