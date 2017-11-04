@@ -80,11 +80,11 @@ class RemoteRunner(Runner):
 
             recv_stdout = partial(
                 self.recv, channel.recv_ready, channel.recv, chunk_size, out_buffer, sys.stdout,
-                encoding, hide_stdout)
+                hide_stdout)
 
             recv_stderr = partial(
                 self.recv, channel.recv_stderr_ready, channel.recv_stderr, chunk_size, err_buffer,
-                sys.stderr, encoding, hide_stderr)
+                sys.stderr, hide_stderr)
 
             try:
                 while not channel.exit_status_ready():
@@ -173,14 +173,13 @@ EOF
                 send(text)
                 return text
 
-    def recv(self, ready, recv, num_bytes, buffer, mirror, encoding, hide, finish=False):
+    def recv(self, ready, recv, num_bytes, buffer, mirror, hide, finish=False):
         if finish or ready():
             data = recv(num_bytes)
             if data:
                 buffer.append(data)
                 if not hide:
-                    text = data.decode(encoding)
-                    mirror.write(text)
+                    os.write(mirror.fileno(), data)
             return data
 
     @classmethod
