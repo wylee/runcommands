@@ -11,7 +11,7 @@ with open('README.rst') as fp:
     long_description = fp.read().strip()
 
 install_requires = [
-    'paramiko>=2.1.2',
+    'paramiko>=2.4.0',
 ]
 
 if sys.version_info[:2] < (3, 4):
