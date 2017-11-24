@@ -83,12 +83,12 @@ def get_all_list(namespace, prefix=None):
 def isatty(stream):
     try:
         return stream.isatty()
-    except:
+    except Exception:
         pass
 
     try:
         fileno = stream.fileno()
-    except:
+    except Exception:
         pass
     else:
         return os.isatty(fileno)

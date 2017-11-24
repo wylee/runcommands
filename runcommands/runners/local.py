@@ -138,7 +138,7 @@ class LocalRunner(Runner):
                         proc.terminate()
                         proc.wait()
                         raise
-                    except:
+                    except Exception:
                         proc.kill()
                         proc.wait()
                         raise
