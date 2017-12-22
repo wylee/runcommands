@@ -49,6 +49,37 @@ def format_if(value, format_kwargs):
     return value.format_map(format_kwargs)
 
 
+def get_all_list(namespace, prefix=None):
+    """Get __all__ list for module namespace & prefix.
+
+    This gathers the names of all the commands in the namespace whose
+    qualified names begin with the specified package prefix.
+
+    By default, the package name of the module namespace is used as the
+    prefix. Pass an empty string to select all commands in the namespace
+    regardless of where they were defined.
+
+    This is intended for use in command modules that are intended for
+    export into other command modules to keep other imported names from
+    being inadvertently exported.
+
+    Usage::
+
+        >>> __all__ = get_all_list(vars())
+
+    """
+    # XXX: Avoid circular import
+    from runcommands.command import Command
+    if prefix is None:
+        prefix = namespace['__package__']
+    if not prefix.endswith('.') and prefix != '':
+        prefix += '.'
+    return [
+        name for name, obj in namespace.items()
+        if isinstance(obj, Command) and obj.qualified_name.startswith(prefix)
+    ]
+
+
 def isatty(stream):
     try:
         return stream.isatty()

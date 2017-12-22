@@ -4,6 +4,7 @@ import shlex
 import shutil
 import signal
 import sys
+import time
 from functools import partial
 from subprocess import PIPE, Popen, TimeoutExpired
 from time import monotonic
@@ -110,13 +111,17 @@ class LocalRunner(Runner):
                 abort_requested = False
                 read = partial(mirror_and_capture, in_, out, err, chunk_size)
 
+                reset_stdin = self.unbuffer_stdin(sys.stdin)
+
                 while True:
                     try:
                         while proc.poll() is None:
                             read()
                             check_timeout()
+                            time.sleep(0.01)
                         while read(finish=True):
                             check_timeout()
+                            time.sleep(0.01)
                         return_code = proc.returncode
                     except KeyboardInterrupt:
                         # Send SIGINT to program for handling.
@@ -138,6 +143,8 @@ class LocalRunner(Runner):
                         if abort_requested:
                             raise RunAborted('\nAborted')
                         break
+                    finally:
+                        reset_stdin()
         except FileNotFoundError:
             raise RunAborted('Command not found: {exe}'.format(exe=exe))
         except KeyboardInterrupt:
