@@ -59,7 +59,7 @@ autodoc_default_flags = ['members']
 # Options for intersphinx extension ---------------------------------------
 
 intersphinx_mapping = {
-    'python': ('http://docs.python.org/3.3', None),
+    'python': ('http://docs.python.org/3.4', None),
 }
 
 # -- Options for HTML output ----------------------------------------------
