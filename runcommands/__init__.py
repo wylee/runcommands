@@ -6,7 +6,7 @@ from .const import DEFAULT_ENV
 
 
 __all__ = ['__version__', 'DEFAULT_ENV', 'bool_or', 'command', 'configure']
-__version__ = '1.0a27.dev0'
+__version__ = '1.0a27'
 
 
 def configure(commands_module=None, config_file=None, default_env=None, env=None, echo=None,

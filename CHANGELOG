@@ -1,8 +1,11 @@
 # RunCommands
 
-## 1.0a27 - unreleased
+## 1.0a27 - 2017-12-21
 
-In progress...
+- Fixed reading of stdin by unbuffering it. The approach used here is derived
+  from Fabric.
+- Added `copy_file` command.
+- Added `get_all_list` utility function.
 
 ## 1.0a26 - 2017-10-18
 
