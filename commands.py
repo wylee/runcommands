@@ -195,8 +195,8 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
 
     result = local(config, 'git rev-parse --abbrev-ref HEAD', hide='stdout')
     current_branch = result.stdout.strip()
-    if current_branch != 'develop':
-        abort(1, 'Must be on develop branch to make a release')
+    if current_branch == 'master':
+        abort(1, 'Cannot release from master branch')
 
     init_module = 'runcommands/__init__.py'
     changelog = 'CHANGELOG'
@@ -317,19 +317,19 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
 
     # Merge and tag
     if merge:
-        printer.header('Merging develop into master for release', version)
+        printer.header('Merging', current_branch, 'into master for release', version)
         local(config, 'git log --oneline --reverse master..')
-        msg = 'Merge these changes from develop into master for release {version}?'
+        msg = 'Merge these changes from {current_branch} into master for release {version}?'
         msg = msg.format_map(locals())
         yes or confirm(config, msg, abort_on_unconfirmed=True)
         local(config, 'git checkout master')
-        msg = '"Merge branch \'develop\' for release {version}"'.format_map(locals())
-        local(config, ('git merge --no-ff develop -m', msg))
+        msg = '"Merge branch \'{current_branch}\' for release {version}"'.format_map(locals())
+        local(config, ('git merge --no-ff', current_branch, '-m', msg))
         if create_tag:
             printer.header('Tagging release', version)
             msg = '"Release {version}"'.format_map(locals())
             local(config, ('git tag -a -m', msg, version))
-        local(config, 'git checkout develop')
+        local(config, ('git checkout', current_branch))
 
     # Resume
     if resume:
