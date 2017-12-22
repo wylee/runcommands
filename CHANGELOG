@@ -1,5 +1,9 @@
 # RunCommands
 
+## 1.0a28 - unreleased
+
+In progress...
+
 ## 1.0a27 - 2017-12-21
 
 - Fixed reading of stdin by unbuffering it. The approach used here is derived
