@@ -184,7 +184,7 @@ def clean(config, verbose=False):
 
 @command
 def release(config, version=None, date=None, tag_name=None, next_version=None, prepare=True,
-            merge=True, create_tag=True, resume=True, yes=False):
+            merge=True, create_tag=True, resume=True, yes=False, tests=True):
 
     def update_line(file_name, line_number, content):
         with open(file_name) as fp:
@@ -296,8 +296,11 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
     msg = 'Continue with release?: {version} - {date}'.format_map(locals())
     yes or confirm(config, msg, abort_on_unconfirmed=True)
 
-    printer.header('Testing...')
-    tox(config)
+    if tests:
+        printer.header('Testing...')
+        tox(config)
+    else:
+        printer.warning('Skipping tests')
 
     # Prepare
     if prepare:
