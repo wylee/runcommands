@@ -60,8 +60,11 @@ class CommandRunner:
         if raise_does_not_exist:
             raise RunnerError(does_not_exist_message.format_map(locals()))
 
-        objects = vars(module).values()
-        commands = {obj.name: obj for obj in objects if isinstance(obj, Command)}
+        commands = {
+            obj.name: obj for name, obj in vars(module).items()
+            if isinstance(obj, Command) and not name.startswith('_')
+        }
+
         return commands
 
     def run(self, argv, run_args):
