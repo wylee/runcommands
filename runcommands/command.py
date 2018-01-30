@@ -69,7 +69,7 @@ class Command:
         if env is not None and default_env is not None:
             raise CommandError('Only one of `env` or `default_env` may be specified')
         self.implementation = implementation
-        self.name = name if name is not None else implementation.__name__.replace('_', '-')
+        self.name = name or self.normalize_name(implementation.__name__)
         self.description = description
         self.help_text = help or {}
         self.types = type or {}
@@ -286,6 +286,18 @@ class Command:
                 parsed_args[k] = None
         return parsed_args
 
+    def normalize_name(self, name):
+        # Chomp a single trailing underscore *if* the name ends with
+        # just one trailing underscore. This accommodates the convention
+        # of adding a trailing underscore to reserved/built-in names.
+        if name.endswith('_'):
+            if name[-2] != '_':
+                name = name[:-1]
+
+        name = name.replace('_', '-')
+        name = name.lower()
+        return name
+
     def arg_names_for_param(self, param):
         params = self.parameters
         param = params[param] if isinstance(param, str) else param
@@ -295,19 +307,15 @@ class Command:
             return []
 
         if param.is_positional:
-            return [name]
+            return [param.real_name]
         elif param.is_keyword_only:
             return []
 
-        arg_name = name.replace('_', '-')
-        arg_name = arg_name.lower()
-        arg_name = arg_name.strip('-')
-
         arg_names = []
-        short_name = '-{arg_name[0]}'.format(arg_name=arg_name)
-        long_name = '--{arg_name}'.format(arg_name=arg_name)
+        short_name = '-{name[0]}'.format(name=name)
+        long_name = '--{name}'.format(name=name)
 
-        if (param.is_dict or param.is_list) and len(arg_name) > 1 and long_name.endswith('s'):
+        if (param.is_dict or param.is_list) and len(name) > 1 and long_name.endswith('s'):
             long_name = long_name[:-1]
 
         first_char = name[0]
@@ -346,7 +354,7 @@ class Command:
             elif name == 'no':
                 no_long_name = '--yes'
             else:
-                no_long_name = '--no-{name}'.format(name=arg_name)
+                no_long_name = '--no-{name}'.format(name=name)
             arg_names.append(no_long_name)
 
         return arg_names
@@ -369,6 +377,8 @@ class Command:
         params = OrderedDict()
         position = 1
         for name, param in parameters:
+            if not name.startswith('_'):
+                name = self.normalize_name(name)
             if param.default is param.empty:
                 param_position = position
                 position += 1
@@ -377,7 +387,7 @@ class Command:
             param_type = self.types.get(name)
             if isinstance(param_type, BoolOr):
                 param_type = param_type.type
-            params[name] = Parameter(param, param_position, type_=param_type)
+            params[name] = Parameter(name, param, param_position, type_=param_type)
         return params
 
     @cached_property
@@ -452,6 +462,10 @@ class Command:
                 'help': self.help_text.get(name),
             }
 
+            metavar = name.upper().replace('-', '_')
+            if (param.is_dict or param.is_list) and len(name) > 1 and name.endswith('s'):
+                metavar = metavar[:-1]
+
             if name in self.types:
                 kwargs['type'] = self.types[name]
             elif not param.is_bool and not param.is_dict and not param.is_list:
@@ -476,18 +490,17 @@ class Command:
                 if default is not param.empty:
                     kwargs['nargs'] = '?'
                     kwargs['default'] = default
+                kwargs['metavar'] = metavar
                 parser.add_argument(*arg_names, **kwargs)
             else:
-                kwargs['dest'] = name
-
-                if (param.is_dict or param.is_list) and len(name) > 1 and name.endswith('s'):
-                    kwargs['metavar'] = name[:-1].upper()
+                kwargs['dest'] = param.real_name
 
                 if is_bool_or:
                     # Allow --xyz or --xyz=<value>
                     true_or_value_kwargs = kwargs.copy()
                     true_or_value_kwargs['action'] = BoolOrAction
                     true_or_value_kwargs['nargs'] = '?'
+                    true_or_value_kwargs['metavar'] = metavar
                     true_or_value_arg_names = arg_names[:-1] if param.is_bool else arg_names
                     parser.add_argument(*true_or_value_arg_names, **true_or_value_kwargs)
                     if param.is_bool:
@@ -501,13 +514,16 @@ class Command:
                     parser.add_argument(arg_names[-1], action='store_false', **kwargs)
                 elif param.is_dict:
                     kwargs['action'] = DictAddAction
+                    kwargs['metavar'] = metavar
                     kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
                 elif param.is_list:
                     kwargs['action'] = ListAppendAction
+                    kwargs['metavar'] = metavar
                     kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
                 else:
+                    kwargs['metavar'] = metavar
                     parser.add_argument(*arg_names, **kwargs)
 
         return parser
@@ -541,11 +557,13 @@ command = Command.command
 
 class Parameter:
 
-    def __init__(self, parameter, position, type_=None):
+    def __init__(self, name, parameter, position, type_=None):
         default = parameter.default
         empty = parameter.empty
         self._parameter = parameter
 
+        self.name = name
+        self.real_name = parameter.name
         self.is_positional = default is empty
         self.is_optional = not self.is_positional
         self.is_keyword_only = self.kind is parameter.KEYWORD_ONLY
@@ -581,6 +599,8 @@ class HelpParameter(Parameter):
 
     def __init__(self):
         self._parameter = None
+        self.real_name = 'help'
+        self.name = 'help'
         self.default = False
         self.is_positional = False
         self.is_optional = True
