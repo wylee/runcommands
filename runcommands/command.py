@@ -291,6 +291,9 @@ class Command:
         param = params[param] if isinstance(param, str) else param
         name = param.name
 
+        if name.startswith('_'):
+            return []
+
         if param.is_positional:
             return [name]
         elif param.is_keyword_only:
