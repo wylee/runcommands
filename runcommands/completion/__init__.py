@@ -1,16 +1,29 @@
 from ..command import command
+from ..config import Config
 from ..const import DEFAULT_COMMANDS_MODULE
-from ..run import run
+from ..exc import RunnerError
+from ..run import run, partition_argv, read_run_args
 from ..runner import CommandRunner
 
 
 @command
-def complete(config, module=DEFAULT_COMMANDS_MODULE, words=(), index=0):
+def complete(config, words=(), index=0):
     debug = config.run.debug
-    runner = CommandRunner(module, debug=debug)
+    words = [word[1:-1] for word in words]  # Strip quotes
+
+    all_argv, run_argv, command_argv = partition_argv(words[1:])
+    cli_args = run.parse_args(Config(), run_argv)
+    run_args = read_run_args(run)
+    run_args.update(cli_args)
+    module = run_args.get('module') or DEFAULT_COMMANDS_MODULE
+
+    try:
+        runner = CommandRunner(module, debug=debug)
+    except RunnerError:
+        return
+
     commands = runner.commands
 
-    words = [word[1:-1] for word in words]  # Strip quotes
     current_word = words[index]
     previous_word = words[index - 1] if index > 0 else None
 
