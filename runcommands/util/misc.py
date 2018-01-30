@@ -1,6 +1,9 @@
 import importlib
+import inspect
 import os
 import sys
+
+from ..exc import RunCommandsError
 
 
 def abort(code=0, message='Aborted', color=True):
@@ -78,6 +81,52 @@ def get_all_list(namespace, prefix=None):
         name for name, obj in namespace.items()
         if isinstance(obj, Command) and obj.qualified_name.startswith(prefix)
     ]
+
+
+def include(module, *names):
+    """Include commands from module in namespace.
+
+    This updates the global namespace it's called from with the commands
+    found in the specified ``module``. This should be used instead of
+    ``from xyz.commands import *`` to avoid polluting the namespace with
+    non-commands. To include only a subset of commands, pass the
+    ``names`` of the commands as positional arguments after ``module``.
+
+    """
+    # XXX: Avoid circular import
+    from runcommands.command import Command
+
+    if isinstance(module, str):
+        module = importlib.import_module(module)
+
+    module_globals = vars(module)
+
+    if names:
+        commands = {}
+        for name in names:
+            try:
+                obj = module_globals[name]
+            except KeyError:
+                message = 'Command not found in module {module}: {command}'
+                message = message.format(module=module.__name__, command=name)
+                raise RunCommandsError(message)
+            if not isinstance(obj, Command):
+                type_name = obj.__class__.__name__
+                message = 'Expected {command} to be Command in module {module}, not {type}'
+                message = message.format(module=module.__name__, command=name, type=type_name)
+                raise RunCommandsError(message)
+            commands[name] = obj
+    else:
+        commands = {
+            k: v for (k, v) in module_globals.items()
+            if not k.startswith('_') and isinstance(v, Command)
+        }
+        if not commands:
+            message = 'No commands found in module: {module}'.format(module=module.__name__)
+            raise RunCommandsError(message)
+
+    frame = inspect.stack()[1][0]
+    frame.f_globals.update(commands)
 
 
 def isatty(stream):
