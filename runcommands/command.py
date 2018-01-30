@@ -301,40 +301,50 @@ class Command:
             return []
 
         arg_names = []
-        short_name = '-{name[0]}'.format(name=name)
-        long_name = '--{name}'.format(name=name)
 
-        if (param.is_dict or param.is_list) and len(name) > 1 and long_name.endswith('s'):
-            long_name = long_name[:-1]
-
-        first_char = name[0]
-
-        names_that_start_with_first_char = [n for n in params if n.startswith(first_char)]
-
-        # Ensure list is long enough to avoid IndexError
-        if len(names_that_start_with_first_char) == 1:
-            names_that_start_with_first_char.append(None)
-
-        if first_char == 'e':
-            # Ensure echo gets -E for consistency
-            if 'echo' in params:
-                names_that_start_with_first_char.remove('echo')
-                names_that_start_with_first_char.insert(1, 'echo')
-
-        if first_char == 'h':
-            # -h is reserved for help
-            names_that_start_with_first_char.insert(0, 'help')
-
-            # Ensure hide gets -H for consistency
-            if 'hide' in params:
-                names_that_start_with_first_char.remove('hide')
-                names_that_start_with_first_char.insert(1, 'hide')
-
-        if names_that_start_with_first_char[0] == name:
+        if param.short_option:
+            # Short option specified manually.
+            short_name = param.short_option
+            used_for = self.used_short_options.get(short_name)
+            if used_for and used_for != name:
+                message = 'Short option {short_name} already used for option {used_for}'
+                message = message.format_map(locals())
+                raise CommandError()
             arg_names.append(short_name)
-        elif names_that_start_with_first_char[1] == name:
-            arg_names.append(short_name.upper())
+            self.used_short_options[short_name] = param.name
+        else:
+            # Automatically select short option.
+            first_char = name[0]
+            first_char_upper = first_char.upper()
 
+            if first_char == 'e':
+                # Ensure echo gets -E for consistency.
+                if name == 'echo':
+                    candidates = ('E',)
+                elif 'echo' not in params:
+                    candidates = (first_char, first_char_upper)
+                else:
+                    candidates = ()
+            elif first_char == 'h':
+                # Ensure hide gets -H for consistency.
+                if name == 'hide':
+                    candidates = (first_char_upper,)
+                elif 'hide' not in params:
+                    candidates = (first_char_upper,)
+                else:
+                    candidates = ()
+            else:
+                candidates = (first_char, first_char_upper)
+
+            for char in candidates:
+                short_name = '-{char}'.format_map(locals())
+                used_for = self.used_short_options.get(short_name)
+                if not used_for or used_for == name:
+                    arg_names.append(short_name)
+                    self.used_short_options[short_name] = param.name
+                    break
+
+        long_name = '--{name}'.format_map(locals())
         arg_names.append(long_name)
 
         default_no_long_name = '--no-{name}'.format_map(locals())
