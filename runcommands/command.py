@@ -1,6 +1,7 @@
 import argparse
 import builtins
 import inspect
+import itertools
 import re
 import sys
 import time
@@ -402,11 +403,15 @@ class Command:
     @cached_property
     def arg_map(self):
         """Map command-line arg names to parameters."""
+        params = self.parameters
+        param_map = self.param_map
         arg_map = OrderedDict()
-        for param in self.parameters.values():
-            arg_names = self.arg_names_for_param(param)
+
+        for name, arg_names in param_map.items():
+            param = params[name]
             for arg_name in arg_names:
                 arg_map[arg_name] = param
+
         help_param = HelpParameter()
         arg_map.setdefault('-h', help_param)
         arg_map.setdefault('--help', help_param)
@@ -414,12 +419,18 @@ class Command:
 
     @cached_property
     def param_map(self):
-        """Map parameters to command-line arg names."""
-        param_map = OrderedDict()
-        for name, param in self.parameters.items():
+        """Map parameter names to command-line arg names."""
+        params = self.parameters
+        param_map = OrderedDict((name, []) for name in params)
+
+        params_with_short_option = (p for p in params.values() if p.short_option)
+        params_without_short_option = (p for p in params.values() if not p.short_option)
+
+        for param in itertools.chain(params_with_short_option, params_without_short_option):
             arg_names = self.arg_names_for_param(param)
             if arg_names:
-                param_map[name] = arg_names
+                param_map[param.name] = arg_names
+
         return param_map
 
     def get_arg_parser(self, config=None):
@@ -450,6 +461,9 @@ class Command:
         defaults = self.get_defaults(config)
 
         for name, arg_names in self.param_map.items():
+            if not arg_names:
+                continue
+
             param = self.parameters[name]
 
             if param.is_positional and name in defaults:
