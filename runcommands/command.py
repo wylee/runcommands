@@ -76,7 +76,7 @@ class Command:
 
         # Keep track of used short option names so that the same name
         # isn't used more than once.
-        self.used_short_options = {'-h': 'help'}
+        self.used_short_options = {}
 
     @classmethod
     def command(cls, name=None, description=None, env=None, default_env=None,
@@ -327,8 +327,10 @@ class Command:
                 else:
                     candidates = ()
             elif first_char == 'h':
-                # Ensure hide gets -H for consistency.
-                if name == 'hide':
+                # Ensure help gets -h and hide gets -H for consistency.
+                if name == 'help':
+                    candidates = (first_char,)
+                elif name == 'hide':
                     candidates = (first_char_upper,)
                 elif 'hide' not in params:
                     candidates = (first_char_upper,)
@@ -358,7 +360,8 @@ class Command:
                 no_long_name = '--yes'
             else:
                 no_long_name = default_no_long_name
-            arg_names.append(no_long_name)
+            if not isinstance(param, HelpParameter):
+                arg_names.append(no_long_name)
 
         return arg_names
 
@@ -378,6 +381,11 @@ class Command:
     def parameters(self):
         parameters = tuple(self.signature.parameters.items())[1:]
         params = OrderedDict()
+
+        # This will be overridden if the command explicitly defines an
+        # arg named help.
+        params['help'] = HelpParameter()
+
         position = 1
         for name, param in parameters:
             if not name.startswith('_'):
@@ -388,6 +396,7 @@ class Command:
             else:
                 param_position = None
             params[name] = Parameter(name, param, param_position)
+
         return params
 
     @cached_property
@@ -406,15 +415,10 @@ class Command:
         params = self.parameters
         param_map = self.param_map
         arg_map = OrderedDict()
-
         for name, arg_names in param_map.items():
             param = params[name]
             for arg_name in arg_names:
                 arg_map[arg_name] = param
-
-        help_param = HelpParameter()
-        arg_map.setdefault('-h', help_param)
-        arg_map.setdefault('--help', help_param)
         return arg_map
 
     @cached_property
@@ -451,17 +455,23 @@ class Command:
                 lines = [title] + [line[4:] for line in lines[1:]]
                 description = '\n'.join(lines)
 
+        use_default_help = isinstance(self.parameters['help'], HelpParameter)
+
         parser = argparse.ArgumentParser(
             prog=self.name,
             description=description,
             formatter_class=argparse.RawDescriptionHelpFormatter,
             argument_default=argparse.SUPPRESS,
+            add_help=use_default_help,
         )
 
         defaults = self.get_defaults(config)
 
         for name, arg_names in self.param_map.items():
             if not arg_names:
+                continue
+
+            if name == 'help' and use_default_help:
                 continue
 
             param = self.parameters[name]
