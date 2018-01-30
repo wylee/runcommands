@@ -1,5 +1,7 @@
 import argparse
+import builtins
 import inspect
+import re
 import sys
 import time
 from collections import OrderedDict
@@ -36,15 +38,6 @@ class Command:
             underscores replaced with dashes).
         description (str): Description of command shown in command
             help. Defaults to ``implementation.__doc__``.
-        help (dict): Help text for the command's args.
-            ``{'name': 'help text'}``
-        type (dict): Types used to parse values passed via the command
-            line. May be any callable that accepts a single arg.
-            Positional args will be strings unless specified here. Types
-            for options are derived from keyword arg values by default.
-            ``{'name': 'type'}``
-        choices (): When given for an arg, the value for the arg must be
-            one of the specified choices. ``{'name': (1, 2, 3, ...)}``
         env (str): Env to run command in. If this is specified, the
             command *will* be run in this env and may *only* be run in
             this env. If this is set to :const:`DEFAULT_ENV`, the
@@ -64,16 +57,14 @@ class Command:
 
     """
 
-    def __init__(self, implementation, name=None, description=None, help=None, type=None,
-                 choices=(), env=None, default_env=None, config=None, timed=False):
+    def __init__(self, implementation, name=None, description=None, env=None, default_env=None,
+                 config=None, timed=False):
         if env is not None and default_env is not None:
             raise CommandError('Only one of `env` or `default_env` may be specified')
+
         self.implementation = implementation
         self.name = name or self.normalize_name(implementation.__name__)
         self.description = description
-        self.help_text = help or {}
-        self.types = type or {}
-        self.choices = choices or {}
         self.env = env
         self.default_env = default_env
         self.config = config or {}
@@ -82,17 +73,15 @@ class Command:
         self.defaults_path = '.'.join(('defaults', self.qualified_name))
         self.short_defaults_path = '.'.join(('defaults', self.name))
 
-        if 'hide' in self.optionals and 'hide' not in self.types:
-            self.types['hide'] = bool_or(Hide)
+        # Keep track of used short option names so that the same name
+        # isn't used more than once.
+        self.used_short_options = {'-h': 'help'}
 
     @classmethod
-    def command(cls, name=None, description=None, help=None, type=None, choices=None,
-                env=None, default_env=None, config=None, timed=False):
+    def command(cls, name=None, description=None, env=None, default_env=None,
+                config=None, timed=False):
         args = dict(
             description=description,
-            help=help,
-            type=type,
-            choices=choices,
             env=env,
             default_env=default_env,
             config=config,
@@ -348,13 +337,16 @@ class Command:
 
         arg_names.append(long_name)
 
-        if param.is_bool:
+        default_no_long_name = '--no-{name}'.format_map(locals())
+        if param.is_bool_or:
+            arg_names.append(default_no_long_name)
+        elif param.is_bool:
             if name == 'yes':
                 no_long_name = '--no'
             elif name == 'no':
                 no_long_name = '--yes'
             else:
-                no_long_name = '--no-{name}'.format(name=name)
+                no_long_name = default_no_long_name
             arg_names.append(no_long_name)
 
         return arg_names
@@ -384,10 +376,7 @@ class Command:
                 position += 1
             else:
                 param_position = None
-            param_type = self.types.get(name)
-            if isinstance(param_type, BoolOr):
-                param_type = param_type.type
-            params[name] = Parameter(name, param, param_position, type_=param_type)
+            params[name] = Parameter(name, param, param_position)
         return params
 
     @cached_property
@@ -459,32 +448,17 @@ class Command:
                 default = param.default
 
             kwargs = {
-                'help': self.help_text.get(name),
+                'help': param.help,
             }
 
             metavar = name.upper().replace('-', '_')
             if (param.is_dict or param.is_list) and len(name) > 1 and name.endswith('s'):
                 metavar = metavar[:-1]
 
-            if name in self.types:
-                kwargs['type'] = self.types[name]
-            elif not param.is_bool and not param.is_dict and not param.is_list:
-                kwargs['type'] = param.type
-
-            arg_type = kwargs.get('type')
-
-            if isinstance(arg_type, BoolOr):
-                arg_type = arg_type.type
-                is_bool_or = True
-            else:
-                is_bool_or = False
-
-            if name in self.choices:
-                kwargs['choices'] = self.choices[name]
-            elif param.is_enum:
-                kwargs['choices'] = arg_type
-
             if param.is_positional:
+                kwargs['type'] = param.type
+                if param.choices is not None:
+                    kwargs['choices'] = param.choices
                 # Make positionals optional if a default value is
                 # specified via config.
                 if default is not param.empty:
@@ -495,34 +469,37 @@ class Command:
             else:
                 kwargs['dest'] = param.real_name
 
-                if is_bool_or:
+                if param.is_bool_or:
                     # Allow --xyz or --xyz=<value>
+                    other_type = param.type.type
                     true_or_value_kwargs = kwargs.copy()
+                    true_or_value_kwargs['type'] = other_type
+                    if param.choices is not None:
+                        true_or_value_kwargs['choices'] = param.choices
                     true_or_value_kwargs['action'] = BoolOrAction
                     true_or_value_kwargs['nargs'] = '?'
                     true_or_value_kwargs['metavar'] = metavar
-                    true_or_value_arg_names = arg_names[:-1] if param.is_bool else arg_names
+                    true_or_value_arg_names = arg_names[:-1]
                     parser.add_argument(*true_or_value_arg_names, **true_or_value_kwargs)
-                    if param.is_bool:
-                        # Allow --no-xyz
-                        false_kwargs = kwargs.copy()
-                        false_kwargs.pop('choices', None)
-                        false_kwargs.pop('type', None)
-                        parser.add_argument(arg_names[-1], action='store_false', **false_kwargs)
+
+                    # Allow --no-xyz
+                    false_kwargs = kwargs.copy()
+                    parser.add_argument(arg_names[-1], action='store_false', **false_kwargs)
                 elif param.is_bool:
                     parser.add_argument(*arg_names[:-1], action='store_true', **kwargs)
                     parser.add_argument(arg_names[-1], action='store_false', **kwargs)
                 elif param.is_dict:
                     kwargs['action'] = DictAddAction
                     kwargs['metavar'] = metavar
-                    kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
                 elif param.is_list:
                     kwargs['action'] = ListAppendAction
                     kwargs['metavar'] = metavar
-                    kwargs.pop('type', None)
                     parser.add_argument(*arg_names, **kwargs)
                 else:
+                    kwargs['type'] = param.type
+                    if param.choices is not None:
+                        kwargs['choices'] = param.choices
                     kwargs['metavar'] = metavar
                     parser.add_argument(*arg_names, **kwargs)
 
@@ -555,32 +532,106 @@ class Command:
 command = Command.command
 
 
+class Arg(dict):
+
+    """Configuration for an arg.
+
+    This can be used as a function parameter annotation to explicitly
+    configure an arg, overriding default behavior.
+
+    Args:
+
+        short_option (str): A short option like -x to use instead of the
+            default, which is derived from the first character of the
+            arg name.
+        type (type): The type of the arg. By default, a positional arg
+            will be parsed as str and an optional/keyword args will be
+            parsed as the type of its default value (or as str if the
+            default value is None).
+        choices (sequence): A sequence of allowed choices for the arg.
+        help (str): The help string for the arg.
+
+    .. note:: For convenience, regular dicts can be used to annotate
+        args instead instead; they will be converted to instances of
+        this class automatically so they
+
+    """
+
+    short_option_regex = re.compile(r'^-\w$')
+
+    def __init__(self, *, short_option=None, type=None, choices=None, help=None):
+        if short_option is not None:
+            if not self.short_option_regex.search(short_option):
+                message = 'Expected short option with form -x, not "{short_option}"'
+                message = message.format_map(locals())
+                raise ValueError(message)
+        if type is not None:
+            if not isinstance(type, builtins.type):
+                message = 'Expected type, not {type.__class__.__name__}'.format_map(locals())
+                raise ValueError(message)
+        super().__init__(short_option=short_option, type=type, choices=choices, help=help)
+
+
 class Parameter:
 
-    def __init__(self, name, parameter, position, type_=None):
+    def __init__(self, name, parameter, position):
         default = parameter.default
         empty = parameter.empty
-        self._parameter = parameter
+        annotation = parameter.annotation
 
+        if annotation is empty:
+            annotation = Arg()
+        elif isinstance(annotation, type):
+            annotation = Arg(type=annotation)
+        elif isinstance(annotation, str):
+            annotation = Arg(help=annotation)
+        elif not isinstance(annotation, Arg):
+            # Assume dict or other mapping.
+            annotation = Arg(**annotation)
+
+        self._parameter = parameter
         self.name = name
         self.real_name = parameter.name
         self.is_positional = default is empty
         self.is_optional = not self.is_positional
         self.is_keyword_only = self.kind is parameter.KEYWORD_ONLY
+        self.annotation = annotation
+        self.short_option = annotation['short_option']
 
-        if type_ is not None:
-            self.type = type_
-            self.is_bool = issubclass(type_, bool)
-            self.is_dict = issubclass(type_, dict)
-            self.is_enum = issubclass(type_, Enum)
-            self.is_list = issubclass(type_, (list, tuple))
+        arg_type = annotation.get('type')
+
+        if arg_type is None:
+            if name == 'hide' and self.is_optional:
+                self.type = bool_or(Hide)
+                self.is_bool = False
+                self.is_dict = False
+                self.is_enum = False
+                self.is_list = False
+                self.is_bool_or = True
+            else:
+                self.type = str if default in (None, empty) else type(default)
+                self.is_bool = isinstance(default, bool)
+                self.is_dict = isinstance(default, dict)
+                self.is_enum = isinstance(default, Enum)
+                self.is_list = isinstance(default, (list, tuple))
+                self.is_bool_or = False
         else:
-            self.type = str if default in (None, empty) else type(default)
-            self.is_bool = isinstance(default, bool)
-            self.is_dict = isinstance(default, dict)
-            self.is_enum = isinstance(default, Enum)
-            self.is_list = isinstance(default, (list, tuple))
+            if not isinstance(arg_type, type):
+                message = 'Expect type, not {arg_type.__class__.__name__}'.format_map(locals())
+                raise TypeError(message)
+            self.type = arg_type
+            self.is_bool = issubclass(arg_type, bool)
+            self.is_dict = issubclass(arg_type, dict)
+            self.is_enum = issubclass(arg_type, Enum)
+            self.is_list = issubclass(arg_type, (list, tuple))
+            self.is_bool_or = issubclass(arg_type, bool_or)
 
+        choices = annotation.get('choices')
+        if choices is None and self.is_enum:
+            choices = self.type
+
+        self.choices = choices
+        self.help = annotation.get('help')
         self.position = position
         self.takes_value = self.is_positional or (self.is_optional and not self.is_bool)
 
@@ -601,6 +652,8 @@ class HelpParameter(Parameter):
         self._parameter = None
         self.real_name = 'help'
         self.name = 'help'
+        self.short_option = '-h'
+        self.annotation = Arg()
         self.default = False
         self.is_positional = False
         self.is_optional = True
@@ -609,17 +662,21 @@ class HelpParameter(Parameter):
         self.is_bool = True
         self.is_dict = False
         self.is_list = False
+        self.is_bool_or = False
+        self.choices = None
+        self.help = None
         self.position = None
         self.takes_value = False
 
 
-def bool_or(inner_type):
+class bool_or:
+
     """Used to indicate that an arg can be a flag or an option.
 
-    Used like this::
+    Use like this::
 
-        @command(type={'hide': bool_or(str)})
-        def local(config, cmd, hide=False):
+        @command
+        def local(config, cmd, hide: {'type': bool_or(str)} = False):
             "Run the specified command, possibly hiding its output."
 
     Allows for this::
@@ -629,23 +686,16 @@ def bool_or(inner_type):
         run local --hide stdout  # Hide stdout only
         run local --no-hide      # Don't hide anything
 
-    .. note:: The ``--no-<name>`` option will only be available when the
-        default for the option is a bool.
-
     """
-    return BoolOr(inner_type)
 
+    type = None
 
-class BoolOr:
-
-    def __init__(self, type_):
-        self.type = type_
-
-    def __call__(self, *args, **kwargs):
-        return self.type(*args, **kwargs)
-
-    def __repr__(self):
-        return self.type.__name__
+    def __new__(cls, other_type):
+        if not isinstance(other_type, type):
+            message = 'Expected type, not {other_type.__class__.__name__}'.format_map(locals())
+            raise TypeError(message)
+        name = 'BoolOr{name}'.format(name=other_type.__name__.title())
+        return type(name, (cls, ), {'type': other_type})
 
 
 class BoolOrAction(argparse.Action):
