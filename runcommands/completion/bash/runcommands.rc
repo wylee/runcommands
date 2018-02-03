@@ -1,13 +1,7 @@
 # Source from or copy to ~/.bashrc
-function _complete_runcommands {
-    local words=""
-
-    for word in "${COMP_WORDS[@]}"; do
-        words="$words --word '$word'"
-    done
-
-    local candidates=$(runcommands-complete ${words} --index $COMP_CWORD)
-
+function __complete_runcommands {
+    local candidates=$(runcommands-complete -- "$COMP_LINE" "${COMP_WORDS[COMP_CWORD]}" $COMP_POINT bash)
     COMPREPLY=( $(compgen -W "${candidates}" -- $2) )
 }
-complete -F _complete_runcommands -o default run runcmd runcommand runcommands commands.py
+
+complete -F __complete_runcommands run runcmd runcommand runcommands commands.py
