@@ -8,7 +8,7 @@ from types import MethodType
 from .args import Arg, ArgConfig, HelpArg, BoolOrAction, DictAddAction, ListAppendAction
 from .const import DEFAULT_ENV
 from .exc import CommandError, RunCommandsError
-from .util import Hide, cached_property, get_hr, printer
+from .util import Hide, cached_property, camel_to_underscore, get_hr, printer
 
 
 __all__ = ['command']
@@ -26,7 +26,15 @@ class Command:
 
         @command
         def my_command(config):
-            pass
+            ...
+
+    It's also possible to use a class directly as a command::
+
+        @command
+        class MyCommand(Command):
+
+            def implementation(self, config):
+                ...
 
     Args:
         implementation (callable): A callable that implements the
@@ -53,23 +61,35 @@ class Command:
         timed (bool): Whether the command should be timed. Will print an
             info message showing how long the command took to complete
             when ``True``. Defaults to ``False``.
+        arg_config (dict): For commands defined as classes, this can be
+            used to configure common base args instead of repeating the
+            configuration for each subclass. Note that its keys should
+            be actual parameter names and not normalized arg names.
 
     """
 
-    def __init__(self, implementation, name=None, description=None, env=None, default_env=None,
-                 config=None, timed=False):
+    def __init__(self, implementation=None, name=None, description=None, env=None,
+                 default_env=None, config=None, timed=False, arg_config=None):
         if env is not None and default_env is not None:
             raise CommandError('Only one of `env` or `default_env` may be specified')
 
-        self.implementation = implementation
-        self.name = name or self.normalize_name(implementation.__name__)
-        self.description = description or self.get_description_from_docstring(implementation)
+        if implementation is None:
+            if not hasattr(self, 'implementation'):
+                raise CommandError(
+                    'Missing implementation; it must be passed in as a function or defined as a '
+                    'method on the command class')
+        else:
+            self.implementation = implementation
+
+        self.name = name or self.normalize_name(self.implementation.__name__)
+        self.description = description or self.get_description_from_docstring(self.implementation)
         self.env = env
         self.default_env = default_env
         self.config = config or {}
         self.timed = timed
+        self.arg_config = arg_config or {}
 
-        qualified_name = '{implementation.__module__}.{implementation.__qualname__}'
+        qualified_name = '{self.implementation.__module__}.{self.implementation.__qualname__}'
         qualified_name = qualified_name.format_map(locals())
         self.qualified_name = qualified_name
         self.defaults_path = 'defaults.{self.qualified_name}'.format_map(locals())
@@ -86,12 +106,21 @@ class Command:
             timed=timed,
         )
 
+        if isinstance(name, type):
+            # Bare class decorator
+            print(camel_to_underscore(name.__name__))
+            name.implementation.__name__ = camel_to_underscore(name.__name__)
+            return name(**args)
+
         if callable(name):
-            # @command used as a bare decorator.
-            return Command(implementation=name, **args)
+            # Bare function decorator
+            return cls(implementation=name, **args)
 
         def wrapper(wrapped):
-            return Command(implementation=wrapped, name=name, **args)
+            if isinstance(wrapped, type):
+                wrapped.implementation.__name__ = camel_to_underscore(wrapped.__name__)
+                return wrapped(name=name, **args)
+            return cls(implementation=wrapped, name=name, **args)
 
         return wrapper
 
@@ -362,7 +391,8 @@ class Command:
         """Create args from function parameters."""
         implementation = self.implementation
         signature = inspect.signature(implementation)
-        parameters = tuple(signature.parameters.items())[1:]
+        i = 2 if isinstance(implementation, MethodType) else 1
+        parameters = tuple(signature.parameters.items())[i:]
         parameters = OrderedDict(parameters)
 
         args = OrderedDict()
