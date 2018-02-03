@@ -4,12 +4,16 @@ import os
 from .printer import printer
 
 
-def abs_path(path, format_kwargs={}):
+def abs_path(path, format_kwargs={}, relative_to=None):
     """Get abs. path for ``path``.
 
     ``path`` may be a relative or absolute file system path or an asset
     path. If ``path`` is already an abs. path, it will be returned as
     is. Otherwise, it will be converted into a normalized abs. path.
+
+    If ``relative_to`` is passed *and* ``path`` is not absolute, the
+    path will be joined to the specified prefix before it's made
+    absolute.
 
     >>> file_path = os.path.normpath(__file__)
     >>> dir_name = os.path.dirname(file_path)
@@ -24,6 +28,8 @@ def abs_path(path, format_kwargs={}):
     True
     >>> abs_path('/{xyz}', format_kwargs={'xyz': 'abc'})
     '/abc'
+    >>> abs_path('banana', relative_to='/usr')
+    '/usr/banana'
 
     """
     if format_kwargs:
@@ -33,7 +39,10 @@ def abs_path(path, format_kwargs={}):
             path = asset_path(path)
         else:
             path = os.path.expanduser(path)
-            path = os.path.normpath(os.path.abspath(path))
+            if relative_to:
+                path = os.path.abspath(os.path.join(relative_to, path))
+            else:
+                path = os.path.abspath(path)
     return path
 
 
