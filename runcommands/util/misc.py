@@ -125,14 +125,18 @@ def get_all_list(namespace, prefix=None):
     ]
 
 
-def include(module, *names):
+def include(module, *names, exclude=()):
     """Include commands from module in namespace.
 
     This updates the global namespace it's called from with the commands
     found in the specified ``module``. This should be used instead of
     ``from xyz.commands import *`` to avoid polluting the namespace with
-    non-commands. To include only a subset of commands, pass the
-    ``names`` of the commands as positional arguments after ``module``.
+    non-commands.
+
+    To include only a subset of commands pass their names as positional
+    arguments after ``module``.
+
+    To exclude a subset of commands, pass their names via ``exclude``.
 
     """
     # XXX: Avoid circular import
@@ -161,7 +165,7 @@ def include(module, *names):
     else:
         commands = {
             k: v for (k, v) in module_globals.items()
-            if not k.startswith('_') and isinstance(v, Command)
+            if not k.startswith('_') and isinstance(v, Command) and k not in exclude
         }
         if not commands:
             message = 'No commands found in module: {module}'.format(module=module.__name__)
