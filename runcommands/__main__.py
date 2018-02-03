@@ -13,7 +13,7 @@ def main(argv=None):
         cli_args = run.parse_args(Config(), run_argv)
         run_args = read_run_args(run)
         run_args.update(cli_args)
-        debug = run_args.get('debug', run.parameters['debug'].default)
+        debug = run_args.get('debug', run.args['debug'].default)
         run.implementation(
             None, all_argv=all_argv, run_argv=run_argv, command_argv=command_argv,
             cli_args=cli_args, **run_args)

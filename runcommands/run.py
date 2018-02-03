@@ -138,13 +138,13 @@ def read_run_args(section, parser=None):
     for section in sections:
         items.update(parser[section])
 
-    arg_map = run.arg_map
+    option_map = run.option_map
     option_template = '--{name}={value}'
     argv = []
 
     for name, value in items.items():
         option_name = '--{name}'.format(name=name)
-        option = arg_map.get(option_name)
+        option = option_map.get(option_name)
 
         value = value.strip()
 
@@ -243,7 +243,7 @@ def partition_argv(argv=None):
 
     run_argv = []
     option = None
-    arg_map = run.arg_map
+    option_map = run.option_map
     parser = run.get_arg_parser()
     parse_optional = parser._parse_optional
 
@@ -252,13 +252,13 @@ def partition_argv(argv=None):
         if option_data is not None:
             # Arg looks like an option (according to argparse).
             action, name, value = option_data
-            if name not in arg_map:
+            if name not in option_map:
                 # Unknown option.
                 break
             run_argv.append(arg)
             if value is None:
                 # The option's value will be expected on the next pass.
-                option = arg_map[name]
+                option = option_map[name]
             else:
                 # A value was supplied with -nVALUE, -n=VALUE, or
                 # --name=VALUE.

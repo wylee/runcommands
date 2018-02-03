@@ -110,7 +110,7 @@ class CommandRunner:
 
         for prev_arg, arg, next_arg in zip(prev_args, args, next_args):
             if arg in all_commands:
-                option = command.arg_map.get(prev_arg)
+                option = command.option_map.get(prev_arg)
                 if option is None or not option.takes_value:
                     break
             if arg.startswith(':') and arg != ':':

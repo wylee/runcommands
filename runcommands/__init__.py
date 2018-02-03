@@ -1,11 +1,12 @@
 import json
 import os
 
-from .command import bool_or, command
+from .args import bool_or, ArgConfig
+from .command import command
 from .const import DEFAULT_ENV
 
 
-__all__ = ['__version__', 'DEFAULT_ENV', 'bool_or', 'command', 'configure']
+__all__ = ['__version__', 'DEFAULT_ENV', 'bool_or', 'command', 'configure', 'ArgConfig']
 __version__ = '1.0a28.dev0'
 
 

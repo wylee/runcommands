@@ -3,12 +3,12 @@ import shutil
 import string
 import tempfile
 
-from runcommands.command import bool_or, command, Arg
+from runcommands import bool_or, command, ArgConfig
 
 
 @command
 def copy_file(config, source, destination, follow_symlinks=True,
-              template: Arg(type=bool_or(str), choices=('format', 'string')) = False,
+              template: ArgConfig(type=bool_or(str), choices=('format', 'string')) = False,
               inject_config=True):
     """Copy source file to destination.
 

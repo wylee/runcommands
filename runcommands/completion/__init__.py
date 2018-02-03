@@ -37,7 +37,7 @@ def complete(config, words=(), index=0):
         print(' '.join(commands))
 
     def print_command_options(command):
-        options = [option for option in command.arg_map if option.startswith('--')]
+        options = [option for option in command.option_map if option.startswith('--')]
         print(' '.join(options))
 
     found_command = find_command()
@@ -45,8 +45,8 @@ def complete(config, words=(), index=0):
     if current_word.startswith('-'):
         print_command_options(found_command)
     else:
-        is_command_arg = previous_word in found_command.arg_map
-        command_arg = found_command.arg_map[previous_word] if is_command_arg else None
+        is_command_arg = previous_word in found_command.option_map
+        command_arg = found_command.option_map[previous_word] if is_command_arg else None
         if is_command_arg and command_arg.takes_value:
             # Don't print any candidates; this will cause the shell
             # to display defaults (file names, etc).
