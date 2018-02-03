@@ -4,6 +4,7 @@ import sys
 from configparser import ConfigParser
 
 from . import __version__
+from .args import ArgConfig
 from .command import command, Command
 from .const import DEFAULT_COMMANDS_MODULE, DEFAULT_CONFIG_FILE
 from .exc import RunCommandsError, RunnerError
@@ -13,7 +14,7 @@ from .util import printer
 
 @command(name='runcommands')
 def run(_,
-        module=DEFAULT_COMMANDS_MODULE,
+        commands_module: ArgConfig(short_option='-m') = DEFAULT_COMMANDS_MODULE,
         # config
         config_file=None,
         env=None,
@@ -91,7 +92,7 @@ def run(_,
         options['version'] = version
 
     runner = CommandRunner(
-        module,
+        commands_module,
         config_file=config_file,
         env=env,
         default_env=default_env,

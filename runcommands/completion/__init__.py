@@ -32,8 +32,8 @@ def complete(config, command_line, current_token, position, shell: dict(choices=
     run_args = read_run_args(run)
     debug = run_args.get('debug', debug)
 
-    module = run_args.get('module')
-    module = extract_from_argv(run_argv, run.args['module'].options) or module
+    module = run_args.get('commands-module')
+    module = extract_from_argv(run_argv, run.args['commands-module'].options) or module
     module = module or DEFAULT_COMMANDS_MODULE
     module = normalize_path(module)
 
