@@ -1,6 +1,7 @@
 import importlib
 import inspect
 import os
+import re
 import sys
 
 from ..exc import RunCommandsError
@@ -43,6 +44,47 @@ def args_to_str(args, joiner=' ', format_kwargs={}):
     if format_kwargs:
         args = args.format_map(format_kwargs)
     return args
+
+
+def camel_to_underscore(name):
+    """Convert camel case name to underscore name.
+
+    Examples::
+
+        >>> camel_to_underscore('HttpRequest')
+        'http_request'
+        >>> camel_to_underscore('httpRequest')
+        'http_request'
+        >>> camel_to_underscore('HTTPRequest')
+        'http_request'
+        >>> camel_to_underscore('myHTTPRequest')
+        'my_http_request'
+        >>> camel_to_underscore('MyHTTPRequest')
+        'my_http_request'
+        >>> camel_to_underscore('my_http_request')
+        'my_http_request'
+        >>> camel_to_underscore('MyHTTPRequestXYZ')
+        'my_http_request_xyz'
+        >>> camel_to_underscore('_HTTPRequest')
+        '_http_request'
+        >>> camel_to_underscore('Request')
+        'request'
+        >>> camel_to_underscore('REQUEST')
+        'request'
+        >>> camel_to_underscore('_Request')
+        '_request'
+        >>> camel_to_underscore('__Request')
+        '__request'
+        >>> camel_to_underscore('_request')
+        '_request'
+        >>> camel_to_underscore('Request_')
+        'request_'
+
+    """
+    name = re.sub(r'(?<!\b)(?<!_)([A-Z][a-z])', r'_\1', name)
+    name = re.sub(r'(?<!\b)(?<!_)([a-z])([A-Z])', r'\1_\2', name)
+    name = name.lower()
+    return name
 
 
 def format_if(value, format_kwargs):

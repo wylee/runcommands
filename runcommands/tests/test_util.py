@@ -10,6 +10,7 @@ from runcommands.util.commands import copy_file
 
 def load_tests(loader, tests, ignore):
     tests.addTests(DocTestSuite('runcommands.util.decorators'))
+    tests.addTests(DocTestSuite('runcommands.util.misc'))
     tests.addTests(DocTestSuite('runcommands.util.path'))
     return tests
 
