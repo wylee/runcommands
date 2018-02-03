@@ -65,7 +65,7 @@ class Command:
 
         self.implementation = implementation
         self.name = name or self.normalize_name(implementation.__name__)
-        self.description = description
+        self.description = description or self.get_description_from_docstring(implementation)
         self.env = env
         self.default_env = default_env
         self.config = config or {}
@@ -97,6 +97,19 @@ class Command:
             return Command(implementation=wrapped, name=name, **args)
 
         return wrapper
+
+    def get_description_from_docstring(self, implementation):
+        description = implementation.__doc__
+        if description is not None:
+            description = description.strip() or None
+        if description is not None:
+            lines = description.splitlines()
+            title = lines[0]
+            if title.endswith('.'):
+                title = title[:-1]
+            lines = [title] + [line[4:] for line in lines[1:]]
+            description = '\n'.join(lines)
+        return description
 
     def get_run_env(self, specified_env, global_default_env):
         env = self.env
@@ -441,25 +454,11 @@ class Command:
         if config is None:
             config = Config()
 
-        if self.description:
-            description = self.description
-        else:
-            description = self.implementation.__doc__
-            if description is not None:
-                description = description.strip() or None
-            if description is not None:
-                lines = description.splitlines()
-                title = lines[0]
-                if title.endswith('.'):
-                    title = title[:-1]
-                lines = [title] + [line[4:] for line in lines[1:]]
-                description = '\n'.join(lines)
-
         use_default_help = isinstance(self.parameters['help'], HelpParameter)
 
         parser = argparse.ArgumentParser(
             prog=self.name,
-            description=description,
+            description=self.description,
             formatter_class=argparse.RawDescriptionHelpFormatter,
             argument_default=argparse.SUPPRESS,
             add_help=use_default_help,
