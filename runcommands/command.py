@@ -70,13 +70,15 @@ class Command:
         self.default_env = default_env
         self.config = config or {}
         self.timed = timed
-        self.qualified_name = '.'.join((implementation.__module__, implementation.__qualname__))
-        self.defaults_path = '.'.join(('defaults', self.qualified_name))
-        self.short_defaults_path = '.'.join(('defaults', self.name))
 
         # Keep track of used short option names so that the same name
         # isn't used more than once.
         self.used_short_options = {}
+        qualified_name = '{implementation.__module__}.{implementation.__qualname__}'
+        qualified_name = qualified_name.format_map(locals())
+        self.qualified_name = qualified_name
+        self.defaults_path = 'defaults.{self.qualified_name}'.format_map(locals())
+        self.short_defaults_path = 'defaults.{self.name}'.format_map(locals())
 
     @classmethod
     def command(cls, name=None, description=None, env=None, default_env=None,

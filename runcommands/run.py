@@ -76,9 +76,8 @@ def run(_,
             command_run_args.update(cli_args)
             all_command_run_args[name] = command_run_args
 
-    if config_file is None:
-        if os.path.isfile(DEFAULT_CONFIG_FILE):
-            config_file = DEFAULT_CONFIG_FILE
+    if not config_file and os.path.isfile(DEFAULT_CONFIG_FILE):
+        config_file = DEFAULT_CONFIG_FILE
 
     options = options.copy()
 
