@@ -441,6 +441,7 @@ class Config(RawConfig):
             extends = parser.get(name, 'extends', fallback=None)
             if extends:
                 extends = JSONValue(extends, name='extends').load()
+                extends = abs_path(extends, relative_to=os.path.dirname(file_name))
                 sections.update(cls._get_envs(extends))
         return sorted(sections)
 
@@ -463,6 +464,7 @@ class Config(RawConfig):
             extends = section.get('extends')
             if extends:
                 extends = JSONValue(extends, name='extends').load()
+                extends = abs_path(extends, relative_to=os.path.dirname(f))
                 read(extends)
 
             for name, value in section.items():
