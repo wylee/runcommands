@@ -462,6 +462,7 @@ class Command:
             formatter_class=argparse.RawDescriptionHelpFormatter,
             argument_default=argparse.SUPPRESS,
             add_help=use_default_help,
+            allow_abbrev=False,
         )
 
         defaults = self.get_defaults(config)
