@@ -45,32 +45,38 @@ def install(config, where='.env', python='python3', upgrade=False, overwrite=Fal
 
 
 @command
-def install_completion(config, shell='bash', to='~/.bashrc.d', overwrite=True):
+def install_completion(
+        config,
+        shell: dict(choices=('bash', 'fish'), help='Shell to install completion for'),
+        to: '~/.bashrc.d/runcommands.rc or ~/.config/fish/runcommands.fish' = None,
+        overwrite: 'Overwrite if exists' = None):
     """Install command line completion script.
 
-    Currently, only Bash is supported. The script will be copied to the
-    directory ``~/.bashrc.d`` by default. If the script already exists
-    at that location, it will be overwritten by default.
+    Currently, bash and fish are supported. The corresponding script
+    will be copied to an appropriate directory. If the script already
+    exists at that location, it will be overwritten by default.
 
     """
-    source = 'runcommands:completion/{shell}/runcommands.rc'.format(shell=shell)
+    if shell == 'bash':
+        source = 'runcommands:completion/bash/runcommands.rc'
+        to = to or '~/.bashrc.d'
+    elif shell == 'fish':
+        source = 'runcommands:completion/fish/runcommands.fish'
+        to = to or '~/.config/fish'
+
     source = asset_path(source)
-
     destination = os.path.expanduser(to)
-
-    if os.path.isdir(destination):
-        to = os.path.join(to, 'runcommands.rc')
-        destination = os.path.join(destination, 'runcommands.rc')
 
     printer.info('Installing', shell, 'completion script to', to)
 
     if os.path.exists(destination):
         if not overwrite:
-            overwrite = confirm(config, 'Overwrite?', abort_on_unconfirmed=True)
+            message = '{to} exists; overwrite?'.format(to=to)
+            overwrite = confirm(config, message, abort_on_unconfirmed=True)
         if overwrite:
             printer.info('Overwriting', to)
 
-    shutil.copyfile(source, destination)
+    copy_file(config, source, destination)
     printer.info('Installed; remember to `source {to}`'.format(to=to))
 
 
