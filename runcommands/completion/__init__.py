@@ -58,6 +58,7 @@ def complete(config, command_line, current_token, position, shell: dict(choices=
             if current_token not in found_command.option_map:
                 print_command_options(found_command, current_token)
         else:
+            print_commands(commands, shell)
             path = os.path.expanduser(current_token)
             path = os.path.expandvars(path)
             paths = glob.glob('%s*' % path)
@@ -67,8 +68,6 @@ def complete(config, command_line, current_token, position, shell: dict(choices=
                         print('%s/' % entry)
                     else:
                         print(entry)
-            else:
-                print_commands(commands, shell)
     else:
         # Completing option value. If a value isn't expected, show the
         # options for the current command and the list of commands
