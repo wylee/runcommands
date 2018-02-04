@@ -423,9 +423,9 @@ class Command:
 
             annotation = get_arg_config(parameter)
             type = annotation.type
-            choices = annotation.type
-            help = annotation.type
-            short_option = annotation.type
+            choices = annotation.choices
+            help = annotation.help
+            short_option = annotation.short_option
 
             if parameter.default is parameter.empty:  # Positional
                 short_option = None
