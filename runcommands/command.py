@@ -108,7 +108,6 @@ class Command:
 
         if isinstance(name, type):
             # Bare class decorator
-            print(camel_to_underscore(name.__name__))
             name.implementation.__name__ = camel_to_underscore(name.__name__)
             return name(**args)
 
