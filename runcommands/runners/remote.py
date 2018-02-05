@@ -13,7 +13,8 @@ from paramiko.client import AutoAddPolicy, SSHClient
 from paramiko.config import SSHConfig, SSH_PORT
 from paramiko.ssh_exception import SSHException
 
-from ..util import Hide, printer
+from ..command import command
+from ..util import abort, args_to_str, format_if, paths_to_str, printer, Hide
 from .base import Runner
 from .exc import RunAborted, RunError, RunValueError
 from .result import Result
@@ -255,3 +256,61 @@ EOF
 
 
 atexit.register(RemoteRunner.cleanup)
+
+
+@command
+def remote(config, cmd, host, user=None, cd=None, path=None, prepend_path=None,
+           append_path=None, sudo=False, run_as=None, echo=False, hide=False, timeout=30,
+           use_pty=True, abort_on_failure=True, inject_config=True):
+    """Run a command on the remote host via SSH.
+
+    Args:
+        cmd (str|list): The command to run on the remote host; if it
+            contains format strings, those will be filled from
+            ``config``
+        user (str): The user to log in as; command will be run as this
+            user unless ``sudo`` or ``run_as`` is specified
+        host (str): The remote host
+        cd (str): Where to run the command on the remote host
+        path (str|list): Replace ``$PATH`` on remote host with path(s)
+        prepend_path (str|list): Add extra path(s) to front of remote
+            ``$PATH``
+        append_path (str|list): Add extra path(s) to end of remote
+            ``$PATH``
+        sudo (bool): Run as sudo?
+        run_as (str): Run command as a different user with
+            ``sudo -u <run_as>``
+        inject_config (bool): Whether to inject config into the ``cmd``,
+            ``host``, ``user``, ``cd``, the various path args, and
+            ``run_as``
+
+    """
+    debug = config.run.debug
+    format_kwargs = config if inject_config else {}
+    path_converter = partial(paths_to_str, format_kwargs=format_kwargs)
+
+    cmd = args_to_str(cmd, format_kwargs=format_kwargs)
+    user = format_if(user, format_kwargs)
+    host = format_if(host, format_kwargs)
+    cd = format_if(cd, format_kwargs)
+    run_as = format_if(run_as, format_kwargs)
+
+    path = path_converter(path)
+    prepend_path = path_converter(prepend_path)
+    append_path = path_converter(append_path)
+
+    runner = RemoteRunner()
+
+    try:
+        return runner.run(
+            cmd, host, user=user, cd=cd, path=path, prepend_path=prepend_path,
+            append_path=append_path, sudo=sudo, run_as=run_as, echo=echo, hide=hide,
+            timeout=timeout, use_pty=use_pty, debug=debug)
+    except RunAborted as exc:
+        if debug:
+            raise
+        abort(1, str(exc))
+    except RunError as exc:
+        if abort_on_failure:
+            abort(2, 'Remote command failed with exit code {exc.return_code}'.format_map(locals()))
+        return exc

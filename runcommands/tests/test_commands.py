@@ -3,8 +3,8 @@ import os
 import sys
 from unittest import TestCase
 
-from runcommands.commands import local, show_config
-
+from ..config import show_config
+from ..runners.local import local
 from .config import Config
 from .util import replace
 
