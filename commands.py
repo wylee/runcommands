@@ -13,7 +13,6 @@ if 'runcommands' not in sys.path:
 from runcommands import command  # noqa: E402
 from runcommands.config import show_config  # noqa: E402,F401
 from runcommands.runners.local import local  # noqa: E402
-from runcommands.runners.remote import remote  # noqa: E402,F401
 from runcommands.util import abort, asset_path, confirm, printer, prompt  # noqa: E402
 from runcommands.util.commands import copy_file  # noqa: E402
 
