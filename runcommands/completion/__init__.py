@@ -32,12 +32,12 @@ def complete(config, command_line, current_token, position, shell: dict(choices=
     run_args = read_run_args(run)
     debug = run_args.get('debug', debug)
 
-    module = run_args.get('commands-module')
+    module = run_args.get('commands_module')
     module = extract_from_argv(run_argv, run.args['commands-module'].options) or module
     module = module or DEFAULT_COMMANDS_MODULE
     module = normalize_path(module)
 
-    config_file = run_args.get('config-file')
+    config_file = run_args.get('config_file')
     config_file = extract_from_argv(run_argv, run.args['config-file'].options) or config_file
     if not config_file and os.path.exists(DEFAULT_CONFIG_FILE):
         config_file = DEFAULT_CONFIG_FILE
