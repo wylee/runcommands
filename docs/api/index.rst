@@ -6,11 +6,13 @@ Automatically-generated API documentation.
 .. toctree::
     :maxdepth: 1
 
-    runcommands
     command
-    config
+    collection
+    args
     const
-    exc
+    result
     run
     runner
+    exc
+    completion
     util

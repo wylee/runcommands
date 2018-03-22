@@ -2,17 +2,19 @@ Built In Commands
 +++++++++++++++++
 
 
-A few commands are provided out of the box::
+A few commands are provided out of the box:
 
-* `local`
-* `remote`
-* `show-config`
+- `copy-file`: Copy a local file, optionally as a template.
+- `git-version`: Show the tag or SHA1 corresponding to `HEAD`.
+- `local`: Run a local command via :func:`subprocess.run()`.
+- `remote`: Run a remote command via SSH.
+- `sync`: Sync local files to remote server or vice versa using `rsync`.
 
-These can added to a project's command set like so:
+These can be added to a project's command set like so:
 
 .. code-block:: python
 
     # commands.py in your project
-    from runcommands.commands import local, remote, show_config
+    from runcommands.commands import copy_file, git_version, local, remote, sync
 
-To see what these do, run `runcommands local -h`, etc.
+To see what these do, run `run local -h`, etc.

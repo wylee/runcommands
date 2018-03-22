@@ -23,14 +23,14 @@ To install the project for development::
 Shell Completion
 ================
 
-.. note:: Only Bash completion is supported currently.
+.. note:: Only Bash and Fish completion are currently supported.
 
-Copy the `completion script`_ from the source distribution into your
-`~/.bashrc` or some other file that you `source` into your `~/.bashrc`.
-Make sure you `source` your `~/.bashrc` after initially copying the
-completion script.
+Copy the `completion script`_ from the source distribution into
+`~/.bashrc`, `~/.config/fish`, or some other file that you `source` into
+your profile.  Make sure you `source` the completion script after
+initially copying the completion script.
 
-Alternatively, if you've cloned the |project| repo, you can
-`run install-completion` from the clone directory.
+Alternatively, if you've cloned the |project| repo, you can `run
+install-completion` from the project directory.
 
-.. _completion script: https://github.com/wylee/runcommands/blob/master/runcommands/completion/bash/runcommands.rc
+.. _completion script: https://github.com/wylee/runcommands/blob/master/runcommands/completion

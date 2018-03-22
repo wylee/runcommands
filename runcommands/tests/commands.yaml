@@ -1,0 +1,19 @@
+---
+env: test
+
+defaults:
+  a: "a"
+  b: "{{ a }}"
+  c: "{{ b }}"
+
+globals:
+  a: "{{ a }}"
+  b: "b"
+
+default_args:
+  test:
+    a: "{{ a }}"
+    b: "{{ b }}"
+
+environ:
+  XYZ: "{{ c }}"

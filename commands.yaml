@@ -1,0 +1,4 @@
+---
+globals:
+  package: "runcommands"
+  distribution: "{{ package }}"

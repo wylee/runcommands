@@ -9,20 +9,18 @@ import unittest
 if 'runcommands' not in sys.path:
     sys.path.insert(0, os.path.abspath('.'))
 
-
 from runcommands import command  # noqa: E402
-from runcommands.config import show_config  # noqa: E402,F401
-from runcommands.runners.local import local  # noqa: E402
+from runcommands.args import arg  # noqa: E402
+from runcommands.commands import copy_file, git_version, local  # noqa: E402,F401
 from runcommands.util import abort, asset_path, confirm, printer, prompt  # noqa: E402
-from runcommands.util.commands import copy_file  # noqa: E402
 
 
 @command
-def virtualenv(config, where='.env', python='python3', overwrite=False):
+def virtualenv(where='.env', python='python3', overwrite=False):
     exists = os.path.exists(where)
 
     def create():
-        local(config, ('virtualenv', '-p', python, where))
+        local(('virtualenv', '-p', python, where))
         printer.success(
             'Virtualenv created; activate it by running `source {where}/bin/activate`'
             .format_map(locals()))
@@ -40,18 +38,17 @@ def virtualenv(config, where='.env', python='python3', overwrite=False):
 
 
 @command
-def install(config, where='.env', python='python3', upgrade=False, overwrite=False):
-    virtualenv(config, where=where, python=python, overwrite=overwrite)
+def install(where='.env', python='python3', upgrade=False, overwrite=False):
+    virtualenv(where=where, python=python, overwrite=overwrite)
     pip = '{where}/bin/pip'.format(where=where)
-    local(config, (pip, 'install', '--upgrade' if upgrade else '', '-e .[dev,tox]'))
+    local((pip, 'install', '--upgrade' if upgrade else '', '-e', '.[dev,tox]'))
 
 
 @command
 def install_completion(
-        config,
-        shell: dict(choices=('bash', 'fish'), help='Shell to install completion for'),
-        to: '~/.bashrc.d/runcommands.rc or ~/.config/fish/runcommands.fish' = None,
-        overwrite: 'Overwrite if exists' = None):
+        shell: arg(choices=('bash', 'fish'), help='Shell to install completion for'),
+        to: arg(help='~/.bashrc.d/runcommands.rc or ~/.config/fish/runcommands.fish') = None,
+        overwrite: 'Overwrite if exists' = False):
     """Install command line completion script.
 
     Currently, bash and fish are supported. The corresponding script
@@ -64,26 +61,29 @@ def install_completion(
         to = to or '~/.bashrc.d'
     elif shell == 'fish':
         source = 'runcommands:completion/fish/runcommands.fish'
-        to = to or '~/.config/fish'
+        to = to or '~/.config/fish/runcommands.fish'
 
     source = asset_path(source)
     destination = os.path.expanduser(to)
 
-    printer.info('Installing', shell, 'completion script to', to)
+    if os.path.isdir(destination):
+        destination = os.path.join(destination, os.path.basename(source))
+
+    printer.info('Installing', shell, 'completion script to:\n    ', destination)
 
     if os.path.exists(destination):
-        if not overwrite:
-            message = '{to} exists; overwrite?'.format(to=to)
-            overwrite = confirm(config, message, abort_on_unconfirmed=True)
         if overwrite:
-            printer.info('Overwriting', to)
+            printer.info('Overwriting:\n    {destination}'.format_map(locals()))
+        else:
+            message = 'File exists. Overwrite?'.format_map(locals())
+            overwrite = confirm(message, abort_on_unconfirmed=True)
 
-    copy_file(config, source, destination)
-    printer.info('Installed; remember to `source {to}`'.format(to=to))
+    copy_file(source, destination)
+    printer.info('Installed; remember to:\n    source {destination}'.format_map(locals()))
 
 
 @command
-def test(config, tests=(), fail_fast=False, with_coverage=True, with_lint=True):
+def test(tests=(), fail_fast=False, with_coverage=True, with_lint=True):
     if tests:
         num_tests = len(tests)
         s = '' if num_tests == 1 else 's'
@@ -112,31 +112,36 @@ def test(config, tests=(), fail_fast=False, with_coverage=True, with_lint=True):
                 coverage.report()
             if with_lint:
                 printer.header('Checking for lint...')
-                lint(config)
+                lint()
 
 
 @command
-def tox(config, envs=(), recreate=False):
-    local(config, (
+def tox(envs: 'Pass -e option to tox with the specified environments' = (),
+        recreate: 'Pass --recreate flag to tox' = False,
+        clean: 'Remove tox directory first' = False):
+    if clean:
+        local('rm -rf .tox', echo=True)
+    local((
         'tox',
-        ('-e', ','.join(envs)) if envs else '',
-        '--recreate' if recreate else '',
+        ('-e', ','.join(envs)) if envs else None,
+        '--recreate' if recreate else None,
     ))
 
 
 @command
-def lint(config):
-    result = local(config, 'flake8 .', abort_on_failure=False)
+def lint():
+    result = local('flake8 .', stdout='capture', raise_on_error=False)
     pieces_of_lint = len(result.stdout_lines)
     if pieces_of_lint:
         s = '' if pieces_of_lint == 1 else 's'
-        printer.error('{pieces_of_lint} piece{s} of lint found'.format_map(locals()))
+        printer.error('{pieces_of_lint} piece{s} of lint found:'.format_map(locals()))
+        print(result.stdout, end='')
     else:
         printer.success('No lint found')
 
 
 @command
-def clean(config, verbose=False):
+def clean(verbose=False):
     """Clean up.
 
     Removes:
@@ -191,8 +196,8 @@ def clean(config, verbose=False):
 
 
 @command
-def release(config, version=None, date=None, tag_name=None, next_version=None, prepare=True,
-            merge=True, create_tag=True, resume=True, yes=False, tests=True):
+def release(version=None, date=None, tag_name=None, next_version=None, prepare=True, merge=True,
+            create_tag=True, resume=True, yes=False, tests=True):
 
     def update_line(file_name, line_number, content):
         with open(file_name) as fp:
@@ -201,7 +206,7 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
         with open(file_name, 'w') as fp:
             fp.writelines(lines)
 
-    result = local(config, 'git rev-parse --abbrev-ref HEAD', hide='stdout')
+    result = local('git rev-parse --abbrev-ref HEAD', stdout='capture')
     current_branch = result.stdout.strip()
     if current_branch == 'master':
         abort(1, 'Cannot release from master branch')
@@ -302,11 +307,11 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
     printer.info('Release date:', date)
     printer.info('Next version:', next_version)
     msg = 'Continue with release?: {version} - {date}'.format_map(locals())
-    yes or confirm(config, msg, abort_on_unconfirmed=True)
+    yes or confirm(msg, abort_on_unconfirmed=True)
 
     if tests:
         printer.header('Testing...')
-        tox(config)
+        tox()
     else:
         printer.warning('Skipping tests')
 
@@ -320,27 +325,27 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
         update_line(init_module, init_line_number, updated_init_line)
         update_line(changelog, changelog_line_number, updated_changelog_line)
 
-        local(config, ('git diff', init_module, changelog))
-        yes or confirm(config, 'Commit these changes?', abort_on_unconfirmed=True)
+        local(('git', 'diff', init_module, changelog))
+        yes or confirm('Commit these changes?', abort_on_unconfirmed=True)
         msg = prompt('Commit message', default='Prepare release {version}'.format_map(locals()))
         msg = '-m "{msg}"'.format_map(locals())
-        local(config, ('git commit', init_module, changelog, msg))
+        local(('git', 'commit', init_module, changelog, msg))
 
     # Merge and tag
     if merge:
         printer.header('Merging', current_branch, 'into master for release', version)
-        local(config, 'git log --oneline --reverse master..')
+        local('git log --oneline --reverse master..')
         msg = 'Merge these changes from {current_branch} into master for release {version}?'
         msg = msg.format_map(locals())
-        yes or confirm(config, msg, abort_on_unconfirmed=True)
-        local(config, 'git checkout master')
+        yes or confirm(msg, abort_on_unconfirmed=True)
+        local('git checkout master')
         msg = '"Merge branch \'{current_branch}\' for release {version}"'.format_map(locals())
-        local(config, ('git merge --no-ff', current_branch, '-m', msg))
+        local(('git', 'merge', '--no-ff', current_branch, '-m', msg))
         if create_tag:
             printer.header('Tagging release', version)
             msg = '"Release {version}"'.format_map(locals())
-            local(config, ('git tag -a -m', msg, version))
-        local(config, ('git checkout', current_branch))
+            local(('git', 'tag', '-a', '-m', msg, version))
+        local(('git', 'checkout', current_branch))
 
     # Resume
     if resume:
@@ -360,19 +365,23 @@ def release(config, version=None, date=None, tag_name=None, next_version=None, p
         with open(changelog, 'w') as fp:
             fp.writelines(lines)
 
-        local(config, ('git diff', init_module, changelog))
-        yes or confirm(config, 'Commit these changes?', abort_on_unconfirmed=True)
+        local(('git', 'diff', init_module, changelog))
+        yes or confirm('Commit these changes?', abort_on_unconfirmed=True)
         msg = prompt(
             'Commit message', default='Resume development at {next_version}'.format_map(locals()))
         msg = '-m "{msg}"'.format_map(locals())
-        local(config, ('git commit', init_module, changelog, msg))
+        local(('git', 'commit', init_module, changelog, msg))
 
 
 @command
-def build_docs(config, source='docs', destination='docs/_build', type_='html'):
-    local(config, (
+def build_docs(source='docs', destination='docs/_build', builder='html', clean=False):
+    if clean:
+        printer.info('Removing {destination}...'.format_map(locals()))
+        shutil.rmtree(destination)
+    local((
         'sphinx-build',
-        '-b', type_,
+        '-b',
+        builder,
         source,
         destination,
     ))

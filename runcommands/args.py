@@ -6,7 +6,7 @@ from enum import Enum
 from inspect import Parameter
 
 from .exc import CommandError
-from .util import Hide
+from .util import load_json_value
 
 
 class ArgConfig:
@@ -18,13 +18,18 @@ class ArgConfig:
 
     Args:
 
-        short_option (str): A short option like -x to use instead of the
-            default, which is derived from the first character of the
-            arg name.
-        type (type): A type to use instead of guessing based on the
-            arg's default value.
-        choices (sequence): A sequence of allowed choices for the arg.
-        help (str): The help string for the arg.
+        short_option (str): Short option like ``-x`` to use instead of
+            the default, which is derived from the first character of
+            the arg name.
+        long_option (str): Long option like ``--xyz`` to use instead of
+            the default, which is derived from the arg name.
+        type (type): Type to use instead of guessing based on the arg's
+            default value.
+        choices (sequence): Sequence of allowed choices for the arg.
+        action (Action): ``argparse`` Action.
+        help (str): Help string for the arg.
+        inverse_help (str): Inverse help string for the arg (for the
+            ``--no-xyz`` variation of boolean args).
 
     .. note:: For convenience, regular dicts can be used to annotate
         args instead instead; they will be converted to instances of
@@ -34,7 +39,8 @@ class ArgConfig:
 
     short_option_regex = re.compile(r'^-\w$')
 
-    def __init__(self, *, short_option=None, type=None, choices=None, help=None):
+    def __init__(self, *, short_option=None, long_option=None, inverse_option=None, type=None,
+                 choices=None, action=None, help=None, inverse_help=None):
         if short_option is not None:
             if not self.short_option_regex.search(short_option):
                 message = 'Expected short option with form -x, not "{short_option}"'
@@ -47,9 +53,22 @@ class ArgConfig:
                 raise ValueError(message)
 
         self.short_option = short_option
+        self.long_option = long_option
+        self.inverse_option = inverse_option
         self.type = type
         self.choices = choices
+        self.action = action
         self.help = help
+        self.inverse_help = inverse_help
+
+    def __repr__(self):
+        options = self.short_option, self.long_option, self.inverse_option
+        options = (option for option in options if option)
+        options = ', '.join(options)
+        return 'arg({options})'.format_map(locals())
+
+
+arg = ArgConfig
 
 
 class Arg:
@@ -58,18 +77,20 @@ class Arg:
 
     Attributes:
 
-        command (Command): The command this arg belongs to.
-        parameter (Parameter): The function parameter this arg is
-            derived from.
-        name (str): The normalized arg name.
-        type (type): The type of the arg. By default, a positional arg
-            will be parsed as str and an optional/keyword arg will be
-            parsed as the type of its default value (or as str if the
-            default value is None).
-        default (object): The default value for the arg.
+        command (Command): Command this arg belongs to.
+        parameter (Parameter): Function parameter this arg is derived
+            from.
+        name (str): Normalized arg name.
+        type (type): Type of the arg. By default, a positional arg will
+            be parsed as str and an optional/keyword arg will be parsed
+            as the type of its default value (or as str if the default
+            value is None).
+        default (object): Default value for the arg.
         choices (sequence): A sequence of allowed choices for the arg.
-        help (str): The help string for the arg.
-        short_option (str): The short command line option.
+        help (str): Help string for the arg.
+        inverse_help (str): Inverse help string for the arg (for the
+            ``--no-xyz`` variation of boolean args).
+        short_option (str): Short command line option.
         long_option (str): Long command line option.
         inverse_option (str): Inverse option for boolean args.
 
@@ -85,60 +106,46 @@ class Arg:
                  default,
                  choices,
                  help,
+                 inverse_help,
                  short_option,
                  long_option,
-                 inverse_option):
+                 inverse_option,
+                 action):
 
         self.command = command
 
         self.parameter = parameter
+        self.parameter_name = parameter.name
         self.is_positional = default is self.empty
         self.is_optional = not self.is_positional
         self.is_keyword_only = parameter.kind is parameter.KEYWORD_ONLY
 
         self.name = name
-        self.qualified_name = '{command.qualified_name}.{name}'.format_map(locals())
-        self.defaults_path = 'defaults.{self.qualified_name}'.format_map(locals())
-        self.short_defaults_path = 'defaults.{self.name}'.format_map(locals())
 
         if type is None:
-            if name == 'hide' and self.is_optional:
-                self.type = bool_or(Hide)
-                self.is_bool = False
-                self.is_dict = False
-                self.is_enum = False
-                self.is_list = False
-                self.is_bool_or = True
-            else:
-                self.type = str if default in (None, self.empty) else default.__class__
-                self.is_bool = isinstance(default, bool)
-                self.is_dict = isinstance(default, dict)
-                self.is_enum = isinstance(default, Enum)
-                self.is_list = isinstance(default, (list, tuple))
-                self.is_bool_or = False
-        else:
-            if not isinstance(type, builtins.type):
-                message = 'Expect type, not {arg_type.__class__.__name__}'.format_map(locals())
-                raise TypeError(message)
-            self.type = type
-            self.is_bool = issubclass(type, bool)
-            self.is_dict = issubclass(type, dict)
-            self.is_enum = issubclass(type, Enum)
-            self.is_list = issubclass(type, (list, tuple))
-            self.is_bool_or = issubclass(type, bool_or)
+            type = str if default in (None, self.empty) else default.__class__
+        elif not isinstance(type, builtins.type):
+            message = 'Expected type, not {arg_type.__class__.__name__}'.format_map(locals())
+            raise TypeError(message)
 
+        self.type = type
+        self.is_bool = issubclass(type, bool)
+        self.is_dict = issubclass(type, dict)
+        self.is_enum = issubclass(type, Enum)
+        self.is_list = issubclass(type, (list, tuple))
+        self.is_bool_or = issubclass(type, bool_or)
         self.takes_value = self.is_positional or (self.is_optional and not self.is_bool)
-
         self.default = default
 
         if not choices:
             if self.is_enum:
-                choices = self.type
-            elif self.is_bool_or and issubclass(self.type.type, Enum):
-                choices = self.type.type
+                choices = type
+            elif self.is_bool_or and issubclass(type.type, Enum):
+                choices = type.type
 
         self.choices = choices
         self.help = help
+        self.inverse_help = inverse_help
 
         self.short_option = short_option
         self.long_option = long_option
@@ -146,6 +153,8 @@ class Arg:
 
         options = (self.short_option, self.long_option, self.inverse_option)
         self.options = tuple(option for option in options if option)
+
+        self.action = action
 
     def __str__(self):
         string = '{kind} arg: {self.name}{default} ({self.type.__name__})'
@@ -167,9 +176,11 @@ class HelpArg(Arg):
             default=False,
             choices=None,
             help=None,
+            inverse_help=None,
             short_option='-h',
             long_option='--help',
             inverse_option=None,
+            action=None,
         )
 
 
@@ -213,11 +224,8 @@ class BoolOrAction(argparse.Action):
 class DictAddAction(argparse.Action):
 
     def __call__(self, parser, namespace, item, option_string=None):
-        from .config import JSONValue
-
         if not hasattr(namespace, self.dest):
             setattr(namespace, self.dest, OrderedDict())
-
         items = getattr(namespace, self.dest)
 
         try:
@@ -227,25 +235,27 @@ class DictAddAction(argparse.Action):
                 'Bad format for {self.option_strings[0]}; expected: name=<value>; got: {item}'
                 .format_map(locals()))
 
-        if value:
-            value = JSONValue(value, name=name).load(tolerant=True)
-        else:
-            value = None
+        value = load_json_value(value)
+        self.add_item(items, name, value)
 
+    def add_item(self, items, name, value):
         items[name] = value
+
+
+class NestedDictAddAction(DictAddAction):
+
+    def add_item(self, items, name, value):
+        segments = name.split('.')
+        for segment in segments[:-1]:
+            items = items.setdefault(segment, {})
+        items[segments[-1]] = value
 
 
 class ListAppendAction(argparse.Action):
 
     def __call__(self, parser, namespace, value, option_string=None):
-        from .config import JSONValue
-
         if not hasattr(namespace, self.dest):
             setattr(namespace, self.dest, [])
         items = getattr(namespace, self.dest)
-        if value:
-            name = str(len(items))
-            value = JSONValue(value, name=name).load(tolerant=True)
-        else:
-            value = None
+        value = load_json_value(value)
         items.append(value)

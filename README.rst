@@ -1,13 +1,23 @@
 RunCommands
 +++++++++++
 
-A simple command runner that uses ``argparse`` from the Python standard library
-under the hood. Python 3 only (3.3 and up).
+A simple command runner that uses ``argparse`` from the Python standard
+library under the hood. Runs on Python 3 only (3.5 and up).
 
 There are two basic use cases:
 
-1. Standalone console scripts
-2. Collections of commands (similar to make, Fabric, etc)
+1. Standalone console scripts.
+2. Collections of commands (similar to make, Fabric, etc).
+
+Building on these, especially #2, there are a couple of more advanced
+use cases:
+
+1. A simple orchestration/deployment tool. If you have a simple build
+   process and just need to ``rsync`` some files to a server, a few
+   simple commands might be all you need.
+2. A wrapper for more sophisticated orchestration/deployment tools--an
+   alternative to the Bash scripts you might use to drive Ansible
+   playbooks and the like.
 
 Basic Usage
 ===========
@@ -20,12 +30,12 @@ Define a command:
     from runcommands.commands import local
 
     @command
-    def test(config):
-        local(config, 'python -m unittest discover .')
+    def test():
+        local('python -m unittest discover .')
 
 Show its help::
 
-    > runcommands test -h
+    > run test -h
     usage: test [-h]
 
     optional arguments:
@@ -33,14 +43,15 @@ Show its help::
 
 Run it::
 
-    > runcommands test
+    > run test
     ..........
     ----------------------------------------------------------------------
     Ran 0 tests in 0.000s
 
     OK
 
-Create a standalone console script using a standard setuptools entry point:
+Create a standalone console script using a standard setuptools entry
+point:
 
 .. code-block:: python
 
@@ -63,23 +74,20 @@ Run it (after reinstalling the package)::
 
     OK
 
-See the `main documentation`_ for more information on installation, defining
-& running commands, configuration, etc.
+See the `main documentation`_ for more information on installation,
+defining & running commands, configuration, etc.
 
 Features
 ========
 
-* Can be used to easily create standalone console scripts by simply defining
-  functions
-* Can be used to create collections of commands (similar to make, Fabric, etc)
-* Can run multiple commands in sequence: ``run --env production build deploy``
-* Uses ``argparse`` under the hood so that command line usage is familiar
-* Provides built-in help/usage for all commands via ``argparse``
-* Has a built-in system for specifying which environment a command should be
-  run (``--env production`` in the previous example)
-* Has a multi-layered configuration system
-* Provides command line completion (including example scripts for bash and
-  fish)
+* Easily create standalone console scripts: simply define a function and
+  wrap it with the ``@command`` decorator.
+* Create collections of commands (similar to make, Fabric, etc).
+* Run multiple commands in sequence: ``run build deploy``.
+* Uses ``argparse`` under the hood so command line usage is familiar.
+* Provides built-in help/usage for all commands via ``argparse``.
+* Provides command line completion (including example scripts for bash
+  and fish).
 
 Documentation
 =============

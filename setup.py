@@ -1,5 +1,3 @@
-import sys
-
 from setuptools import find_packages, setup
 
 with open('runcommands/__init__.py') as fp:
@@ -10,13 +8,6 @@ with open('runcommands/__init__.py') as fp:
 with open('README.rst') as fp:
     long_description = fp.read().strip()
 
-install_requires = [
-    'paramiko>=2.4.0',
-]
-
-if sys.version_info[:2] < (3, 4):
-    install_requires.append('enum34')
-
 setup(
     name='runcommands',
     version=__version__,
@@ -25,13 +16,14 @@ setup(
     author_email='self@wyattbaldwin.com',
     description='A simple command runner',
     long_description=long_description,
-    url='https://bitbucket.org/wyatt/runcommands',
+    keywords='commands',
+    url='https://github.com/wylee/runcommands',
+    install_requires=[
+        'Jinja2>=2.10',
+        'PyYAML>=3.12',
+    ],
     packages=find_packages(),
-    package_data={
-        'runcommands.completion': ['*/*'],
-        'runcommands.tests': ['*.cfg'],
-    },
-    install_requires=install_requires,
+    include_package_data=True,
     extras_require={
         'dev': [
             'coverage',
@@ -58,8 +50,8 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Topic :: Software Development :: Build Tools',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
     ],
 )

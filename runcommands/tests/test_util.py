@@ -4,22 +4,19 @@ from doctest import DocTestSuite
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from unittest import TestCase
 
-from runcommands.config import Config
-from runcommands.util.commands import copy_file
+from runcommands.commands import copy_file
 
 
 def load_tests(loader, tests, ignore):
     tests.addTests(DocTestSuite('runcommands.util.decorators'))
     tests.addTests(DocTestSuite('runcommands.util.misc'))
     tests.addTests(DocTestSuite('runcommands.util.path'))
+    tests.addTests(DocTestSuite('runcommands.util.string'))
     return tests
 
 
 @contextmanager
-def copy(contents, config=None, destination_dir=False, **kwargs):
-    if config is None:
-        config = Config(xyz='123')
-
+def copy(contents, destination_dir=False, **kwargs):
     with NamedTemporaryFile('w', delete=False) as tp:
         tp.write(contents)
 
@@ -27,12 +24,12 @@ def copy(contents, config=None, destination_dir=False, **kwargs):
 
     if destination_dir:
         with TemporaryDirectory() as destination:
-            path = copy_file(config, source, destination, **kwargs)
+            path = copy_file(source, destination, **kwargs)
             yield source, destination, path
             os.remove(source)
     else:
         destination = source + '.copy'
-        path = copy_file(config, source, destination, **kwargs)
+        path = copy_file(source, destination, **kwargs)
         yield source, destination, path
         os.remove(source)
         os.remove(path)
@@ -40,7 +37,7 @@ def copy(contents, config=None, destination_dir=False, **kwargs):
 
 class TestCopyFileCommand(TestCase):
 
-    def assertDestination(self, source, destination, path, expected_contents, remove=True):
+    def assertDestination(self, source, destination, path, expected_contents):
         self.assertExists(path)
         self.assertNotEqual(source, destination)
         self.assertNotEqual(source, path)
@@ -61,15 +58,18 @@ class TestCopyFileCommand(TestCase):
             self.assertDestination(source, destination, path, 'xyz')
 
     def test_copy_template_format(self):
-        with copy('{xyz} ${{xyz}}', template=True) as (source, destination, path):
+        with copy('{xyz} ${{xyz}}', template=True, context={'xyz': 123}) as paths:
+            source, destination, path = paths
             self.assertDestination(source, destination, path, '123 ${xyz}')
 
     def test_copy_template_string(self):
-        with copy('${xyz} $${xyz}', template='string') as (source, destination, path):
+        with copy('${xyz} $${xyz}', template='string', context={'xyz': 123}) as paths:
+            source, destination, path = paths
             self.assertDestination(source, destination, path, '123 ${xyz}')
 
     def test_copy_to_directory(self):
-        with copy('xyz', destination_dir=True) as (source, destination, path):
+        with copy('xyz', destination_dir=True) as paths:
+            source, destination, path = paths
             self.assertDestination(source, destination, path, 'xyz')
             self.assertEqual(os.path.dirname(path), destination)
             self.assertNotEqual(os.path.dirname(source), os.path.dirname(path))

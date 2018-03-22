@@ -1,18 +1,18 @@
 RunCommands Documentation
 +++++++++++++++++++++++++
 
-|project| is a simple, Python 3-only command runner that automatically
-generates `argparse`-style console scripts from function definitions.
+|project| is a simple, Python 3.5+ command runner that automatically
+generates `argparse`-style console scripts from functions.
 
 A basic run looks like this::
 
-    > run --env production build-static deploy --version 1.0
+    > run build-static deploy --version 1.0
 
 In this example, two commands, `build-static` and `deploy`, are being
-run with the production environment's configuration.
+run.
 
-One nice thing about using `argparse` behind the scenes is that help
-is built in::
+Some nice things about using `argparse` behind the scenes is that usage
+is familiar and help is built in::
 
     > run deploy --help
     usage: deploy [-h] [-v VERSION] ...
@@ -38,9 +38,8 @@ Contents
     installation
     quick-start
     defining-commands
-    running-commands
     built-in-commands
-    configuration
+    config
     api/index
 
 Indices and tables

@@ -2,7 +2,7 @@ from .misc import abort
 from .printer import printer
 
 
-def confirm(config, prompt='Really?', color='warning', yes_values=('y', 'yes'),
+def confirm(prompt='Really?', color='warning', yes_values=('y', 'yes'),
             abort_on_unconfirmed=False, abort_options=None):
     """Prompt for confirmation.
 
@@ -10,7 +10,6 @@ def confirm(config, prompt='Really?', color='warning', yes_values=('y', 'yes'),
     of the yes values or with Ctrl-C.
 
     Args:
-        config (Mapping): Only used to format ``prompt``
         prompt (str): Prompt to present user ["Really?"]
         color (string|Color|bool) Color to print prompt string; can be
             ``False`` or ``None`` to print without color ["yellow"]
@@ -18,19 +17,20 @@ def confirm(config, prompt='Really?', color='warning', yes_values=('y', 'yes'),
             [("y", "yes")]
         abort_on_unconfirmed (bool|int|str): When user does *not*
             confirm:
-                - If this is an integer, print "Aborted" to stdout if
-                  it's 0 or to stderr if it's not 0 and then exit with
-                  this code
-                - If this is a string, print it to stdout and exit with
-                  code 0
-                - If this is ``True`` (or any other truthy value), print
-                  "Aborted" to stdout and exit with code 0
+
+            - If this is an integer, print "Aborted" to stdout if
+              it's 0 or to stderr if it's not 0 and then exit with
+              this code
+            - If this is a string, print it to stdout and exit with
+              code 0
+            - If this is ``True`` (or any other truthy value), print
+              "Aborted" to stdout and exit with code 0
+
         abort_options (dict): Options to pass to :func:`abort` when not
             confirmed (these options will override any options set via
             ``abort_on_unconfirmed``)
 
     """
-    prompt = prompt.format_map(config)
     prompt = '{prompt} [{yes_value}/N] '.format(prompt=prompt, yes_value=yes_values[0])
 
     if isinstance(yes_values, str):
@@ -65,13 +65,13 @@ def confirm(config, prompt='Really?', color='warning', yes_values=('y', 'yes'),
             abort_options = {}
 
         if abort_on_unconfirmed is True:
-            abort_options.setdefault('code', 0)
+            abort_options.setdefault('return_code', 0)
         elif isinstance(abort_on_unconfirmed, int):
-            abort_options.setdefault('code', abort_on_unconfirmed)
+            abort_options.setdefault('return_code', abort_on_unconfirmed)
         elif isinstance(abort_on_unconfirmed, str):
             abort_options.setdefault('message', abort_on_unconfirmed)
         else:
-            abort_options.setdefault('code', 0)
+            abort_options.setdefault('return_code', 0)
 
         abort(**abort_options)
 

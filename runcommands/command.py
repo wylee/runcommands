@@ -1,40 +1,21 @@
 import argparse
 import inspect
+import signal
 import sys
 import time
 from collections import Mapping, OrderedDict
-from types import MethodType
 
 from .args import Arg, ArgConfig, HelpArg, BoolOrAction, DictAddAction, ListAppendAction
-from .const import DEFAULT_ENV
 from .exc import CommandError, RunCommandsError
-from .util import Hide, cached_property, camel_to_underscore, get_hr, printer
+from .util import cached_property, camel_to_underscore, get_hr, printer
 
 
-__all__ = ['command']
+__all__ = ['command', 'Command']
 
 
 class Command:
 
-    """Command.
-
-    Wraps a callable and provides a command line argument parser.
-
-    This is typically used via the ``command`` decorator::
-
-        from runcommands import command
-
-        @command
-        def my_command(config):
-            ...
-
-    It's also possible to use a class directly as a command::
-
-        @command
-        class MyCommand(Command):
-
-            def implementation(self, config):
-                ...
+    """Wraps a callable and provides a command line argument parser.
 
     Args:
         implementation (callable): A callable that implements the
@@ -45,19 +26,6 @@ class Command:
             underscores replaced with dashes).
         description (str): Description of command shown in command
             help. Defaults to ``implementation.__doc__``.
-        env (str): Env to run command in. If this is specified, the
-            command *will* be run in this env and may *only* be run in
-            this env. If this is set to :const:`DEFAULT_ENV`, the
-            command will be run in the configured default env.
-        default_env (str): Default env to run command in. If this is
-            specified, the command will be run in this env by default
-            and may also be run in any other env. If this is set to
-            :const:`DEFAULT_ENV`, the command will be run in the
-            configured default env.
-        config (dict): Additional or override config. This will
-            supplement or override config read from other sources.
-            Passed args take precedence over this config.
-            ``{'dotted.name': value}``
         timed (bool): Whether the command should be timed. Will print an
             info message showing how long the command took to complete
             when ``True``. Defaults to ``False``.
@@ -65,46 +33,106 @@ class Command:
             used to configure common base args instead of repeating the
             configuration for each subclass. Note that its keys should
             be actual parameter names and not normalized arg names.
+        debug (bool): When this is set, additional debugging info will
+            be shown.
+
+    This is typically used via the :func:`command` decorator::
+
+        from runcommands import command
+
+        @command
+        def my_command():
+            ...
+
+    Decorating a function with :func:`command` will create an instance
+    of :class:`Command` with the wrapped function as its implementation.
+
+    Args can be passed to :func:`command`, which will be passed through
+    to the :class:`Command` constructor::
+
+        @command(name='better-name')
+        def my_command():
+            ...
+
+    It's also possible to use a class directly as a command::
+
+        @command
+        class MyCommand(Command):
+
+            def implementation(self):
+                ...
+
+    Using the :func:`command` decorator on a class will create an
+    instance of the class in the namespace where the class is defined.
+
+    Command Names:
+
+    A command's name is derived from the normalized name of its
+    implementation function by default::
+
+        @command
+        def some_command():
+            ...
+
+        # Command name: some-command
+
+    A name can be set explicitly instead, in which case it *won't* be
+    normalized::
+
+        @command(name='do_stuff')
+        def some_command():
+            ...
+
+        # Command name: do_stuff
+
+    If the command is defined as a class, its name will be derived from
+    its class name by default (split into words then normalized)::
+
+        class SomeCommand(Command):
+            ...
+
+        # Command name: some-command
+
+    The `command` decorator or a class-level attribute can be used to
+    set the command's name explicitly::
+
+        @command(name='do_stuff')
+        class SomeCommand(Command):
+            ...
+
+        class SomeCommand(Command):
+            name = 'do_stuff'
+
+        # Command name in both cases: do_stuff
 
     """
 
-    def __init__(self, implementation=None, name=None, description=None, env=None,
-                 default_env=None, config=None, timed=False, arg_config=None):
-        if env is not None and default_env is not None:
-            raise CommandError('Only one of `env` or `default_env` may be specified')
-
+    def __init__(self, implementation=None, name=None, description=None, timed=False,
+                 arg_config=None, default_args=None, debug=False):
         if implementation is None:
             if not hasattr(self, 'implementation'):
                 raise CommandError(
                     'Missing implementation; it must be passed in as a function or defined as a '
                     'method on the command class')
+            default_name = self.__class__.name
         else:
             self.implementation = implementation
+            default_name = implementation.__name__
 
-        self.name = name or self.normalize_name(self.implementation.__name__)
+        self.name = (
+            name or
+            getattr(self.__class__, 'name', None) or
+            self.normalize_name(default_name))
+
         self.description = description or self.get_description_from_docstring(self.implementation)
-        self.env = env
-        self.default_env = default_env
-        self.config = config or {}
         self.timed = timed
         self.arg_config = arg_config or {}
-
-        qualified_name = '{self.implementation.__module__}.{self.implementation.__qualname__}'
-        qualified_name = qualified_name.format_map(locals())
-        self.qualified_name = qualified_name
-        self.defaults_path = 'defaults.{self.qualified_name}'.format_map(locals())
-        self.short_defaults_path = 'defaults.{self.name}'.format_map(locals())
+        self.debug = debug
+        self.default_args = default_args or {}
 
     @classmethod
-    def command(cls, name=None, description=None, env=None, default_env=None,
-                config=None, timed=False):
-        args = dict(
-            description=description,
-            env=env,
-            default_env=default_env,
-            config=config,
-            timed=timed,
-        )
+    def command(cls, name=None, description=None, timed=False):
+        args = dict(description=description, timed=timed)
 
         if isinstance(name, type):
             # Bare class decorator
@@ -136,177 +164,71 @@ class Command:
             description = '\n'.join(lines)
         return description
 
-    def get_run_env(self, specified_env, global_default_env):
-        env = self.env
-        default_env = self.default_env
+    def run(self, argv=None, **kwargs):
+        argv = sys.argv[1:] if argv is None else argv
 
-        if env is not None:
-            if env is DEFAULT_ENV:
-                env = global_default_env
-
-            if env is True:
-                # The command has no default env and requires one to be
-                # specified.
-                if not specified_env:
-                    raise CommandError(
-                        'The `{self.name}` command requires an env to be specified'
-                        .format_map(locals()))
-                run_env = specified_env
-            elif env is False:
-                # The command explicitly doesn't run in an env.
-                if specified_env:
-                    raise CommandError(
-                        'The `{self.name}` command may *not* be run in an env but '
-                        'the "{specified_env}" env was specified'.format_map(locals()))
-                run_env = None
-            else:
-                # The command may only be run in a designated env; make
-                # sure the specified env matches that env.
-                if specified_env and specified_env != env:
-                    raise CommandError(
-                        'The `{self.name}` command may be run only in the "{env}" env but '
-                        'the "{specified_env}" env was specified'.format_map(locals()))
-                run_env = env
-        elif default_env is not None:
-            if specified_env:
-                # If an env was specified, the command will be run in that env.
-                run_env = specified_env
-            elif default_env is True or default_env is DEFAULT_ENV:
-                # If no env was specified *and* the command indicates that it
-                # should be run in the global default env, the command will be
-                # run in the global default env.
-                run_env = global_default_env
-            else:
-                # Otherwise, the command will be run in whatever default env
-                # was indicated in the command definition.
-                run_env = default_env
-        else:
-            # The command was configured without any env options, so use
-            # the specified env (which may be None).
-            run_env = specified_env
-
-        return run_env
-
-    def run(self, run_config, argv, **kwargs):
         if self.timed:
             start_time = time.monotonic()
 
-        run_env = self.get_run_env(run_config.env, run_config.default_env)
-        run_config = run_config.copy(env=run_env)
-
-        config = Config(run=run_config, **self.config.copy())
-
-        all_args = self.parse_args(config, argv)
-        all_args.update(kwargs)
-        result = self(config, **all_args)
+        args = self.parse_args(argv)
+        args.update(kwargs)
+        result = self(**args)
 
         if self.timed:
-            hide = kwargs.get('hide', config.run.hide)
-            if not Hide.hide_stdout(hide):
-                self.print_elapsed_time(time.monotonic() - start_time)
+            self.print_elapsed_time(time.monotonic() - start_time)
 
         return result
 
-    def console_script(self, _argv=None, _run_args=None, **kwargs):
-        from .run import read_run_args
-
-        argv = sys.argv[1:] if _argv is None else _argv
-
+    def console_script(self, argv=None, **kwargs):
+        argv = sys.argv[1:] if argv is None else argv
+        if hasattr(self, 'sigint_handler'):
+            signal.signal(signal.SIGINT, self.sigint_handler)
         try:
-            run_config = RunConfig(commands={self.name: self})
-            run_config.update(read_run_args(self))
-            run_config.update(_run_args or {})
-            self.run(run_config, argv, **kwargs)
-        except RunCommandsError as exc:
-            printer.error(exc, file=sys.stderr)
-            return 1
+            result = self.run(argv, **kwargs)
+        except RunCommandsError as result:
+            if getattr(self, 'raise_on_error', False):
+                raise
+            return_code = result.return_code if hasattr(result, 'return_code') else 1
+            result_str = str(result)
+            if result_str:
+                if return_code:
+                    printer.error(result_str, file=sys.stderr)
+                else:
+                    printer.print(result_str)
+        else:
+            return_code = result.return_code if hasattr(result, 'return_code') else 0
+        return return_code
 
-        return 0
+    def __call__(self, *args, **kwargs):
+        passed = set(tuple(self.parameters)[:len(args)])
+        passed.update(kwargs)
 
-    def __call__(self, config, *args, **kwargs):
-        # Merge config from the command's definition along with options
-        # specified on the command line. We already do this in the run()
-        # method above, but we have to ensure it's done when the command
-        # is called directly too.
-        config = config.copy(self.config.copy())
-        debug = config.run.debug
-        commands = config.run.commands
-        replacement = commands.get(self.name)
-        replaced = replacement is not None and replacement is not self
+        defaults = {}
+        for name, value in self.default_args.items():
+            if name not in passed:
+                defaults[name] = value
 
-        if replaced:
-            if debug:
-                printer.debug('Command replaced:', self.name)
-                printer.debug('    ', self.qualified_name, '=>', replacement.qualified_name)
-            return replacement(config, *args, **kwargs)
-
-        if debug:
+        if self.debug:
             printer.debug('Command called:', self.name)
             printer.debug('    Received positional args:', args)
             printer.debug('    Received keyword args:', kwargs)
-
-        defaults = self.get_defaults(config)
+            if defaults:
+                printer.debug('    Added default args:', ', '.join(defaults))
 
         if defaults:
-            nonexistent_defaults = [n for n in defaults if n not in self.args]
-            if nonexistent_defaults:
-                nonexistent_defaults = ', '.join(nonexistent_defaults)
-                raise CommandError(
-                    'Nonexistent default options specified for {self.name}: {nonexistent_defaults}'
-                    .format_map(locals()))
+            kwargs.update(defaults)
 
-            positionals = OrderedDict()
-            for name, value in zip(self.positionals, args):
-                positionals[name] = value
-
-            for name in self.positionals:
-                present = name in positionals or name in kwargs
-                if not present and name in defaults:
-                    kwargs[name] = defaults[name]
-
-            for name in self.optionals:
-                present = name in kwargs
-                if not present and name in defaults:
-                    kwargs[name] = defaults[name]
-
-        def set_run_default(option):
-            # If all of the following are true, the global default value
-            # for the option will be injected into the options passed to
-            # the command for this run:
-            #
-            # - This command defines the option.
-            # - The option was not passed explicitly on this run.
-            # - A global default is set for the option (it's not None).
-            if option in self.args and option not in kwargs:
-                global_default = config._get_dotted('run.%s' % option, None)
-                if global_default is not None:
-                    kwargs[option] = global_default
-
-        set_run_default('echo')
-        set_run_default('hide')
-
-        if debug:
+        if self.debug:
             printer.debug('Running command:', self.name)
             printer.debug('    Final positional args:', repr(args))
             printer.debug('    Final keyword args:', repr(kwargs))
 
-        return self.implementation(config, *args, **kwargs)
+        return self.implementation(*args, **kwargs)
 
-    def get_defaults(self, config):
-        defaults = config._get_dotted(self.defaults_path, RawConfig())
-        defaults.update(config._get_dotted(self.short_defaults_path, RawConfig()))
-        return defaults
-
-    def get_default(self, config, name, default=None):
-        defaults = self.get_defaults(config)
-        return defaults.get(name, default)
-
-    def parse_args(self, config, argv):
-        debug = config.run.debug
-        if debug:
+    def parse_args(self, argv):
+        if self.debug:
             printer.debug('Parsing args for command `{self.name}`: {argv}'.format_map(locals()))
-
-        parsed_args = self.get_arg_parser(config).parse_args(argv)
+        parsed_args = self.arg_parser.parse_args(argv)
         parsed_args = vars(parsed_args)
         for k, v in parsed_args.items():
             if v == '':
@@ -314,21 +236,32 @@ class Command:
         return parsed_args
 
     def normalize_name(self, name):
+        name = camel_to_underscore(name)
         # Chomp a single trailing underscore *if* the name ends with
         # just one trailing underscore. This accommodates the convention
         # of adding a trailing underscore to reserved/built-in names.
         if name.endswith('_'):
             if name[-2] != '_':
                 name = name[:-1]
-
         name = name.replace('_', '-')
         name = name.lower()
         return name
 
-    def get_arg_config(self, parameter):
-        annotation = parameter.annotation
-        if annotation is parameter.empty:
-            annotation = self.arg_config.get(parameter.name) or ArgConfig()
+    def find_arg(self, name):
+        """Find arg by normalized arg name or parameter name."""
+        name = self.normalize_name(name)
+        return self.args.get(name)
+
+    def find_parameter(self, name):
+        """Find parameter by name or normalized arg name."""
+        name = self.normalize_name(name)
+        arg = self.args.get(name)
+        return None if arg is None else arg.parameter
+
+    def get_arg_config(self, param):
+        annotation = param.annotation
+        if annotation is param.empty:
+            annotation = self.arg_config.get(param.name) or ArgConfig()
         elif isinstance(annotation, type):
             annotation = ArgConfig(type=annotation)
         elif isinstance(annotation, str):
@@ -341,24 +274,10 @@ class Command:
         first_char = name[0]
         first_char_upper = first_char.upper()
 
-        if first_char == 'e':
-            # Ensure echo gets -E for consistency.
-            if name == 'echo':
-                candidates = ('E',)
-            elif 'echo' not in names:
-                candidates = (first_char, first_char_upper)
-            else:
-                candidates = (first_char,)
-        elif first_char == 'h':
-            # Ensure help gets -h and hide gets -H for consistency.
-            if name == 'help':
-                candidates = (first_char,)
-            elif name == 'hide':
-                candidates = (first_char_upper,)
-            elif 'hide' not in names:
-                candidates = (first_char_upper,)
-            else:
-                candidates = ()
+        if name == 'help':
+            candidates = (first_char,)
+        elif name.startswith('h'):
+            candidates = (first_char_upper,)
         else:
             candidates = (first_char, first_char_upper)
 
@@ -375,6 +294,8 @@ class Command:
             return '--no'
         if long_option == '--no':
             return '--yes'
+        if long_option.startswith('--no-'):
+            return long_option.replace('--no-', '--', 1)
         return long_option.replace('--', '--no-', 1)
 
     def print_elapsed_time(self, elapsed_time):
@@ -386,14 +307,21 @@ class Command:
         printer.info(msg)
 
     @cached_property
-    def args(self):
-        """Create args from function parameters."""
+    def parameters(self):
         implementation = self.implementation
         signature = inspect.signature(implementation)
-        i = 2 if isinstance(implementation, MethodType) else 1
-        parameters = tuple(signature.parameters.items())[i:]
-        parameters = OrderedDict(parameters)
+        params = tuple(signature.parameters.items())
+        params = OrderedDict(params)
+        return params
 
+    @cached_property
+    def has_kwargs(self):
+        return any(p.kind is p.VAR_KEYWORD for p in self.parameters.values())
+
+    @cached_property
+    def args(self):
+        """Create args from function parameters."""
+        params = self.parameters
         args = OrderedDict()
 
         # This will be overridden if the command explicitly defines an
@@ -406,28 +334,32 @@ class Command:
         get_long_option = self.get_long_option_for_arg
         get_inverse_option = self.get_inverse_option_for_arg
 
-        names = {normalize_name(name) for name in parameters}
+        names = {normalize_name(name) for name in params}
 
         used_short_options = set()
-        for parameter in parameters.values():
-            annotation = get_arg_config(parameter)
+        for param in params.values():
+            annotation = get_arg_config(param)
             short_option = annotation.short_option
             if short_option:
                 used_short_options.add(short_option)
 
-        for name, parameter in parameters.items():
+        for name, param in params.items():
             name = normalize_name(name)
 
-            if name.startswith('_') or parameter.kind is parameter.KEYWORD_ONLY:
+            if name.startswith('_') or param.kind is param.KEYWORD_ONLY:
                 continue
 
-            annotation = get_arg_config(parameter)
+            annotation = get_arg_config(param)
             type = annotation.type
             choices = annotation.choices
             help = annotation.help
+            inverse_help = annotation.inverse_help
             short_option = annotation.short_option
+            long_option = annotation.long_option
+            inverse_option = annotation.inverse_option
+            action = annotation.action
 
-            if parameter.default is parameter.empty:  # Positional
+            if param.default is param.empty:  # Positional
                 short_option = None
                 long_option = None
                 inverse_option = None
@@ -435,20 +367,24 @@ class Command:
                 if not short_option:
                     short_option = get_short_option(name, names, used_short_options)
                     used_short_options.add(short_option)
-                long_option = get_long_option(name)
-                inverse_option = get_inverse_option(long_option)
+                if not long_option:
+                    long_option = get_long_option(name)
+                if not inverse_option:
+                    inverse_option = get_inverse_option(long_option)
 
             args[name] = Arg(
                 command=self,
-                parameter=parameter,
+                parameter=param,
                 name=name,
                 type=type,
-                default=parameter.default,
+                default=param.default,
                 choices=choices,
                 help=help,
+                inverse_help=inverse_help,
                 short_option=short_option,
                 long_option=long_option,
                 inverse_option=inverse_option,
+                action=action,
             )
 
         option_map = OrderedDict()
@@ -461,8 +397,7 @@ class Command:
             if len(option_args) > 1:
                 names = ', '.join(a.parameter.name for a in option_args)
                 message = (
-                    'Option {option} of command {self.qualified_name} maps to multiple '
-                    'parameters: {names}')
+                    'Option {option} of command {self.name} maps to multiple parameters: {names}')
                 message = message.format_map(locals())
                 raise CommandError(message)
 
@@ -487,10 +422,8 @@ class Command:
                 option_map[option] = arg
         return option_map
 
-    def get_arg_parser(self, config=None):
-        if config is None:
-            config = Config()
-
+    @cached_property
+    def arg_parser(self):
         use_default_help = isinstance(self.args['help'], HelpArg)
 
         parser = argparse.ArgumentParser(
@@ -502,16 +435,13 @@ class Command:
             allow_abbrev=False,
         )
 
-        defaults = self.get_defaults(config)
+        default_args = self.default_args
 
         for name, arg in self.args.items():
             if name == 'help' and use_default_help:
                 continue
 
-            if arg.is_positional and name in defaults:
-                default = defaults[name]
-            else:
-                default = arg.default
+            param = arg.parameter
 
             kwargs = {
                 'help': arg.help,
@@ -523,18 +453,29 @@ class Command:
 
             if arg.is_positional:
                 kwargs['type'] = arg.type
+                if arg.action is not None:
+                    kwargs['action'] = arg.action
                 if arg.choices is not None:
                     kwargs['choices'] = arg.choices
                 # Make positionals optional if a default value is
                 # specified via config.
-                if default is not arg.empty:
+                if param.name in default_args:
                     kwargs['nargs'] = '?'
-                    kwargs['default'] = default
                 kwargs['metavar'] = metavar
-                parser.add_argument(arg.parameter.name, **kwargs)
+                parser.add_argument(param.name, **kwargs)
             else:
                 options = arg.options
-                kwargs['dest'] = arg.parameter.name
+                kwargs['dest'] = param.name
+
+                if arg.is_bool or arg.is_bool_or:
+                    if arg.inverse_help:
+                        inverse_help = arg.inverse_help
+                    elif arg.help:
+                        first_letter = kwargs['help'][0].lower()
+                        the_rest = kwargs['help'][1:]
+                        inverse_help = 'Don\'t {first_letter}{the_rest}'.format_map(locals())
+                    else:
+                        inverse_help = arg.help
 
                 if arg.is_bool_or:
                     # Allow --xyz or --xyz=<value>
@@ -551,20 +492,25 @@ class Command:
 
                     # Allow --no-xyz
                     false_kwargs = kwargs.copy()
+                    false_kwargs['help'] = inverse_help
                     parser.add_argument(options[-1], action='store_false', **false_kwargs)
                 elif arg.is_bool:
                     parser.add_argument(*options[:-1], action='store_true', **kwargs)
-                    parser.add_argument(options[-1], action='store_false', **kwargs)
+
+                    false_kwargs = kwargs.copy()
+                    false_kwargs['help'] = inverse_help
+                    parser.add_argument(options[-1], action='store_false', **false_kwargs)
                 elif arg.is_dict:
-                    kwargs['action'] = DictAddAction
+                    kwargs['action'] = arg.action or DictAddAction
                     kwargs['metavar'] = metavar
                     parser.add_argument(*options, **kwargs)
                 elif arg.is_list:
-                    kwargs['action'] = ListAppendAction
+                    kwargs['action'] = arg.action or ListAppendAction
                     kwargs['metavar'] = metavar
                     parser.add_argument(*options, **kwargs)
                 else:
                     kwargs['type'] = arg.type
+                    kwargs['action'] = arg.action
                     if arg.choices is not None:
                         kwargs['choices'] = arg.choices
                     kwargs['metavar'] = metavar
@@ -574,14 +520,14 @@ class Command:
 
     @property
     def help(self):
-        help_ = self.get_arg_parser().format_help()
+        help_ = self.arg_parser.format_help()
         help_ = help_.split(': ', 1)[1]
         help_ = help_.strip()
         return help_
 
     @property
     def usage(self):
-        usage = self.get_arg_parser().format_usage()
+        usage = self.arg_parser.format_usage()
         usage = usage.split(': ', 1)[1]
         usage = usage.strip()
         return usage
@@ -597,7 +543,3 @@ class Command:
 
 
 command = Command.command
-
-
-# Avoid circular import
-from .config import Config, RawConfig, RunConfig  # noqa: E402

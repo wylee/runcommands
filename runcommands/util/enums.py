@@ -1,4 +1,5 @@
 import enum
+import subprocess
 
 
 class Color(enum.Enum):
@@ -18,28 +19,18 @@ class Color(enum.Enum):
         return self.value
 
 
-class Hide(enum.Enum):
+class StreamOptions(enum.Enum):
 
+    """Choices for stream handling."""
+
+    capture = 'capture'
+    hide = 'hide'
     none = 'none'
-    stdout = 'stdout'
-    stderr = 'stderr'
-    all = 'all'
 
-    @classmethod
-    def hide_stdout(cls, value):
-        if value is None:
-            return False
-        if isinstance(value, bool):
-            return value
-        return cls(value) in (cls.stdout, cls.all)
-
-    @classmethod
-    def hide_stderr(cls, value):
-        if value is None:
-            return False
-        if isinstance(value, bool):
-            return value
-        return cls(value) in (cls.stderr, cls.all)
-
-    def __str__(self):
-        return self.name
+    @property
+    def option(self):
+        return {
+            'capture': subprocess.PIPE,
+            'hide': subprocess.DEVNULL,
+            'none': None,
+        }[self.value]

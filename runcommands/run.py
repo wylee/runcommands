@@ -1,288 +1,360 @@
+import ast
 import os
-import re
 import sys
-from configparser import ConfigParser
+import yaml
+
+from jinja2 import Environment as TemplateEnvironment, TemplateRuntimeError
 
 from . import __version__
-from .args import ArgConfig
-from .command import command, Command
-from .const import DEFAULT_COMMANDS_MODULE, DEFAULT_CONFIG_FILE
-from .exc import RunCommandsError, RunnerError
+from .args import arg, NestedDictAddAction
+from .command import Command
+from .collection import Collection
+from .const import DEFAULT_COMMANDS_MODULE
+from .exc import RunnerError
 from .runner import CommandRunner
-from .util import printer
+from .util import abs_path, merge_dicts, printer
 
 
-@command(name='runcommands')
-def run(_,
-        commands_module: ArgConfig(short_option='-m') = DEFAULT_COMMANDS_MODULE,
-        # config
-        config_file=None,
-        env=None,
-        default_env=None,
-        # options
-        options={},
-        version=None,
-        # output
-        echo=False,
-        hide=False,
-        debug=False,
-        # info/help
-        info=False,
-        list_commands=False,
-        list_envs=False,
-        *,
-        all_argv=(),
-        run_argv=(),
-        command_argv=(),
-        cli_args=()):
-    """Run one or more commands in succession.
+class Run(Command):
 
-    For example, assume the commands ``local`` and ``remote`` have been
-    defined; the following will run ``ls`` first on the local host and
-    then on the remote host::
+    name = 'runcommands'
 
-        runcommands local ls remote <host> ls
-
-    When a command name is encountered in ``argv``, it will be considered
-    the starting point of the next command *unless* the previous item in
-    ``argv`` was an option like ``--xyz`` that expects a value (i.e.,
-    it's not a flag).
-
-    To avoid ambiguity when an option value matches a command name, the
-    value can be prepended with a colon to force it to be considered
-    a value and not a command name.
-
-    """
-    show_info = info or list_commands or list_envs or not command_argv or debug
-    print_and_exit = info or list_commands or list_envs
-
-    if show_info:
-        print('RunCommands', __version__)
-
-    if debug:
-        printer.debug('All args:', all_argv)
-        printer.debug('Run args:', run_argv)
-        printer.debug('Command args:', command_argv)
-        echo = True
-
-    all_command_run_args = {}
-    config_parser = make_run_args_config_parser()
-
-    for section in config_parser:
-        match = re.search(r'^runcommands:(?P<name>.+)$', section)
-        if match:
-            name = match.group('name')
-            command_run_args = {}
-            command_run_args.update(read_run_args(section, config_parser))
-            command_run_args.update(cli_args)
-            all_command_run_args[name] = command_run_args
-
-    if not config_file and os.path.isfile(DEFAULT_CONFIG_FILE):
-        config_file = DEFAULT_CONFIG_FILE
-
-    options = options.copy()
-
-    for name, value in options.items():
-        if name in run.optionals:
-            raise RunnerError(
-                'Cannot pass {name} via --option; use --{option_name} instead'
-                .format(name=name, option_name=name.replace('_', '-')))
-
-    if version is not None:
-        options['version'] = version
-
-    runner = CommandRunner(
-        commands_module,
-        config_file=config_file,
-        env=env,
-        default_env=default_env,
-        options=options,
-        echo=echo,
-        hide=hide,
-        debug=debug,
+    allowed_config_file_args = (
+        'defaults',
+        'globals_',
+        'env',
+        'version',
+        'environ',
+        'default_args',
     )
 
-    if print_and_exit:
-        if list_envs:
-            runner.print_envs()
-        if list_commands:
+    raise_on_error = True
+
+    def implementation(self,
+                       commands_module: arg(short_option='-m') = DEFAULT_COMMANDS_MODULE,
+                       config_file: arg(short_option='-f') = None,
+                       # Variables
+                       defaults: arg(
+                           type=dict,
+                           short_option='-s',
+                           long_option='--set',
+                           action=NestedDictAddAction,
+                           help='Default variables; will be injected into itself, globals, '
+                                'default args, and environment variables'
+                       ) = None,
+                       globals_: arg(
+                           type=dict,
+                           action=NestedDictAddAction,
+                           help='Global variables & default args for *all* commands; will be '
+                                'injected into itself, default args, and environment variables '
+                                '(higher precedence than defaults and keyword args)'
+                       ) = None,
+                       # Special variables
+                       env: arg(help='Will be added to globals') = None,
+                       version: arg(help='Will be added to globals') = None,
+                       echo: arg(type=bool, help='Will be added to globals') = None,
+                       # Environment variables
+                       environ: arg(
+                           type=dict,
+                           help='Additional environment variables; '
+                                'added just before commands are run',
+                       ) = None,
+                       # Meta
+                       info: arg(help='Show info and exit') = False,
+                       list_commands: arg(help='Show info & commands and exit') = False,
+                       debug: arg(
+                           type=bool,
+                           help='Print debugging info & re-raise exceptions; also added to globals'
+                       ) = None,
+                       *,
+                       all_argv=(),
+                       run_argv=(),
+                       command_argv=(),
+                       cli_args=None):
+        """Run one or more commands in succession.
+
+        For example, assume the commands ``local`` and ``remote`` have been
+        defined; the following will run ``ls`` first on the local host and
+        then on the remote host::
+
+            runcommands local ls remote <host> ls
+
+        When a command name is encountered in ``argv``, it will be considered
+        the starting point of the next command *unless* the previous item in
+        ``argv`` was an option like ``--xyz`` that expects a value (i.e.,
+        it's not a flag).
+
+        To avoid ambiguity when an option value matches a command name, the
+        value can be prepended with a colon to force it to be considered
+        a value and not a command name.
+
+        """
+        self.raise_on_error = bool(debug)
+
+        collection = Collection.load_from_module(commands_module)
+        config_file = self.find_config_file(config_file)
+        defaults = defaults or {}
+        globals_ = globals_ or {}
+        environ = environ or {}
+        cli_args = cli_args or {}
+
+        if env or version or echo is not None or debug is not None:
+            cli_args.setdefault('globals_', globals_)
+            if env:
+                globals_['env'] = env
+            if version:
+                globals_['version'] = version
+            if echo is not None:
+                globals_['echo'] = echo
+            if debug is not None:
+                globals_['debug'] = debug
+
+        if config_file:
+            args = {k: v for (k, v) in locals().copy().items() if k in cli_args}
+            args_from_file = self.read_config_file(config_file, collection)
+            args = merge_dicts(args_from_file, args)
+
+            defaults = args.get('defaults', defaults)
+            globals_ = args.get('globals_', globals_)
+            env = args.get('env', env)
+            version = args.get('version', version)
+            echo = args.get('echo', version)
+            environ = args.get('environ', environ)
+            debug = args.get('debug', debug)
+
+            default_args = {name: {} for name in collection}
+            default_args = merge_dicts(default_args, args_from_file.get('default_args') or {})
+
+            for command_name, command_default_args in default_args.items():
+                command = collection[command_name]
+                for name, value in globals_.items():
+                    param = command.find_parameter(name)
+                    if param is not None:
+                        if param.name not in command_default_args:
+                            command_default_args[param.name] = value
+                    elif command.has_kwargs:
+                        name = name.replace('-', '_')
+                        command_default_args[name] = value
+
+            default_args = {name: args for name, args in default_args.items() if args}
+        else:
+            default_args = {}
+
+        show_info = info or list_commands or not command_argv or debug
+        print_and_exit = info or list_commands
+
+        results = self.interpolate(defaults, globals_, default_args, environ)
+        defaults, globals_, default_args, environ = results
+
+        if show_info:
+            print('RunCommands', __version__)
+
+        if debug:
+            print()
+            printer.debug('Commands module:', commands_module)
+            printer.debug('Config file:', config_file)
+            printer.debug('All args:', all_argv)
+            printer.debug('Run args:', run_argv)
+            printer.debug('Command args:', command_argv)
+            items = (
+                ('Defaults:', defaults),
+                ('Globals:', globals_),
+                ('Default args:', default_args),
+                ('Environment variables:', environ),
+            )
+            for label, data in items:
+                if data:
+                    printer.debug(label)
+                    for k in sorted(data):
+                        v = data[k]
+                        printer.debug('  - {k} = {v!r}'.format_map(locals()))
+
+        if environ:
+            os.environ.update(environ)
+
+        collection.set_attrs(debug=debug)
+        collection.set_default_args(default_args)
+        runner = CommandRunner(collection, debug)
+
+        if print_and_exit:
+            if list_commands:
+                runner.print_usage()
+        elif not command_argv:
+            printer.warning('\nNo command(s) specified')
             runner.print_usage()
-    elif not command_argv:
-        printer.warning('\nNo command(s) specified')
-        runner.print_usage()
-    else:
-        runner.run(command_argv, all_command_run_args)
-
-
-def read_run_args(section, parser=None):
-    """Read run args from file and environment."""
-    if parser is None:
-        parser = make_run_args_config_parser()
-
-    if isinstance(section, Command):
-        name = section.name
-        if name == 'runcommands':
-            section = 'runcommands'
         else:
-            section = 'runcommands:{name}'.format(name=name)
+            runner.run(command_argv)
 
-    if section == 'runcommands':
-        sections = ['runcommands']
-    elif section.startswith('runcommands:'):
-        sections = ['runcommands', section]
-    else:
-        raise ValueError('Bad section: %s' % section)
+    def run(self, argv, **kwargs):
+        all_argv, run_argv, command_argv = self.partition_argv(argv)
+        cli_args = self.parse_args(run_argv)
+        kwargs.update({
+            'all_argv': all_argv,
+            'run_argv': run_argv,
+            'command_argv': command_argv,
+            'cli_args': cli_args,
+        })
+        return super().run(run_argv, **kwargs)
 
-    sections = [section for section in sections if section in parser]
+    def partition_argv(self, argv=None):
+        if argv is None:
+            argv = sys.argv[1:]
 
-    items = {}
-    for section in sections:
-        items.update(parser[section])
+        if not argv:
+            return argv, [], []
 
-    option_map = run.option_map
-    option_template = '--{name}={value}'
-    argv = []
+        if '--' in argv:
+            i = argv.index('--')
+            return argv, argv[:i], argv[i + 1:]
 
-    for name, value in items.items():
-        option_name = '--{name}'.format(name=name)
-        option = option_map.get(option_name)
+        run_argv = []
+        option = None
+        option_map = self.option_map
+        parser = self.arg_parser
+        parse_optional = parser._parse_optional
 
-        value = value.strip()
-
-        true_values = ('true', 't', 'yes', 'y', '1')
-        false_values = ('false', 'f', 'no', 'n', '0')
-        bool_values = true_values + false_values
-
-        if option is not None:
-            is_bool = option.is_bool
-            if option.name == 'hide' and value not in bool_values:
-                is_bool = False
-            is_dict = option.is_dict
-            is_list = option.is_list
-        else:
-            is_bool = False
-            is_dict = False
-            is_list = False
-
-        if is_bool:
-            true = value in true_values
-            if name == 'no':
-                item = '--no' if true else '--yes'
-            elif name.startswith('no-'):
-                option_yes_name = '--{name}'.format(name=name[3:])
-                item = option_name if true else option_yes_name
-            elif name == 'yes':
-                item = '--yes' if true else '--no'
+        for i, a in enumerate(argv):
+            option_data = parse_optional(a)
+            if option_data is not None:
+                # Arg looks like an option (according to argparse).
+                action, name, value = option_data
+                if name not in option_map:
+                    # Unknown option.
+                    break
+                run_argv.append(a)
+                if value is None:
+                    # The option's value will be expected on the next pass.
+                    option = option_map[name]
+                else:
+                    # A value was supplied with -nVALUE, -n=VALUE, or
+                    # --name=VALUE.
+                    option = None
+            elif option is not None:
+                choices = action.choices or ()
+                if option.takes_value:
+                    run_argv.append(a)
+                    option = None
+                elif a in choices or hasattr(choices, a):
+                    run_argv.append(a)
+                    option = None
+                else:
+                    # Unexpected option value
+                    break
             else:
-                option_no_name = '--no-{name}'.format(name=name)
-                item = option_name if true else option_no_name
-            argv.append(item)
-        elif is_dict or is_list:
-            values = value.splitlines()
-            if len(values) == 1:
-                values = values[0].split()
-            values = (v.strip() for v in values)
-            values = (v for v in values if v)
-            argv.extend(option_template.format(name=name, value=v) for v in values)
-        else:
-            item = option_template.format(name=name, value=value)
-            argv.append(item)
-
-    if argv:
-        arg_parser = run.get_arg_parser()
-        args, remaining = arg_parser.parse_known_args(argv)
-        if remaining:
-            raise RunCommandsError(
-                'Unknown args read from {file_name}: {remaining}'
-                .format(file_name=parser.file_name, remaining=' '.join(remaining)))
-        args = vars(args)
-    else:
-        args = {}
-
-    prefix = 'RUNCOMMANDS_'
-    prefix_len = len(prefix)
-    for key in os.environ:
-        if not key.startswith(prefix):
-            continue
-        name = key[prefix_len:].lower()
-        if name not in run.optionals:
-            raise RunCommandsError('Unknown arg from {key}: {name}'.format_map(locals()))
-        value = os.environ[key]
-        args[name] = value
-
-    return args
-
-
-def make_run_args_config_parser():
-    file_names = ('runcommands.cfg', 'setup.cfg')
-
-    config_parser = ConfigParser(empty_lines_in_values=False)
-    config_parser.optionxform = lambda s: s
-
-    for file_name in file_names:
-        if os.path.isfile(file_name):
-            with open(file_name) as config_parser_fp:
-                config_parser.read_file(config_parser_fp)
-            break
-    else:
-        file_name = None
-
-    config_parser.file_name = file_name
-    return config_parser
-
-
-def partition_argv(argv=None):
-    if argv is None:
-        argv = sys.argv[1:]
-
-    if not argv:
-        return argv, [], []
-
-    if '--' in argv:
-        i = argv.index('--')
-        return argv, argv[:i], argv[i + 1:]
-
-    run_argv = []
-    option = None
-    option_map = run.option_map
-    parser = run.get_arg_parser()
-    parse_optional = parser._parse_optional
-
-    for i, arg in enumerate(argv):
-        option_data = parse_optional(arg)
-        if option_data is not None:
-            # Arg looks like an option (according to argparse).
-            action, name, value = option_data
-            if name not in option_map:
-                # Unknown option.
-                break
-            run_argv.append(arg)
-            if value is None:
-                # The option's value will be expected on the next pass.
-                option = option_map[name]
-            else:
-                # A value was supplied with -nVALUE, -n=VALUE, or
-                # --name=VALUE.
-                option = None
-        elif option is not None:
-            choices = action.choices or ()
-            if option.takes_value:
-                run_argv.append(arg)
-                option = None
-            elif arg in choices or hasattr(choices, arg):
-                run_argv.append(arg)
-                option = None
-            else:
-                # Unexpected option value
+                # The first arg doesn't look like an option (it's probably
+                # a command name).
                 break
         else:
-            # The first arg doesn't look like an option (it's probably
-            # a command name).
-            break
-    else:
-        # All args were consumed by run command; none remain.
-        i += 1
+            # All args were consumed by run command; none remain.
+            i += 1
 
-    remaining = argv[i:]
+        remaining = argv[i:]
 
-    return argv, run_argv, remaining
+        return argv, run_argv, remaining
+
+    def find_config_file(self, config_file):
+        if config_file:
+            config_file = abs_path(config_file)
+        elif os.path.exists('commands.yaml'):
+            config_file = abs_path('commands.yaml')
+        return config_file
+
+    def read_config_file(self, config_file, collection):
+        return self._read_config_file(config_file, collection)
+
+    def _read_config_file(self, config_file, collection):
+        with open(config_file) as fp:
+            args = yaml.load(fp) or {}
+
+        extends = args.pop('extends', None)
+        default_args = args.pop('default_args', args.pop('default-args', None)) or {}
+
+        for name in tuple(args):
+            parameter = self.find_parameter(name)
+            if parameter is None:
+                raise RunnerError(
+                    'Unknown arg specified in config file {config_file}: {name}'
+                    .format_map(locals()))
+            if parameter.name not in self.allowed_config_file_args:
+                raise RunnerError(
+                    'Arg cannot be specified in config file: {name}'
+                    .format_map(locals()))
+            if parameter.name != name:
+                args[parameter.name] = args.pop(name)
+
+        for command_name in tuple(default_args):
+            try:
+                command = collection[command_name]
+            except KeyError:
+                raise RunnerError(
+                    'Unknown command in default args section of {config_file}: {command_name}'
+                    .format_map(locals()))
+            if command.name != command_name:
+                default_args[command.name] = default_args.pop(command_name)
+
+        if default_args:
+            args['default_args'] = default_args
+
+        if extends:
+            extends = abs_path(extends, relative_to=os.path.dirname(config_file))
+            extended_args = self._read_config_file(extends, collection)
+            args = merge_dicts(extended_args, args)
+
+        return args
+
+    def interpolate(self, defaults, globals_, default_args, environ):
+        environment = TemplateEnvironment()
+        environment.globals = defaults
+
+        if defaults:
+            defaults = self._interpolate(environment, defaults)
+
+        if globals_:
+            globals_ = self._interpolate(environment, globals_, globals_)
+            # HACK: Covers the case where a global value refers to an
+            #       item that's in both defaults and globals.
+            globals_ = self._interpolate(environment, globals_)
+
+        if default_args:
+            context = merge_dicts(globals_, default_args)
+            default_args = self._interpolate(environment, default_args, context)
+
+        if environ:
+            environ = self._interpolate(environment, environ, globals_)
+
+        return defaults, globals_, default_args, environ
+
+    def _interpolate(self, environment, obj, context=None):
+        context = context or {}
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                obj[k] = self._interpolate(environment, v, context)
+        elif isinstance(obj, list):
+            for i, v in enumerate(obj):
+                obj[i] = self._interpolate(environment, v, context)
+        elif isinstance(obj, str):
+            while True:
+                if '{{' not in obj:
+                    break
+                original_obj = obj
+                template = environment.from_string(obj)
+                try:
+                    obj = template.render(context)
+                except TemplateRuntimeError as exc:
+                    raise RunnerError(
+                        'Could not render template {obj!r} with context {context!r}: {exc}'
+                        .format_map(locals()))
+                if obj == original_obj:
+                    break
+            try:
+                obj = ast.literal_eval(obj)
+            except (SyntaxError, ValueError):
+                pass
+        return obj
+
+    def sigint_handler(self, _sig_num, _frame):
+        printer.warning('Aborted')
+        sys.exit(0)
+
+
+run = Run()

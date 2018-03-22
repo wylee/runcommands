@@ -8,10 +8,10 @@ Commands are defined like so:
     from runcommands import command
 
     # Pull in some pre-defined commands
-    from runcommands.commands import local, show_config
+    from runcommands.commands import copy_file, local
 
     @command
-    def hello(config, name=None):
+    def hello(name=None):
         """Greet someone (or the whole world)."""
         if name:
             print('Hello,', name)
@@ -24,12 +24,14 @@ Listing Commands
 Once some commands are defined (and/or imported), they can be listed on
 the command line like this::
 
-    > runcommands -l
-    RunCommands 1.0a15.dev0
+    > run -l
+    RunCommands 1.0a28
 
     Available commands:
 
-        hello local show-config
+        copy-file
+        hello
+        local
 
     For detailed help on a command: runcommands <command> --help
 
@@ -38,7 +40,7 @@ Showing a Command's Help/Usage
 
 Help for a command can be shown like this::
 
-    > runcommands hello --help
+    > run hello --help
     usage: hello [-h] [-n NAME]
 
     Greet someone (or the whole world)

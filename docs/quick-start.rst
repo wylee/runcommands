@@ -28,12 +28,15 @@ project. In that module, you can import the built-in commands like this:
 .. code-block:: python
 
     # commands.py
-    from runcommands.commands import local, remote, show_config
+    from runcommands.commands import copy_file, local
 
 And then run them like this::
 
     > run local --help
-    usage: local [-h] [-C CD] [-p PATH] [-P PREPEND_PATH] [-a APPEND_PATH] [-s]
+    usage: local [-h] [-c CD] [-e ENVIRON] [-r] [--no-replace-env] [-p PATH] [-s]
+                 [--no-shell] [-S STDOUT] [--stderr STDERR] [-E] [--no-echo] [-R]
+                 [--no-raise-on-error]
+                 ARGS
     ...
     > run local ls
     ...
@@ -44,11 +47,11 @@ Here's how you define a custom command:
 
     # commands.py
     from runcommands import command
-    from runcommands.commands import local, remote, show_config
+    from runcommands.commands import copy_file, local
 
     @command
-    def test(config, where='.'):
-        local(config, ('python -m unittest discover', where))
+    def test(where='.'):
+        local(['python -m unittest discover', where])
 
 The new `test` command can be run like this::
 

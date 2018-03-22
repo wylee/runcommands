@@ -2,55 +2,46 @@ import glob
 import os
 import shlex
 
+from ..args import arg
+from ..collection import Collection
 from ..command import command
-from ..const import DEFAULT_COMMANDS_MODULE, DEFAULT_CONFIG_FILE
-from ..exc import RunnerError
-from ..run import run, partition_argv, read_run_args
-from ..runner import CommandRunner
+from ..const import DEFAULT_COMMANDS_MODULE
+from ..run import run
 
 
 @command
-def complete(config, command_line, current_token, position, shell: dict(choices=('bash', 'fish'))):
+def complete(command_line,
+             current_token,
+             position,
+             shell: arg(choices=('bash', 'fish'))):
     """Find completions for current command.
 
     This assumes that we'll handle all completion logic here and that
     the shell's automatic file name completion is disabled.
 
     Args:
-        config: Config
         command_line: Command line
         current_token: Token at cursor
         position: Current cursor position
         shell: Name of shell
 
     """
-    debug = config.run.debug
     position = int(position)
     tokens = shlex.split(command_line[:position])
 
-    all_argv, run_argv, command_argv = partition_argv(tokens[1:])
-    run_args = read_run_args(run)
-    debug = run_args.get('debug', debug)
+    all_argv, run_argv, command_argv = run.partition_argv(tokens[1:])
+    run_args = run.parse_args(run_argv)
 
     module = run_args.get('commands_module')
-    module = extract_from_argv(run_argv, run.args['commands-module'].options) or module
     module = module or DEFAULT_COMMANDS_MODULE
     module = normalize_path(module)
 
-    config_file = run_args.get('config_file')
-    config_file = extract_from_argv(run_argv, run.args['config-file'].options) or config_file
-    if not config_file and os.path.exists(DEFAULT_CONFIG_FILE):
-        config_file = DEFAULT_CONFIG_FILE
-    config_file = normalize_path(config_file)
-
     try:
-        runner = CommandRunner(module, config_file=config_file, debug=debug)
-    except RunnerError:
-        commands = {}
-    else:
-        commands = runner.commands
+        collection = Collection.load_from_module(module)
+    except Exception:
+        collection = {}
 
-    found_command = find_command(commands, tokens)
+    found_command = find_command(collection, tokens) or run
 
     if current_token:
         # Completing either a command name, option name, or path.
@@ -58,7 +49,7 @@ def complete(config, command_line, current_token, position, shell: dict(choices=
             if current_token not in found_command.option_map:
                 print_command_options(found_command, current_token)
         else:
-            print_commands(commands, shell)
+            print_commands(collection, shell)
             path = os.path.expanduser(current_token)
             path = os.path.expandvars(path)
             paths = glob.glob('%s*' % path)
@@ -72,14 +63,12 @@ def complete(config, command_line, current_token, position, shell: dict(choices=
         # Completing option value. If a value isn't expected, show the
         # options for the current command and the list of commands
         # instead.
-        arg = found_command.option_map.get(tokens[-1])
+        option = found_command.option_map.get(tokens[-1])
 
-        if arg and arg.takes_value:
-            if arg.choices:
-                for choice in arg.choices:
+        if option and option.takes_value:
+            if option.choices:
+                for choice in option.choices:
                     print(choice)
-            elif found_command is run and arg.name == 'env' and os.path.exists(config_file):
-                print('\n'.join(config._get_envs(config_file)))
             else:
                 for entry in os.listdir():
                     if os.path.isdir(entry):
@@ -88,23 +77,7 @@ def complete(config, command_line, current_token, position, shell: dict(choices=
                         print(entry)
         else:
             print_command_options(found_command)
-            print_commands(commands, shell)
-
-
-def extract_from_argv(argv, options):
-    for option in options:
-        try:
-            i = argv.index(option)
-        except ValueError:
-            pass
-        else:
-            try:
-                value = argv[i + 1]
-            except IndexError:
-                pass
-            else:
-                if not value.startswith('-'):
-                    return value
+            print_commands(collection, shell)
 
 
 def normalize_path(path):
@@ -116,16 +89,15 @@ def normalize_path(path):
     return path
 
 
-def find_command(commands, tokens):
+def find_command(collection, tokens):
     for token in reversed(tokens):
-        if token in commands:
-            return commands[token]
-    return run
+        if token in collection:
+            return collection[token]
 
 
-def print_commands(commands, shell):
-    for name in commands:
-        cmd = commands[name]
+def print_commands(collection, shell):
+    for name in collection:
+        cmd = collection[name]
         description = cmd.description.splitlines()[0].strip() if cmd.description else ''
         if shell in ('sh', 'bash'):
             print(name)
@@ -134,7 +106,7 @@ def print_commands(commands, shell):
 
 
 def print_command_options(cmd, prefix=''):
-    for name, arg in cmd.args.items():
-        for option in arg.options:
+    for name, cmd_arg in cmd.args.items():
+        for option in cmd_arg.options:
             if option.startswith(prefix):
                 print(option)

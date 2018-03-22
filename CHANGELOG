@@ -2,7 +2,15 @@
 
 ## 1.0a28 - unreleased
 
-In progress...
+Big rewrite. See the git log for tag 1.0a28 to see all the details. Here's
+a summary:
+
+- Focus is more on console scripts and collections of commands rather than
+  being a Farbric-esque deployment tool, although simplified versions of the
+  `local` and `remote` commands are still available for simple deployment
+  scenarios.
+- Config files are YAML now instead of custom INI/JSON format.
+- Global config is no longer passed to commands as first positional arg.
 
 ## 1.0a27 - 2017-12-21
 

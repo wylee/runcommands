@@ -1,4 +1,0 @@
-runcommands
-+++++++++++
-
-.. automodule:: runcommands
