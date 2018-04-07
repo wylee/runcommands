@@ -327,9 +327,9 @@ def release(version=None, date=None, tag_name=None, next_version=None, prepare=T
 
         local(('git', 'diff', init_module, changelog))
         yes or confirm('Commit these changes?', abort_on_unconfirmed=True)
-        msg = prompt('Commit message', default='Prepare release {version}'.format_map(locals()))
-        msg = '-m "{msg}"'.format_map(locals())
-        local(('git', 'commit', init_module, changelog, msg))
+        msg = 'Prepare release {version}'.format_map(locals())
+        msg = prompt('Commit message', default=msg)
+        local(('git', 'commit', init_module, changelog, '-m', msg))
 
     # Merge and tag
     if merge:
@@ -367,10 +367,9 @@ def release(version=None, date=None, tag_name=None, next_version=None, prepare=T
 
         local(('git', 'diff', init_module, changelog))
         yes or confirm('Commit these changes?', abort_on_unconfirmed=True)
-        msg = prompt(
-            'Commit message', default='Resume development at {next_version}'.format_map(locals()))
-        msg = '-m "{msg}"'.format_map(locals())
-        local(('git', 'commit', init_module, changelog, msg))
+        msg = 'Resume development at {next_version}'.format_map(locals())
+        msg = prompt('Commit message', default=msg)
+        local(('git', 'commit', init_module, changelog, '-m', msg))
 
 
 @command
