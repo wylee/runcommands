@@ -326,8 +326,8 @@ def sync(source,
     ``destination`` instead, pass ``pull=True``.
 
     """
-    source = abs_path(source)
-    destination = abs_path(destination)
+    source = abs_path(source, keep_slash=True)
+    destination = abs_path(destination, keep_slash=True)
     connection_str = '{user}@{host}'.format_map(locals()) if user else host
     push = not pull
 
