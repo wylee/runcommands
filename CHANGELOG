@@ -1,8 +1,14 @@
 # RunCommands
 
-## 1.0a29 - unreleased
+## 1.0a29 - 2018-04-09
 
-In progress...
+
+- Added `keep_slash` flag to path utility functions, because sometimes slashes
+  need to be preserved (e.g., with `rsync`).
+- Fixed `sync` command so that it preserves trailing slashes on the `source`
+  and `destination` paths its passed.
+- Tweaked version regex in `release` task (don't require dev marker).
+- Fixed some `local` git commands in release task.
 
 ## 1.0a28 - 2018-04-07
 
