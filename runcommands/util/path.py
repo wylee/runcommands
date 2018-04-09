@@ -4,7 +4,7 @@ import os
 from .printer import printer
 
 
-def abs_path(path, format_kwargs={}, relative_to=None):
+def abs_path(path, format_kwargs={}, relative_to=None, keep_slash=False):
     """Get abs. path for ``path``.
 
     ``path`` may be a relative or absolute file system path or an asset
@@ -14,6 +14,9 @@ def abs_path(path, format_kwargs={}, relative_to=None):
     If ``relative_to`` is passed *and* ``path`` is not absolute, the
     path will be joined to the specified prefix before it's made
     absolute.
+
+    If ``path`` ends with a slash, it will be stripped unless
+    ``keep_slash`` is set (for use with ``rsync``, for example).
 
     >>> file_path = os.path.normpath(__file__)
     >>> dir_name = os.path.dirname(file_path)
@@ -30,27 +33,44 @@ def abs_path(path, format_kwargs={}, relative_to=None):
     '/abc'
     >>> abs_path('banana', relative_to='/usr')
     '/usr/banana'
+    >>> abs_path('/usr/banana/')
+    '/usr/banana'
+    >>> abs_path('banana/', relative_to='/usr', keep_slash=True)
+    '/usr/banana/'
+    >>> abs_path('runcommands.util:banana/', keep_slash=True) == (dir_name + '/banana/')
+    True
 
     """
     if format_kwargs:
         path = path.format_map(format_kwargs)
-    if not os.path.isabs(path):
-        if ':' in path:
-            path = asset_path(path)
-        else:
-            path = os.path.expanduser(path)
-            if relative_to:
-                path = os.path.abspath(os.path.join(relative_to, path))
-            else:
-                path = os.path.abspath(path)
+
+    has_slash = path.endswith(os.sep)
+
+    if os.path.isabs(path):
+        path = os.path.normpath(path)
+    elif ':' in path:
+        path = asset_path(path, keep_slash=False)
+    else:
+        path = os.path.expanduser(path)
+        if relative_to:
+            path = os.path.join(relative_to, path)
+        path = os.path.abspath(path)
+        path = os.path.normpath(path)
+
+    if has_slash and keep_slash:
+        path = '{path}{slash}'.format(path=path, slash=os.sep)
+
     return path
 
 
-def asset_path(path, format_kwargs={}):
+def asset_path(path, format_kwargs={}, keep_slash=False):
     """Get absolute path to asset in package.
 
     ``path`` can be just a package name like 'package' or it can be
     a package name and a relative file system path like 'package:util'.
+
+    If ``path`` ends with a slash, it will be stripped unless
+    ``keep_slash`` is set (for use with ``rsync``, for example).
 
     >>> file_path = os.path.normpath(__file__)
     >>> dir_name = os.path.dirname(file_path)
@@ -63,10 +83,16 @@ def asset_path(path, format_kwargs={}):
     True
     >>> asset_path('runcommands.util:{name}.py', format_kwargs={'name': 'path'}) == file_path
     True
+    >>> asset_path('runcommands.util:dir/') == (dir_name + '/dir')
+    True
+    >>> asset_path('runcommands.util:dir/', keep_slash=True) == (dir_name + '/dir/')
+    True
 
     """
     if format_kwargs:
         path = path.format_map(format_kwargs)
+
+    has_slash = path.endswith(os.sep)
 
     if ':' in path:
         package_name, *rel_path = path.split(':', 1)
@@ -85,7 +111,10 @@ def asset_path(path, format_kwargs={}):
 
     package_path = os.path.dirname(package.__file__)
     path = os.path.join(package_path, *rel_path)
-    path = os.path.normpath(os.path.abspath(path))
+    path = os.path.normpath(path)
+
+    if has_slash and keep_slash:
+        path = '{path}{slash}'.format(path=path, slash=os.sep)
 
     return path
 
