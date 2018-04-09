@@ -215,7 +215,7 @@ def release(version=None, date=None, tag_name=None, next_version=None, prepare=T
     changelog = 'CHANGELOG'
 
     # E.g.: __version__ = '1.0.dev0'
-    version_re = r"^__version__ = '(?P<version>.+)(?P<dev_marker>\.dev\d+)?'$"
+    version_re = r"^__version__ = '(?P<version>.+?)(?P<dev_marker>\.dev\d+)?'$"
 
     # E.g.: ## 1.0.0 - 2017-04-01
     changelog_header_re = r'^## (?P<version>.+) - (?P<date>.+)$'
