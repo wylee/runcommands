@@ -344,6 +344,9 @@ class Command:
                 used_short_options.add(short_option)
 
         for name, param in params.items():
+            if param.kind is param.VAR_KEYWORD:
+                continue
+
             name = normalize_name(name)
 
             if name.startswith('_') or param.kind is param.KEYWORD_ONLY:
