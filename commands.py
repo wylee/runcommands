@@ -16,7 +16,7 @@ from runcommands.util import abort, asset_path, confirm, printer, prompt  # noqa
 
 
 @command
-def virtualenv(where='.env', python='python3', overwrite=False):
+def virtualenv(where='.venv', python='python3', overwrite=False):
     exists = os.path.exists(where)
 
     def create():
@@ -38,7 +38,7 @@ def virtualenv(where='.env', python='python3', overwrite=False):
 
 
 @command
-def install(where='.env', python='python3', upgrade=False, overwrite=False):
+def install(where='.venv', python='python3', upgrade=False, overwrite=False):
     virtualenv(where=where, python=python, overwrite=overwrite)
     pip = '{where}/bin/pip'.format(where=where)
     local((pip, 'install', '--upgrade' if upgrade else '', '-e', '.[dev,tox]'))
