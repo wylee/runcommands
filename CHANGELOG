@@ -1,8 +1,10 @@
 # RunCommands
 
-## 1.0a30 - unreleased
+## 1.0a30 - 2018-05-22
 
-In progress...
+- Fixed handling of `**kwargs`. When collecting the args/options for a command,
+  `kwargs` is skipped instead of inadvertantly being added to the command's
+  options.
 
 ## 1.0a29 - 2018-04-09
 
