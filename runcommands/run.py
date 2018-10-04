@@ -20,12 +20,10 @@ class Run(Command):
     name = 'runcommands'
 
     allowed_config_file_args = (
-        'defaults',
-        'globals_',
-        'env',
-        'version',
+        'globals',
+        'envs',
+        'args',
         'environ',
-        'default_args',
     )
 
     raise_on_error = True
@@ -33,23 +31,15 @@ class Run(Command):
     def implementation(self,
                        commands_module: arg(short_option='-m') = DEFAULT_COMMANDS_MODULE,
                        config_file: arg(short_option='-f') = None,
-                       # Variables
-                       defaults: arg(
-                           type=dict,
-                           short_option='-s',
-                           long_option='--set',
-                           action=NestedDictAddAction,
-                           help='Default variables; will be injected into itself, globals, '
-                                'default args, and environment variables'
-                       ) = None,
+                       # Globals
                        globals_: arg(
                            type=dict,
                            action=NestedDictAddAction,
                            help='Global variables & default args for *all* commands; will be '
                                 'injected into itself, default args, and environment variables '
-                                '(higher precedence than defaults and keyword args)'
+                                '(higher precedence than keyword args)'
                        ) = None,
-                       # Special variables
+                       # Special globals (for command line convenience)
                        env: arg(help='Will be added to globals') = None,
                        version: arg(help='Will be added to globals') = None,
                        echo: arg(type=bool, help='Will be added to globals') = None,
@@ -70,7 +60,7 @@ class Run(Command):
                        all_argv=(),
                        run_argv=(),
                        command_argv=(),
-                       cli_args=None):
+                       cli_args=()):
         """Run one or more commands in succession.
 
         For example, assume the commands ``local`` and ``remote`` have been
@@ -93,13 +83,10 @@ class Run(Command):
 
         collection = Collection.load_from_module(commands_module)
         config_file = self.find_config_file(config_file)
-        defaults = defaults or {}
         globals_ = globals_ or {}
         environ = environ or {}
-        cli_args = cli_args or {}
 
         if env or version or echo is not None or debug is not None:
-            cli_args.setdefault('globals_', globals_)
             if env:
                 globals_['env'] = env
             if version:
@@ -110,20 +97,28 @@ class Run(Command):
                 globals_['debug'] = debug
 
         if config_file:
-            args = {k: v for (k, v) in locals().copy().items() if k in cli_args}
             args_from_file = self.read_config_file(config_file, collection)
-            args = merge_dicts(args_from_file, args)
 
-            defaults = args.get('defaults', defaults)
-            globals_ = args.get('globals_', globals_)
-            env = args.get('env', env)
-            version = args.get('version', version)
-            echo = args.get('echo', version)
-            environ = args.get('environ', environ)
-            debug = args.get('debug', debug)
+            args = merge_dicts(args_from_file, {
+                'globals': globals_,
+                'environ': environ,
+            })
+
+            globals_ = args['globals']
+            envs = args['envs']
+            environ = args['environ']
+
+            env = globals_.get('env')
+            debug = globals_.get('debug', False)
+
+            if env:
+                if env not in envs:
+                    raise RunnerError('Unknown env: {env}'.format_map(locals()))
+                globals_ = merge_dicts(globals_, envs[env])
+                globals_['envs'] = envs
 
             default_args = {name: {} for name in collection}
-            default_args = merge_dicts(default_args, args_from_file.get('default_args') or {})
+            default_args = merge_dicts(default_args, args.get('args') or {})
 
             for command_name, command_default_args in default_args.items():
                 command = collection[command_name]
@@ -143,8 +138,7 @@ class Run(Command):
         show_info = info or list_commands or not command_argv or debug
         print_and_exit = info or list_commands
 
-        results = self.interpolate(defaults, globals_, default_args, environ)
-        defaults, globals_, default_args, environ = results
+        globals_, default_args, environ = self.interpolate(globals_, default_args, environ)
 
         if show_info:
             print('RunCommands', __version__)
@@ -157,7 +151,6 @@ class Run(Command):
             printer.debug('Run args:', run_argv)
             printer.debug('Command args:', command_argv)
             items = (
-                ('Defaults:', defaults),
                 ('Globals:', globals_),
                 ('Default args:', default_args),
                 ('Environment variables:', environ),
@@ -187,7 +180,7 @@ class Run(Command):
 
     def run(self, argv, **kwargs):
         all_argv, run_argv, command_argv = self.partition_argv(argv)
-        cli_args = self.parse_args(run_argv)
+        cli_args = tuple(self.parse_args(run_argv))
         kwargs.update({
             'all_argv': all_argv,
             'run_argv': run_argv,
@@ -266,21 +259,23 @@ class Run(Command):
         with open(config_file) as fp:
             args = yaml.load(fp) or {}
 
-        extends = args.pop('extends', None)
-        default_args = args.pop('default_args', args.pop('default-args', None)) or {}
+        args.setdefault('extends', None)
+        for name in self.allowed_config_file_args:
+            args.setdefault(name, {})
+
+        extends = args.pop('extends')
 
         for name in tuple(args):
-            parameter = self.find_parameter(name)
-            if parameter is None:
-                raise RunnerError(
-                    'Unknown arg specified in config file {config_file}: {name}'
-                    .format_map(locals()))
-            if parameter.name not in self.allowed_config_file_args:
+            if name not in self.allowed_config_file_args:
                 raise RunnerError(
                     'Arg cannot be specified in config file: {name}'
                     .format_map(locals()))
-            if parameter.name != name:
-                args[parameter.name] = args.pop(name)
+
+        for env, value in args['envs'].items():
+            if value is None:
+                args['envs'][env] = {}
+
+        default_args = args.pop('args')
 
         for command_name in tuple(default_args):
             try:
@@ -292,8 +287,7 @@ class Run(Command):
             if command.name != command_name:
                 default_args[command.name] = default_args.pop(command_name)
 
-        if default_args:
-            args['default_args'] = default_args
+        args['args'] = default_args
 
         if extends:
             extends = abs_path(extends, relative_to=os.path.dirname(config_file))
@@ -302,18 +296,11 @@ class Run(Command):
 
         return args
 
-    def interpolate(self, defaults, globals_, default_args, environ):
+    def interpolate(self, globals_, default_args, environ):
         environment = TemplateEnvironment()
-        environment.globals = defaults
-
-        if defaults:
-            defaults = self._interpolate(environment, defaults)
 
         if globals_:
             globals_ = self._interpolate(environment, globals_, globals_)
-            # HACK: Covers the case where a global value refers to an
-            #       item that's in both defaults and globals.
-            globals_ = self._interpolate(environment, globals_)
 
         if default_args:
             context = merge_dicts(globals_, default_args)
@@ -322,10 +309,9 @@ class Run(Command):
         if environ:
             environ = self._interpolate(environment, environ, globals_)
 
-        return defaults, globals_, default_args, environ
+        return globals_, default_args, environ
 
-    def _interpolate(self, environment, obj, context=None):
-        context = context or {}
+    def _interpolate(self, environment, obj, context):
         if isinstance(obj, dict):
             for k, v in obj.items():
                 obj[k] = self._interpolate(environment, v, context)

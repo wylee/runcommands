@@ -24,50 +24,45 @@ class TestConfig(TestCase):
         return run.read_config_file(config_file, self.collection)
 
     def interpolate(self, config):
-        defaults, globals_, default_args, environ = run.interpolate(
-            config.get('defaults') or {},
-            config.get('globals_') or {},
-            config.get('default_args') or {},
+        globals_, default_args, environ = run.interpolate(
+            config.get('globals') or {},
+            config.get('args') or {},
             config.get('environ') or {},
         )
         return {
-            'defaults': defaults,
-            'globals_': globals_,
-            'default_args': default_args,
+            'globals': globals_,
+            'args': default_args,
             'environ': environ,
         }
 
     def test_read_config(self):
         config = self.read_config_file()
-        self.assertIn('env', config)
-        self.assertIn('defaults', config)
-        self.assertIn('globals_', config)
-        self.assertIn('default_args', config)
+        self.assertIn('globals', config)
+        self.assertIn('args', config)
         self.assertIn('environ', config)
-        self.assertEqual('test', config['env'])
+        self.assertIn('env', config['globals'])
+        self.assertEqual('test', config['globals']['env'])
 
     def test_read_config_and_interpolate(self):
         config = self.read_config_file()
         config = self.interpolate(config)
-        defaults = config['defaults']
-        self.assertEqual({'a': 'a', 'b': 'a', 'c': 'a'}, defaults)
-        self.assertEqual({'a': 'a', 'b': 'b'}, config['globals_'])
-        self.assertEqual({'test': {'a': 'a', 'b': 'b'}}, config['default_args'])
-        self.assertEqual({'XYZ': 'a'}, config['environ'])
+        self.assertEqual({'env': 'test', 'a': 'b', 'b': 'b', 'c': 'c'}, config['globals'])
+        self.assertEqual({'test': {'a': 'b', 'b': 'b', 'c': 'x'}}, config['args'])
+        self.assertEqual({'XXX': 'b', 'XYZ': 'b'}, config['environ'])
 
     def test_read_config_then_call_command(self):
         config = self.read_config_file()
         config = self.interpolate(config)
         runner = CommandRunner(self.collection)
-        self.collection.set_default_args(config['default_args'])
+        self.collection.set_default_args(config['args'])
 
         # Uses default args
         result = runner.run(['test'])[0]
-        self.assertEqual(('a', 'b', None), result)
+        self.assertEqual(('b', 'b', 'x'), result)
 
         # Uses some default args
-        result = runner.run(['test', 'x'])[0]
-        self.assertEqual(('x', 'b', None), result)
+        result = runner.run(['test', 'a'])[0]
+        self.assertEqual(('a', 'b', 'x'), result)
 
         # Uses no default args
         result = runner.run(['test', 'x', 'y', '-c', 'z'])[0]

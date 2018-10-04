@@ -1,19 +1,19 @@
 ---
-env: test
-
-defaults:
-  a: "a"
-  b: "{{ a }}"
-  c: "{{ b }}"
-
 globals:
-  a: "{{ a }}"
+  env: "test"
+  a: "{{ b }}"
   b: "b"
+  c: "c"
 
-default_args:
+envs:
+  test:
+
+args:
   test:
     a: "{{ a }}"
     b: "{{ b }}"
+    c: "x"
 
 environ:
-  XYZ: "{{ c }}"
+  XXX: "{{ a }}"
+  XYZ: "{{ b }}"

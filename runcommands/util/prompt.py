@@ -31,10 +31,10 @@ def confirm(prompt='Really?', color='warning', yes_values=('y', 'yes'),
             ``abort_on_unconfirmed``)
 
     """
-    prompt = '{prompt} [{yes_value}/N] '.format(prompt=prompt, yes_value=yes_values[0])
-
     if isinstance(yes_values, str):
         yes_values = (yes_values,)
+
+    prompt = '{prompt} [{yes_value}/N] '.format(prompt=prompt, yes_value=yes_values[0])
 
     if color:
         prompt = printer.colorize(prompt, color=color)
