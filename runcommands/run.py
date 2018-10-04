@@ -40,14 +40,18 @@ class Run(Command):
                                 '(higher precedence than keyword args)'
                        ) = None,
                        # Special globals (for command line convenience)
-                       env: arg(help='Will be added to globals') = None,
-                       version: arg(help='Will be added to globals') = None,
-                       echo: arg(type=bool, help='Will be added to globals') = None,
+                       env: arg(help='env will be added to globals if specified') = None,
+                       version: arg(help='version will be added to globals if specified') = None,
+                       echo: arg(
+                           type=bool,
+                           help='echo=True will be added to globals',
+                           inverse_help='echo=False will be added to globals'
+                       ) = None,
                        # Environment variables
                        environ: arg(
                            type=dict,
                            help='Additional environment variables; '
-                                'added just before commands are run',
+                                'added just before commands are run'
                        ) = None,
                        # Meta
                        info: arg(help='Show info and exit') = False,
