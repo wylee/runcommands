@@ -1,7 +1,7 @@
 import os
-from collections import MutableMapping
 from importlib import import_module
 from importlib.machinery import SourceFileLoader
+from typing import MutableMapping
 
 from .command import Command
 from .exc import RunnerError
