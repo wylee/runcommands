@@ -114,6 +114,7 @@ def local(args,
           stderr: arg(type=StreamOptions) = None,
           echo=False,
           raise_on_error=True,
+          dry_run=False,
           ) -> Result:
     """Run a local command via :func:`subprocess.run`.
 
@@ -134,6 +135,7 @@ def local(args,
         echo (bool): Whether to echo the command before running it.
         raise_on_error (bool): Whether to raise an exception when the
             subprocess returns a non-zero exit code.
+        dry_run (bool): If set, print command instead of running it.
 
     Returns:
         Result
@@ -190,13 +192,20 @@ def local(args,
         'universal_newlines': True,
     }
 
+    display_str = args if shell else ' '.join(shlex.quote(a) for a in args)
+
     if echo:
         if cd_passed:
             printer.echo('{cd}>'.format_map(locals()), end=' ')
-        printer.echo(args if shell else ' '.join(shlex.quote(a) for a in args))
+        if not dry_run:
+            printer.echo(display_str)
 
-    result = subprocess.run(args, **kwargs)
-    result = Result.from_subprocess_result(result)
+    if dry_run:
+        printer.echo('[DRY RUN]', display_str)
+        result = Result(args, 0, None, None)
+    else:
+        result = subprocess.run(args, **kwargs)
+        result = Result.from_subprocess_result(result)
 
     if result.return_code and raise_on_error:
         raise result
@@ -220,6 +229,7 @@ def remote(cmd,
            stderr: arg(type=StreamOptions) = None,
            echo=False,
            raise_on_error=True,
+           dry_run=False,
            ) -> Result:
     """Run a remote command via SSH.
 
@@ -252,6 +262,7 @@ def remote(cmd,
         stderr: See :func:`local`.
         echo: See :func:`local`.
         raise_on_error: See :func:`local`.
+        dry_run: See :func:`local`.
 
     """
     if not isinstance(cmd, str):
@@ -295,7 +306,9 @@ def remote(cmd,
     remote_cmd = ' '.join(remote_cmd)
 
     args = ('ssh', ssh_options, ssh_connection_str, remote_cmd)
-    return local(args, stdout=stdout, stderr=stderr, echo=echo, raise_on_error=raise_on_error)
+    return local(
+        args, stdout=stdout, stderr=stderr, echo=echo, raise_on_error=raise_on_error,
+        dry_run=dry_run)
 
 
 @command
