@@ -1,8 +1,9 @@
 # RunCommands
 
-## 1.0a31 - unreleased
+## 1.0a31 - 2018-10-04
 
-In progress...
+- Reworked new config system introduced in 1.0a28. Removed `defaults`. Added
+  `envs` and support environment-specific globals.
 
 ## 1.0a30 - 2018-05-22
 
