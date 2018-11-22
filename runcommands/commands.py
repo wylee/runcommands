@@ -267,8 +267,7 @@ def remote(cmd,
 
     """
     if not isinstance(cmd, str):
-        cmd = flatten_args(cmd)
-        cmd = ' '.join(cmd)
+        cmd = flatten_args(cmd, join=True)
 
     ssh_options = ['-q']
     if isatty(sys.stdin):
