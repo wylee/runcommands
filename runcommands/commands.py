@@ -152,7 +152,7 @@ def local(args,
         args = flatten_args(args, join=shell)
 
     if cd:
-        cd = os.path.normpath(os.path.abspath(cd))
+        cd = abs_path(cd)
         cd_passed = True
     else:
         cd_passed = False
@@ -248,6 +248,7 @@ def remote(cmd,
         host (str): Remote host to SSH into.
         user (str): Remote user to log in as (defaults to current local
             user).
+        port (int): SSH port on remote host.
         sudo (bool): Run the remote command as root using ``sudo``.
         run_as (str): Run the remote command as a different user using
             ``sudo -u <run_as>``.
@@ -266,8 +267,7 @@ def remote(cmd,
 
     """
     if not isinstance(cmd, str):
-        cmd = flatten_args(cmd)
-        cmd = ' '.join(cmd)
+        cmd = flatten_args(cmd, join=True)
 
     ssh_options = ['-q']
     if isatty(sys.stdin):

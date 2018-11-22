@@ -14,8 +14,8 @@ specified are:
   commands.
 - `environ` -> Environment variables.
 
-All of these except `default` correspond to options of the
-:func:`runcommands.run.run` command.
+`globals` and `environ` correspond to the `globals` and `environ` options of
+the :func:`runcommands.run.run` command.
 
 Order of Precedence
 ===================

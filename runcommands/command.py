@@ -3,7 +3,8 @@ import inspect
 import signal
 import sys
 import time
-from collections import Mapping, OrderedDict
+from collections import OrderedDict
+from typing import Mapping
 
 from .args import Arg, ArgConfig, HelpArg, BoolOrAction, DictAddAction, ListAppendAction
 from .exc import CommandError, RunCommandsError

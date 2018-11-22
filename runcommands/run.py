@@ -40,14 +40,18 @@ class Run(Command):
                                 '(higher precedence than keyword args)'
                        ) = None,
                        # Special globals (for command line convenience)
-                       env: arg(help='Will be added to globals') = None,
-                       version: arg(help='Will be added to globals') = None,
-                       echo: arg(type=bool, help='Will be added to globals') = None,
+                       env: arg(help='env will be added to globals if specified') = None,
+                       version: arg(help='version will be added to globals if specified') = None,
+                       echo: arg(
+                           type=bool,
+                           help='echo=True will be added to globals',
+                           inverse_help='echo=False will be added to globals'
+                       ) = None,
                        # Environment variables
                        environ: arg(
                            type=dict,
                            help='Additional environment variables; '
-                                'added just before commands are run',
+                                'added just before commands are run'
                        ) = None,
                        # Meta
                        info: arg(help='Show info and exit') = False,
@@ -122,6 +126,15 @@ class Run(Command):
 
             for command_name, command_default_args in default_args.items():
                 command = collection[command_name]
+
+                # Normalize arg names from default args section.
+                for name in tuple(command_default_args):
+                    param = command.find_parameter(name)
+                    if param is not None and name != param.name:
+                        command_default_args[param.name] = command_default_args.pop(name)
+
+                # Add globals that correspond to this command (that
+                # aren't present in default args section).
                 for name, value in globals_.items():
                     param = command.find_parameter(name)
                     if param is not None:

@@ -1,5 +1,14 @@
 # RunCommands
 
+## 1.0a32 - 2018-11-22
+
+- Convert `cd` arg passed to `local` command to an absolute path via the
+  `abs_path` utility function. This is mainly so that asset paths like
+  `'package.module:file'` will be handled correctly.
+- Normalize default arg names read from config file. E.g., if a command has
+  an arg named `dir_` with a trailing slash to avoid clashing with the builtin
+  `dir` function, allow the arg to specified as `dir` in the config file.
+
 ## 1.0a31 - 2018-10-04
 
 - Reworked new config system introduced in 1.0a28. Removed `defaults`. Added
