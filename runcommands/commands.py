@@ -152,7 +152,7 @@ def local(args,
         args = flatten_args(args, join=shell)
 
     if cd:
-        cd = os.path.normpath(os.path.abspath(cd))
+        cd = abs_path(cd)
         cd_passed = True
     else:
         cd_passed = False
