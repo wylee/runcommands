@@ -248,6 +248,7 @@ def remote(cmd,
         host (str): Remote host to SSH into.
         user (str): Remote user to log in as (defaults to current local
             user).
+        port (int): SSH port on remote host.
         sudo (bool): Run the remote command as root using ``sudo``.
         run_as (str): Run the remote command as a different user using
             ``sudo -u <run_as>``.
