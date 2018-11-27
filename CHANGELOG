@@ -1,8 +1,11 @@
 # RunCommands
 
-## 1.0a33 - unreleased
+## 1.0a33 - 2018-11-26
 
-In progress...
+- Fixed precedence of globals in `run` command. In particular, globals passed
+  via the command line have higher precedence than globals specified in the
+  `envs` section of the config file.
+- Fixed a logic bug in `util.misc._merge_dicts()`.
 
 ## 1.0a32 - 2018-11-22
 
