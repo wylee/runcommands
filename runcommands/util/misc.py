@@ -127,7 +127,7 @@ def merge_dicts(*dicts):
 def _merge_dicts(a, b):
     # Merge dict b into dict a
     a = a.copy()
-    if not isinstance(a, dict) and isinstance(b, dict):
+    if not (isinstance(a, dict) and isinstance(b, dict)):
         raise TypeError(
             'Expected two dicts; got {a.__class__} and {b.__class__}'
             .format_map(locals()))

@@ -87,39 +87,34 @@ class Run(Command):
 
         collection = Collection.load_from_module(commands_module)
         config_file = self.find_config_file(config_file)
-        globals_ = globals_ or {}
-        environ = environ or {}
+        cli_globals = globals_ or {}
 
-        if env or version or echo is not None or debug is not None:
-            if env:
-                globals_['env'] = env
-            if version:
-                globals_['version'] = version
-            if echo is not None:
-                globals_['echo'] = echo
-            if debug is not None:
-                globals_['debug'] = debug
+        if env:
+            cli_globals['env'] = env
+        if version:
+            cli_globals['version'] = version
+        if echo is not None:
+            cli_globals['echo'] = echo
+        if debug is not None:
+            cli_globals['debug'] = debug
 
         if config_file:
             args_from_file = self.read_config_file(config_file, collection)
+            args = merge_dicts(args_from_file, {'environ': environ or {}})
 
-            args = merge_dicts(args_from_file, {
-                'globals': globals_,
-                'environ': environ,
-            })
+            config_file_globals = args['globals']
 
-            globals_ = args['globals']
-            envs = args['envs']
-            environ = args['environ']
-
-            env = globals_.get('env')
-            debug = globals_.get('debug', False)
-
+            env = cli_globals.get('env') or config_file_globals.get('env')
             if env:
-                if env not in envs:
+                envs = args['envs']
+                try:
+                    env_globals = envs[env]
+                except KeyError:
                     raise RunnerError('Unknown env: {env}'.format_map(locals()))
-                globals_ = merge_dicts(globals_, envs[env])
+                globals_ = merge_dicts(config_file_globals, env_globals, cli_globals)
                 globals_['envs'] = envs
+            else:
+                globals_ = merge_dicts(config_file_globals, cli_globals)
 
             default_args = {name: {} for name in collection}
             default_args = merge_dicts(default_args, args.get('args') or {})
@@ -145,9 +140,14 @@ class Run(Command):
                         command_default_args[name] = value
 
             default_args = {name: args for name, args in default_args.items() if args}
-        else:
-            default_args = {}
 
+            environ = args['environ']
+        else:
+            globals_ = cli_globals
+            default_args = {}
+            environ = environ or {}
+
+        debug = globals_.get('debug', False)
         show_info = info or list_commands or not command_argv or debug
         print_and_exit = info or list_commands
 
