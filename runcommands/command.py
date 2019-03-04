@@ -6,7 +6,8 @@ import time
 from collections import OrderedDict
 from typing import Mapping
 
-from .args import Arg, ArgConfig, HelpArg, BoolOrAction, DictAddAction, ListAppendAction
+from .args import (
+    Arg, ArgConfig, HelpArg, BoolOrAction, DictAddAction, ListAppendAction, TupleAppendAction)
 from .exc import CommandError, RunCommandsError
 from .util import cached_property, camel_to_underscore, get_hr, printer
 
@@ -510,6 +511,10 @@ class Command:
                     parser.add_argument(*options, **kwargs)
                 elif arg.is_list:
                     kwargs['action'] = arg.action or ListAppendAction
+                    kwargs['metavar'] = metavar
+                    parser.add_argument(*options, **kwargs)
+                elif arg.is_tuple:
+                    kwargs['action'] = arg.action or TupleAppendAction
                     kwargs['metavar'] = metavar
                     parser.add_argument(*options, **kwargs)
                 else:

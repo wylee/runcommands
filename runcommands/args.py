@@ -132,7 +132,8 @@ class Arg:
         self.is_bool = issubclass(type, bool)
         self.is_dict = issubclass(type, dict)
         self.is_enum = issubclass(type, Enum)
-        self.is_list = issubclass(type, (list, tuple))
+        self.is_list = issubclass(type, list)
+        self.is_tuple = issubclass(type, tuple)
         self.is_bool_or = issubclass(type, bool_or)
         self.takes_value = self.is_positional or (self.is_optional and not self.is_bool)
         self.default = default
@@ -259,3 +260,14 @@ class ListAppendAction(argparse.Action):
         items = getattr(namespace, self.dest)
         value = load_json_value(value)
         items.append(value)
+
+
+class TupleAppendAction(argparse.Action):
+
+    def __call__(self, parser, namespace, value, option_string=None):
+        if not hasattr(namespace, self.dest):
+            setattr(namespace, self.dest, ())
+        items = getattr(namespace, self.dest)
+        value = load_json_value(value)
+        items += (value,)
+        setattr(namespace, self.dest, items)
