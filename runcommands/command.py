@@ -457,15 +457,27 @@ class Command:
                 metavar = metavar[:-1]
 
             if arg.is_positional:
-                kwargs['type'] = arg.type
-                if arg.action is not None:
-                    kwargs['action'] = arg.action
-                if arg.choices is not None:
-                    kwargs['choices'] = arg.choices
-                # Make positionals optional if a default value is
-                # specified via config.
-                if param.name in default_args:
-                    kwargs['nargs'] = '?'
+                # NOTE: Positionals are made optional if a default value
+                # is specified via config.
+                has_default = param.name in default_args
+
+                if arg.is_dict:
+                    kwargs['action'] = arg.action or DictAddAction
+                    kwargs['nargs'] = '*' if has_default else '+'
+                elif arg.is_list:
+                    kwargs['action'] = arg.action or ListAppendAction
+                    kwargs['nargs'] = '*' if has_default else '+'
+                elif arg.is_tuple:
+                    kwargs['action'] = arg.action or TupleAppendAction
+                    kwargs['nargs'] = '*' if has_default else '+'
+                else:
+                    kwargs['type'] = arg.type
+                    kwargs['action'] = arg.action or None
+                    if has_default:
+                        kwargs['nargs'] = '?'
+                    if arg.choices is not None:
+                        kwargs['choices'] = arg.choices
+
                 kwargs['metavar'] = metavar
                 parser.add_argument(param.name, **kwargs)
             else:

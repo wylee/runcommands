@@ -224,17 +224,21 @@ class BoolOrAction(argparse.Action):
 
 class DictAddAction(argparse.Action):
 
-    def __call__(self, parser, namespace, item, option_string=None):
+    def __call__(self, parser, namespace, values, option_string=None):
         if not hasattr(namespace, self.dest):
             setattr(namespace, self.dest, OrderedDict())
         items = getattr(namespace, self.dest)
 
-        try:
-            name, value = load_json_item(item)
-        except ValueError:
-            raise CommandError('Bad format for {self.option_strings[0]}'.format_map(locals()))
+        if not isinstance(values, list):
+            values = [values]
 
-        self.add_item(items, name, value)
+        for item in values:
+            try:
+                name, value = load_json_item(item)
+            except ValueError:
+                raise CommandError('Bad format for {self.option_strings[0]}'.format_map(locals()))
+
+            self.add_item(items, name, value)
 
     def add_item(self, items, name, value):
         items[name] = value
@@ -251,20 +255,31 @@ class NestedDictAddAction(DictAddAction):
 
 class ListAppendAction(argparse.Action):
 
-    def __call__(self, parser, namespace, value, option_string=None):
+    def __call__(self, parser, namespace, values, option_string=None):
         if not hasattr(namespace, self.dest):
             setattr(namespace, self.dest, [])
         items = getattr(namespace, self.dest)
-        value = load_json_value(value)
-        items.append(value)
+
+        if not isinstance(values, list):
+            values = [values]
+
+        for value in values:
+            value = load_json_value(value)
+            items.append(value)
 
 
 class TupleAppendAction(argparse.Action):
 
-    def __call__(self, parser, namespace, value, option_string=None):
+    def __call__(self, parser, namespace, values, option_string=None):
         if not hasattr(namespace, self.dest):
             setattr(namespace, self.dest, ())
         items = getattr(namespace, self.dest)
-        value = load_json_value(value)
-        items += (value,)
+
+        if not isinstance(values, list):
+            values = [values]
+
+        for value in values:
+            value = load_json_value(value)
+            items += (value,)
+
         setattr(namespace, self.dest, items)
