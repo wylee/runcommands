@@ -272,11 +272,12 @@ class Run(Command):
         with open(config_file) as fp:
             args = yaml.load(fp) or {}
 
-        args.setdefault('extends', None)
         for name in self.allowed_config_file_args:
-            args.setdefault(name, {})
+            # Not present or present but not set
+            if args.get(name) is None:
+                args[name] = {}
 
-        extends = args.pop('extends')
+        extends = args.pop('extends', None)
 
         for name in tuple(args):
             if name not in self.allowed_config_file_args:
