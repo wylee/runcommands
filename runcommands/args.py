@@ -6,7 +6,7 @@ from enum import Enum
 from inspect import Parameter
 
 from .exc import CommandError
-from .util import load_json_value
+from .util import load_json_item, load_json_value
 
 
 class ArgConfig:
@@ -230,13 +230,10 @@ class DictAddAction(argparse.Action):
         items = getattr(namespace, self.dest)
 
         try:
-            name, value = item.split('=', 1)
+            name, value = load_json_item(item)
         except ValueError:
-            raise CommandError(
-                'Bad format for {self.option_strings[0]}; expected: name=<value>; got: {item}'
-                .format_map(locals()))
+            raise CommandError('Bad format for {self.option_strings[0]}'.format_map(locals()))
 
-        value = load_json_value(value)
         self.add_item(items, name, value)
 
     def add_item(self, items, name, value):
