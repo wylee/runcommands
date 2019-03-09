@@ -228,6 +228,29 @@ class Command:
         return self.implementation(*args, **kwargs)
 
     def parse_args(self, argv):
+        temp_argv = []
+
+        for arg in argv:
+            # Look for grouped short options like `-abc` and convert to
+            # `-a, -b, -c`.
+            #
+            # This is necessary because we set `allow_abbrev=False` on
+            # the `ArgumentParser` in `self.arg_parser`. The argparse
+            # docs say `allow_abbrev` applies only to long options, but
+            # it also affects whether short options grouped behind a
+            # single dash will be parsed into multiple short options.
+            is_multi_short_option = (
+                (len(arg) > 2) and   # Minimum length is 3, e.g. `-ab`
+                (arg[0] == '-') and  # Is it a short option?
+                (arg[1] != '-')      # No, it's a long option
+            )
+            if is_multi_short_option:
+                temp_argv.extend('-{a}'.format(a=a) for a in arg[1:])
+            else:
+                temp_argv.append(arg)
+
+        argv = temp_argv
+
         if self.debug:
             printer.debug('Parsing args for command `{self.name}`: {argv}'.format_map(locals()))
         parsed_args = self.arg_parser.parse_args(argv)
@@ -437,7 +460,7 @@ class Command:
             formatter_class=argparse.RawDescriptionHelpFormatter,
             argument_default=argparse.SUPPRESS,
             add_help=use_default_help,
-            allow_abbrev=False,
+            allow_abbrev=False,  # See note in `self.parse_args()`
         )
 
         default_args = self.default_args
