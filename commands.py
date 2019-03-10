@@ -84,6 +84,8 @@ def install_completion(
 
 @command
 def test(tests=(), fail_fast=False, with_coverage=True, with_lint=True):
+    original_working_directory = os.getcwd()
+
     if tests:
         num_tests = len(tests)
         s = '' if num_tests == 1 else 's'
@@ -112,6 +114,8 @@ def test(tests=(), fail_fast=False, with_coverage=True, with_lint=True):
                 coverage.report()
             if with_lint:
                 printer.header('Checking for lint...')
+                # XXX: The test runner apparently changes CWD.
+                os.chdir(original_working_directory)
                 lint()
 
 
