@@ -352,7 +352,7 @@ class Run(Command):
                 except TemplateRuntimeError as exc:
                     raise RunnerError(
                         'Could not render template {obj!r} with context {context!r}: {exc}'
-                        .format_map(locals()))
+                        .format(exc=exc))
                 if obj == original_obj:
                     break
             try:
