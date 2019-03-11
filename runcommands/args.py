@@ -28,6 +28,11 @@ class ArgConfig:
             the arg name.
         long_option (str): Long option like ``--xyz`` to use instead of
             the default, which is derived from the arg name.
+        inverse_option (str): Inverse long option like ``--no-xyz`` for
+            bool to use instead of the default, which is derived from
+            the arg name. This can be set to :data:`DISABLED` to elide
+            the inverse option (which is useful for bool options that
+            are negative by default).
         type (type): Type to use instead of guessing based on the arg's
             default value.
         choices (sequence): Sequence of allowed choices for the arg.
@@ -37,8 +42,8 @@ class ArgConfig:
             ``--no-xyz`` variation of boolean args).
 
     .. note:: For convenience, regular dicts can be used to annotate
-        args instead instead; they will be converted to instances of
-        this class automatically.
+        args instead; they will be converted to instances of this class
+        automatically.
 
     """
 
