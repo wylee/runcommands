@@ -4,7 +4,7 @@ from .misc import abort, flatten_args, format_if, isatty, load_object, merge_dic
 from .path import abs_path, asset_path, paths_to_str
 from .printer import get_hr, printer
 from .prompt import confirm, prompt
-from .string import camel_to_underscore, load_json_value
+from .string import camel_to_underscore, load_json_item, load_json_value
 
 
 __all__ = [
@@ -14,5 +14,5 @@ __all__ = [
     'abs_path', 'asset_path', 'paths_to_str',
     'get_hr', 'printer',
     'confirm', 'prompt',
-    'camel_to_underscore', 'load_json_value',
+    'camel_to_underscore', 'load_json_item', 'load_json_value',
 ]

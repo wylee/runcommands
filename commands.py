@@ -10,7 +10,7 @@ if 'runcommands' not in sys.path:
     sys.path.insert(0, os.path.abspath('.'))
 
 from runcommands import command  # noqa: E402
-from runcommands.args import arg  # noqa: E402
+from runcommands.args import DISABLE, arg  # noqa: E402
 from runcommands.commands import copy_file, git_version, local  # noqa: E402,F401
 from runcommands.util import abort, asset_path, confirm, printer, prompt  # noqa: E402
 
@@ -84,6 +84,8 @@ def install_completion(
 
 @command
 def test(tests=(), fail_fast=False, with_coverage=True, with_lint=True):
+    original_working_directory = os.getcwd()
+
     if tests:
         num_tests = len(tests)
         s = '' if num_tests == 1 else 's'
@@ -112,6 +114,8 @@ def test(tests=(), fail_fast=False, with_coverage=True, with_lint=True):
                 coverage.report()
             if with_lint:
                 printer.header('Checking for lint...')
+                # XXX: The test runner apparently changes CWD.
+                os.chdir(original_working_directory)
                 lint()
 
 
@@ -129,13 +133,23 @@ def tox(envs: 'Pass -e option to tox with the specified environments' = (),
 
 
 @command
-def lint():
-    result = local('flake8 .', stdout='capture', raise_on_error=False)
+def lint(show_errors: arg(help='Show errors') = True,
+         disable_ignore: arg(inverse_option=DISABLE, help='Don\'t ignore any errors') = False,
+         disable_noqa: arg(inverse_option=DISABLE, help='Ignore noqa directives') = False):
+    result = local((
+        'flake8', '.',
+        '--ignore=' if disable_ignore else None,
+        '--disable-noqa' if disable_noqa else None,
+    ), stdout='capture', raise_on_error=False)
     pieces_of_lint = len(result.stdout_lines)
     if pieces_of_lint:
-        s = '' if pieces_of_lint == 1 else 's'
-        printer.error('{pieces_of_lint} piece{s} of lint found:'.format_map(locals()))
-        print(result.stdout, end='')
+        ess = '' if pieces_of_lint == 1 else 's'
+        colon = ':' if show_errors else ''
+        message = ['{pieces_of_lint} piece{ess} of lint found{colon}'.format_map(locals())]
+        if show_errors:
+            message.append(result.stdout.rstrip())
+        message = '\n'.join(message)
+        abort(1, message)
     else:
         printer.success('No lint found')
 

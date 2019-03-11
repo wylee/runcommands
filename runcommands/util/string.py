@@ -51,6 +51,9 @@ def load_json_value(string, tolerant=True):
         tolerant: If set, return the string as is if it can't be loaded
             as JSON.
 
+    Returns:
+        object: String decoded from JSON
+
     """
     if not string:
         return None
@@ -61,3 +64,25 @@ def load_json_value(string, tolerant=True):
             raise
         value = string
     return value
+
+
+def load_json_item(string, tolerant=True):
+    """Load 'key=value' string where the value is JSON-encoded.
+
+    Args:
+        string: A 'key=value' string where the value is JSON-encoded
+        tolerant: If set, return the string as is if it can't be loaded
+            as JSON.
+
+    Returns:
+        (name, object): Name and value string decoded from JSON
+
+    """
+    try:
+        name, value = string.split('=', 1)
+    except ValueError:
+        message = 'Bad format for JSON item; expected: name=<value>; got: {string}'
+        message = message.format_map(locals())
+        raise ValueError(message) from None
+    value = load_json_value(value, tolerant)
+    return name, value

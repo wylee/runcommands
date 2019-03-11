@@ -1,5 +1,18 @@
 # RunCommands
 
+## 1.0a34 - 2019-03-10
+
+- Arg values are now collected into tuples when appropriate--when an arg's
+  default value is a tuple or its type is explicitly set to `tuple`.
+- Positional args can now be specified with a type of `dict`, `list`, or
+  `tuple`. Previously, specifying one of these types didn't work as expected
+  because only one value would be read from the command line and that value
+  would be converted to a `list` or `tuple` of characters (and using `dict`
+  would cause an error).
+- Multiple short options can now be grouped on the command line like `abc`.
+- The inverse option for `bool` args can now be disabled.
+- Fixed some issues related to linting.
+
 ## 1.0a33 - 2018-11-26
 
 - Fixed precedence of globals in `run` command. In particular, globals passed

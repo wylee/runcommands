@@ -6,7 +6,12 @@ from enum import Enum
 from inspect import Parameter
 
 from .exc import CommandError
-from .util import load_json_value
+from .util import load_json_item, load_json_value
+
+
+# Marker used to indicate that a bool arg's inverse option should be
+# disabled.
+DISABLE = object()
 
 
 class ArgConfig:
@@ -23,6 +28,11 @@ class ArgConfig:
             the arg name.
         long_option (str): Long option like ``--xyz`` to use instead of
             the default, which is derived from the arg name.
+        inverse_option (str): Inverse long option like ``--no-xyz`` for
+            bool to use instead of the default, which is derived from
+            the arg name. This can be set to :data:`DISABLED` to elide
+            the inverse option (which is useful for bool options that
+            are negative by default).
         type (type): Type to use instead of guessing based on the arg's
             default value.
         choices (sequence): Sequence of allowed choices for the arg.
@@ -32,8 +42,8 @@ class ArgConfig:
             ``--no-xyz`` variation of boolean args).
 
     .. note:: For convenience, regular dicts can be used to annotate
-        args instead instead; they will be converted to instances of
-        this class automatically.
+        args instead; they will be converted to instances of this class
+        automatically.
 
     """
 
@@ -132,7 +142,8 @@ class Arg:
         self.is_bool = issubclass(type, bool)
         self.is_dict = issubclass(type, dict)
         self.is_enum = issubclass(type, Enum)
-        self.is_list = issubclass(type, (list, tuple))
+        self.is_list = issubclass(type, list)
+        self.is_tuple = issubclass(type, tuple)
         self.is_bool_or = issubclass(type, bool_or)
         self.takes_value = self.is_positional or (self.is_optional and not self.is_bool)
         self.default = default
@@ -152,7 +163,7 @@ class Arg:
         self.inverse_option = inverse_option if (self.is_bool or self.is_bool_or) else None
 
         options = (self.short_option, self.long_option, self.inverse_option)
-        self.options = tuple(option for option in options if option)
+        self.options = tuple(option for option in options if (option and option is not DISABLE))
 
         self.action = action
 
@@ -223,20 +234,21 @@ class BoolOrAction(argparse.Action):
 
 class DictAddAction(argparse.Action):
 
-    def __call__(self, parser, namespace, item, option_string=None):
+    def __call__(self, parser, namespace, values, option_string=None):
         if not hasattr(namespace, self.dest):
             setattr(namespace, self.dest, OrderedDict())
         items = getattr(namespace, self.dest)
 
-        try:
-            name, value = item.split('=', 1)
-        except ValueError:
-            raise CommandError(
-                'Bad format for {self.option_strings[0]}; expected: name=<value>; got: {item}'
-                .format_map(locals()))
+        if not isinstance(values, list):
+            values = [values]
 
-        value = load_json_value(value)
-        self.add_item(items, name, value)
+        for item in values:
+            try:
+                name, value = load_json_item(item)
+            except ValueError:
+                raise CommandError('Bad format for {self.option_strings[0]}'.format_map(locals()))
+
+            self.add_item(items, name, value)
 
     def add_item(self, items, name, value):
         items[name] = value
@@ -253,9 +265,31 @@ class NestedDictAddAction(DictAddAction):
 
 class ListAppendAction(argparse.Action):
 
-    def __call__(self, parser, namespace, value, option_string=None):
+    def __call__(self, parser, namespace, values, option_string=None):
         if not hasattr(namespace, self.dest):
             setattr(namespace, self.dest, [])
         items = getattr(namespace, self.dest)
-        value = load_json_value(value)
-        items.append(value)
+
+        if not isinstance(values, list):
+            values = [values]
+
+        for value in values:
+            value = load_json_value(value)
+            items.append(value)
+
+
+class TupleAppendAction(argparse.Action):
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not hasattr(namespace, self.dest):
+            setattr(namespace, self.dest, ())
+        items = getattr(namespace, self.dest)
+
+        if not isinstance(values, list):
+            values = [values]
+
+        for value in values:
+            value = load_json_value(value)
+            items += (value,)
+
+        setattr(namespace, self.dest, items)

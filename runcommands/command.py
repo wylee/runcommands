@@ -6,7 +6,9 @@ import time
 from collections import OrderedDict
 from typing import Mapping
 
-from .args import Arg, ArgConfig, HelpArg, BoolOrAction, DictAddAction, ListAppendAction
+from .args import (
+    DISABLE, Arg, ArgConfig, HelpArg, BoolOrAction, DictAddAction, ListAppendAction,
+    TupleAppendAction)
 from .exc import CommandError, RunCommandsError
 from .util import cached_property, camel_to_underscore, get_hr, printer
 
@@ -227,6 +229,29 @@ class Command:
         return self.implementation(*args, **kwargs)
 
     def parse_args(self, argv):
+        temp_argv = []
+
+        for arg in argv:
+            # Look for grouped short options like `-abc` and convert to
+            # `-a, -b, -c`.
+            #
+            # This is necessary because we set `allow_abbrev=False` on
+            # the `ArgumentParser` in `self.arg_parser`. The argparse
+            # docs say `allow_abbrev` applies only to long options, but
+            # it also affects whether short options grouped behind a
+            # single dash will be parsed into multiple short options.
+            is_multi_short_option = (
+                (len(arg) > 2) and   # Minimum length is 3, e.g. `-ab`
+                (arg[0] == '-') and  # Is it a short option?
+                (arg[1] != '-')      # No, it's a long option
+            )
+            if is_multi_short_option:
+                temp_argv.extend('-{a}'.format(a=a) for a in arg[1:])
+            else:
+                temp_argv.append(arg)
+
+        argv = temp_argv
+
         if self.debug:
             printer.debug('Parsing args for command `{self.name}`: {argv}'.format_map(locals()))
         parsed_args = self.arg_parser.parse_args(argv)
@@ -374,6 +399,7 @@ class Command:
                 if not long_option:
                     long_option = get_long_option(name)
                 if not inverse_option:
+                    # NOTE: The DISABLE marker evaluates as True
                     inverse_option = get_inverse_option(long_option)
 
             args[name] = Arg(
@@ -436,7 +462,7 @@ class Command:
             formatter_class=argparse.RawDescriptionHelpFormatter,
             argument_default=argparse.SUPPRESS,
             add_help=use_default_help,
-            allow_abbrev=False,
+            allow_abbrev=False,  # See note in `self.parse_args()`
         )
 
         default_args = self.default_args
@@ -456,15 +482,27 @@ class Command:
                 metavar = metavar[:-1]
 
             if arg.is_positional:
-                kwargs['type'] = arg.type
-                if arg.action is not None:
-                    kwargs['action'] = arg.action
-                if arg.choices is not None:
-                    kwargs['choices'] = arg.choices
-                # Make positionals optional if a default value is
-                # specified via config.
-                if param.name in default_args:
-                    kwargs['nargs'] = '?'
+                # NOTE: Positionals are made optional if a default value
+                # is specified via config.
+                has_default = param.name in default_args
+
+                if arg.is_dict:
+                    kwargs['action'] = arg.action or DictAddAction
+                    kwargs['nargs'] = '*' if has_default else '+'
+                elif arg.is_list:
+                    kwargs['action'] = arg.action or ListAppendAction
+                    kwargs['nargs'] = '*' if has_default else '+'
+                elif arg.is_tuple:
+                    kwargs['action'] = arg.action or TupleAppendAction
+                    kwargs['nargs'] = '*' if has_default else '+'
+                else:
+                    kwargs['type'] = arg.type
+                    kwargs['action'] = arg.action or None
+                    if has_default:
+                        kwargs['nargs'] = '?'
+                    if arg.choices is not None:
+                        kwargs['choices'] = arg.choices
+
                 kwargs['metavar'] = metavar
                 parser.add_argument(param.name, **kwargs)
             else:
@@ -491,25 +529,41 @@ class Command:
                     true_or_value_kwargs['action'] = BoolOrAction
                     true_or_value_kwargs['nargs'] = '?'
                     true_or_value_kwargs['metavar'] = metavar
-                    true_or_value_arg_names = options[:-1]
+
+                    if arg.inverse_option is DISABLE:
+                        true_or_value_arg_names = options
+                    else:
+                        true_or_value_arg_names = options[:-1]
+
                     parser.add_argument(*true_or_value_arg_names, **true_or_value_kwargs)
 
-                    # Allow --no-xyz
-                    false_kwargs = kwargs.copy()
-                    false_kwargs['help'] = inverse_help
-                    parser.add_argument(options[-1], action='store_false', **false_kwargs)
+                    if arg.inverse_option is not DISABLE:
+                        # Allow --no-xyz
+                        false_kwargs = kwargs.copy()
+                        false_kwargs['help'] = inverse_help
+                        parser.add_argument(options[-1], action='store_false', **false_kwargs)
                 elif arg.is_bool:
-                    parser.add_argument(*options[:-1], action='store_true', **kwargs)
+                    if arg.inverse_option is DISABLE:
+                        true_arg_names = options
+                    else:
+                        true_arg_names = options[:-1]
 
-                    false_kwargs = kwargs.copy()
-                    false_kwargs['help'] = inverse_help
-                    parser.add_argument(options[-1], action='store_false', **false_kwargs)
+                    parser.add_argument(*true_arg_names, action='store_true', **kwargs)
+
+                    if arg.inverse_option is not DISABLE:
+                        false_kwargs = kwargs.copy()
+                        false_kwargs['help'] = inverse_help
+                        parser.add_argument(options[-1], action='store_false', **false_kwargs)
                 elif arg.is_dict:
                     kwargs['action'] = arg.action or DictAddAction
                     kwargs['metavar'] = metavar
                     parser.add_argument(*options, **kwargs)
                 elif arg.is_list:
                     kwargs['action'] = arg.action or ListAppendAction
+                    kwargs['metavar'] = metavar
+                    parser.add_argument(*options, **kwargs)
+                elif arg.is_tuple:
+                    kwargs['action'] = arg.action or TupleAppendAction
                     kwargs['metavar'] = metavar
                     parser.add_argument(*options, **kwargs)
                 else:

@@ -139,6 +139,13 @@ class Run(Command):
                         name = name.replace('-', '_')
                         command_default_args[name] = value
 
+                # Convert lists to tuples for the command's args that are
+                # specified as being tuples.
+                for name, value in command_default_args.items():
+                    command_arg = command.find_arg(name)
+                    if issubclass(command_arg.type, tuple) and isinstance(value, list):
+                        command_default_args[name] = tuple(value)
+
             default_args = {name: args for name, args in default_args.items() if args}
 
             environ = args['environ']
@@ -272,11 +279,12 @@ class Run(Command):
         with open(config_file) as fp:
             args = yaml.load(fp) or {}
 
-        args.setdefault('extends', None)
         for name in self.allowed_config_file_args:
-            args.setdefault(name, {})
+            # Not present or present but not set
+            if args.get(name) is None:
+                args[name] = {}
 
-        extends = args.pop('extends')
+        extends = args.pop('extends', None)
 
         for name in tuple(args):
             if name not in self.allowed_config_file_args:
@@ -331,6 +339,8 @@ class Run(Command):
         elif isinstance(obj, list):
             for i, v in enumerate(obj):
                 obj[i] = self._interpolate(environment, v, context)
+        elif isinstance(obj, tuple):
+            obj = tuple(self._interpolate(environment, v, context) for v in obj)
         elif isinstance(obj, str):
             while True:
                 if '{{' not in obj:
@@ -342,7 +352,7 @@ class Run(Command):
                 except TemplateRuntimeError as exc:
                     raise RunnerError(
                         'Could not render template {obj!r} with context {context!r}: {exc}'
-                        .format_map(locals()))
+                        .format(exc=exc))
                 if obj == original_obj:
                     break
             try:
