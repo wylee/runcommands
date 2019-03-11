@@ -7,7 +7,8 @@ from collections import OrderedDict
 from typing import Mapping
 
 from .args import (
-    Arg, ArgConfig, HelpArg, BoolOrAction, DictAddAction, ListAppendAction, TupleAppendAction)
+    DISABLE, Arg, ArgConfig, HelpArg, BoolOrAction, DictAddAction, ListAppendAction,
+    TupleAppendAction)
 from .exc import CommandError, RunCommandsError
 from .util import cached_property, camel_to_underscore, get_hr, printer
 
@@ -398,6 +399,7 @@ class Command:
                 if not long_option:
                     long_option = get_long_option(name)
                 if not inverse_option:
+                    # NOTE: The DISABLE marker evaluates as True
                     inverse_option = get_inverse_option(long_option)
 
             args[name] = Arg(
@@ -527,19 +529,31 @@ class Command:
                     true_or_value_kwargs['action'] = BoolOrAction
                     true_or_value_kwargs['nargs'] = '?'
                     true_or_value_kwargs['metavar'] = metavar
-                    true_or_value_arg_names = options[:-1]
+
+                    if arg.inverse_option is DISABLE:
+                        true_or_value_arg_names = options
+                    else:
+                        true_or_value_arg_names = options[:-1]
+
                     parser.add_argument(*true_or_value_arg_names, **true_or_value_kwargs)
 
-                    # Allow --no-xyz
-                    false_kwargs = kwargs.copy()
-                    false_kwargs['help'] = inverse_help
-                    parser.add_argument(options[-1], action='store_false', **false_kwargs)
+                    if arg.inverse_option is not DISABLE:
+                        # Allow --no-xyz
+                        false_kwargs = kwargs.copy()
+                        false_kwargs['help'] = inverse_help
+                        parser.add_argument(options[-1], action='store_false', **false_kwargs)
                 elif arg.is_bool:
-                    parser.add_argument(*options[:-1], action='store_true', **kwargs)
+                    if arg.inverse_option is DISABLE:
+                        true_arg_names = options
+                    else:
+                        true_arg_names = options[:-1]
 
-                    false_kwargs = kwargs.copy()
-                    false_kwargs['help'] = inverse_help
-                    parser.add_argument(options[-1], action='store_false', **false_kwargs)
+                    parser.add_argument(*true_arg_names, action='store_true', **kwargs)
+
+                    if arg.inverse_option is not DISABLE:
+                        false_kwargs = kwargs.copy()
+                        false_kwargs['help'] = inverse_help
+                        parser.add_argument(options[-1], action='store_false', **false_kwargs)
                 elif arg.is_dict:
                     kwargs['action'] = arg.action or DictAddAction
                     kwargs['metavar'] = metavar

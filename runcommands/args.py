@@ -9,6 +9,11 @@ from .exc import CommandError
 from .util import load_json_item, load_json_value
 
 
+# Marker used to indicate that a bool arg's inverse option should be
+# disabled.
+DISABLE = object()
+
+
 class ArgConfig:
 
     """Configuration for an arg.
@@ -153,7 +158,7 @@ class Arg:
         self.inverse_option = inverse_option if (self.is_bool or self.is_bool_or) else None
 
         options = (self.short_option, self.long_option, self.inverse_option)
-        self.options = tuple(option for option in options if option)
+        self.options = tuple(option for option in options if (option and option is not DISABLE))
 
         self.action = action
 
