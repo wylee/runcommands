@@ -277,7 +277,7 @@ class Run(Command):
 
     def _read_config_file(self, config_file, collection):
         with open(config_file) as fp:
-            args = yaml.load(fp) or {}
+            args = yaml.load(fp, Loader=yaml.FullLoader) or {}
 
         for name in self.allowed_config_file_args:
             # Not present or present but not set
