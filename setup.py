@@ -20,7 +20,7 @@ setup(
     url='https://github.com/wylee/runcommands',
     install_requires=[
         'Jinja2>=2.10',
-        'PyYAML>=3.13',
+        'PyYAML>=5.1',
     ],
     packages=find_packages(),
     include_package_data=True,
