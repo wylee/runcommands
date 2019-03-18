@@ -1,5 +1,11 @@
 # RunCommands
 
+## 1.0a35 - 2019-03-17
+
+- Upgraded PyYAML 3.13 => 5.1. Depending on your setup, this may require
+  upgrading PyYAML to 5.1 first before upgrading to this version of
+  RunCommands (e.g., if you have a command that wraps `pip install`).
+
 ## 1.0a34 - 2019-03-10
 
 - Arg values are now collected into tuples when appropriate--when an arg's
