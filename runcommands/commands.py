@@ -9,10 +9,7 @@ import tempfile
 from .args import arg, bool_or
 from .command import command
 from .result import Result
-from .util import abs_path, flatten_args, isatty, printer, StreamOptions
-
-
-__all__ = ['copy_file', 'git_version', 'local', 'remote', 'sync']
+from .util import abs_path, flatten_args, get_commands_in_namespace, isatty, printer, StreamOptions
 
 
 @command
@@ -370,3 +367,6 @@ def sync(source,
         destination,
     )
     return local(args, stdout=stdout, stderr=stderr, echo=echo, raise_on_error=raise_on_error)
+
+
+__all__ = list(get_commands_in_namespace())
