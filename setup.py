@@ -18,6 +18,7 @@ setup(
     long_description=long_description,
     keywords='commands',
     url='https://github.com/wylee/runcommands',
+    python_requires='>=3.5',
     install_requires=[
         'Jinja2>=2.10',
         'PyYAML>=5.1',
