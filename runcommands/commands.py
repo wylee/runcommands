@@ -219,7 +219,7 @@ def remote(cmd,
            run_as=None,
            shell='/bin/sh',
            cd=None,
-           environ: arg(type=dict) = None,
+           environ: arg(container=dict) = None,
            paths=(),
            # Args passed through to local command:
            stdout: arg(type=StreamOptions) = None,

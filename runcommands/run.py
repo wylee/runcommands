@@ -6,7 +6,7 @@ import yaml
 from jinja2 import Environment as TemplateEnvironment, TemplateRuntimeError
 
 from . import __version__
-from .args import arg, NestedDictAddAction
+from .args import arg, json_value
 from .command import Command
 from .collection import Collection
 from .const import DEFAULT_COMMANDS_MODULE
@@ -33,8 +33,8 @@ class Run(Command):
                        config_file: arg(short_option='-f') = None,
                        # Globals
                        globals_: arg(
-                           type=dict,
-                           action=NestedDictAddAction,
+                           container=dict,
+                           type=json_value,
                            help='Global variables & default args for *all* commands; will be '
                                 'injected into itself, default args, and environment variables '
                                 '(higher precedence than keyword args)'
@@ -49,7 +49,7 @@ class Run(Command):
                        ) = None,
                        # Environment variables
                        environ: arg(
-                           type=dict,
+                           container=dict,
                            help='Additional environment variables; '
                                 'added just before commands are run'
                        ) = None,
@@ -143,8 +143,8 @@ class Run(Command):
                 # specified as being tuples.
                 for name, value in command_default_args.items():
                     command_arg = command.find_arg(name)
-                    if issubclass(command_arg.type, tuple) and isinstance(value, list):
-                        command_default_args[name] = tuple(value)
+                    if command_arg.container and isinstance(value, list):
+                        command_default_args[name] = command_arg.container(value)
 
             default_args = {name: args for name, args in default_args.items() if args}
 
@@ -216,10 +216,6 @@ class Run(Command):
         if not argv:
             return argv, [], []
 
-        if '--' in argv:
-            i = argv.index('--')
-            return argv, argv[:i], argv[i + 1:]
-
         run_argv = []
         option = None
         option_map = self.option_map
@@ -233,6 +229,8 @@ class Run(Command):
                 action, name, value = option_data
                 if name not in option_map:
                     # Unknown option.
+                    if name == '--':
+                        i += 1
                     break
                 run_argv.append(a)
                 if value is None:

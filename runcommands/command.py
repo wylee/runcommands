@@ -6,9 +6,7 @@ import time
 from collections import OrderedDict
 from typing import Mapping
 
-from .args import (
-    DISABLE, Arg, ArgConfig, HelpArg, BoolOrAction, DictAddAction, ListAppendAction,
-    TupleAppendAction)
+from .args import Arg, ArgConfig, HelpArg
 from .exc import CommandError, RunCommandsError
 from .util import cached_property, camel_to_underscore, get_hr, printer
 
@@ -167,27 +165,33 @@ class Command:
             description = '\n'.join(lines)
         return description
 
-    def run(self, argv=None, **kwargs):
+    def run(self, argv=None, **overrides):
         argv = sys.argv[1:] if argv is None else argv
 
         if self.timed:
             start_time = time.monotonic()
 
-        args = self.parse_args(argv)
-        args.update(kwargs)
-        result = self(**args)
+        kwargs = self.parse_args(argv)
+        kwargs.update(overrides)
+
+        if self.var_positional:
+            args = kwargs.pop(self.var_positional.dest, ())
+        else:
+            args = ()
+
+        result = self(*args, **kwargs)
 
         if self.timed:
             self.print_elapsed_time(time.monotonic() - start_time)
 
         return result
 
-    def console_script(self, argv=None, **kwargs):
+    def console_script(self, argv=None, **overrides):
         argv = sys.argv[1:] if argv is None else argv
         if hasattr(self, 'sigint_handler'):
             signal.signal(signal.SIGINT, self.sigint_handler)
         try:
-            result = self.run(argv, **kwargs)
+            result = self.run(argv, **overrides)
         except RunCommandsError as result:
             if getattr(self, 'raise_on_error', False):
                 raise
@@ -254,6 +258,7 @@ class Command:
 
         if self.debug:
             printer.debug('Parsing args for command `{self.name}`: {argv}'.format_map(locals()))
+
         parsed_args = self.arg_parser.parse_args(argv)
         parsed_args = vars(parsed_args)
         for k, v in parsed_args.items():
@@ -370,15 +375,17 @@ class Command:
                 used_short_options.add(short_option)
 
         for name, param in params.items():
-            if param.kind is param.VAR_KEYWORD:
-                continue
-
             name = normalize_name(name)
 
-            if name.startswith('_') or param.kind is param.KEYWORD_ONLY:
+            skip = (
+                name.startswith('_') or
+                param.kind is param.VAR_KEYWORD or
+                param.kind is param.KEYWORD_ONLY)
+            if skip:
                 continue
 
             annotation = get_arg_config(param)
+            container = annotation.container
             type = annotation.type
             choices = annotation.choices
             help = annotation.help
@@ -387,12 +394,11 @@ class Command:
             long_option = annotation.long_option
             inverse_option = annotation.inverse_option
             action = annotation.action
+            nargs = annotation.nargs
 
-            if param.default is param.empty:  # Positional
-                short_option = None
-                long_option = None
-                inverse_option = None
-            else:
+            default = param.default
+
+            if default is not param.empty:
                 if not short_option:
                     short_option = get_short_option(name, names, used_short_options)
                     used_short_options.add(short_option)
@@ -406,8 +412,9 @@ class Command:
                 command=self,
                 parameter=param,
                 name=name,
+                container=container,
                 type=type,
-                default=param.default,
+                default=default,
                 choices=choices,
                 help=help,
                 inverse_help=inverse_help,
@@ -415,6 +422,7 @@ class Command:
                 long_option=long_option,
                 inverse_option=inverse_option,
                 action=action,
+                nargs=nargs,
             )
 
         option_map = OrderedDict()
@@ -432,25 +440,6 @@ class Command:
                 raise CommandError(message)
 
         return args
-
-    @cached_property
-    def positionals(self):
-        args = self.args.items()
-        return OrderedDict((name, arg) for (name, arg) in args if arg.is_positional)
-
-    @cached_property
-    def optionals(self):
-        args = self.args.items()
-        return OrderedDict((name, arg) for (name, arg) in args if arg.is_optional)
-
-    @cached_property
-    def option_map(self):
-        """Map command-line options to args."""
-        option_map = OrderedDict()
-        for arg in self.args.values():
-            for option in arg.options:
-                option_map[option] = arg
-        return option_map
 
     @cached_property
     def arg_parser(self):
@@ -472,109 +461,49 @@ class Command:
                 continue
 
             param = arg.parameter
+            options, kwargs = arg.add_argument_args
 
-            kwargs = {
-                'help': arg.help,
-            }
+            if arg.is_positional and param.name in default_args:
+                # Positionals are made optional if a default value is
+                # specified via config.
+                kwargs = kwargs.copy()
+                kwargs['nargs'] = '*' if arg.container else '?'
 
-            metavar = name.upper().replace('-', '_')
-            if (arg.is_dict or arg.is_list) and len(name) > 1 and name.endswith('s'):
-                metavar = metavar[:-1]
+            parser.add_argument(*options, **kwargs)
 
-            if arg.is_positional:
-                # NOTE: Positionals are made optional if a default value
-                # is specified via config.
-                has_default = param.name in default_args
-
-                if arg.is_dict:
-                    kwargs['action'] = arg.action or DictAddAction
-                    kwargs['nargs'] = '*' if has_default else '+'
-                elif arg.is_list:
-                    kwargs['action'] = arg.action or ListAppendAction
-                    kwargs['nargs'] = '*' if has_default else '+'
-                elif arg.is_tuple:
-                    kwargs['action'] = arg.action or TupleAppendAction
-                    kwargs['nargs'] = '*' if has_default else '+'
-                else:
-                    kwargs['type'] = arg.type
-                    kwargs['action'] = arg.action or None
-                    if has_default:
-                        kwargs['nargs'] = '?'
-                    if arg.choices is not None:
-                        kwargs['choices'] = arg.choices
-
-                kwargs['metavar'] = metavar
-                parser.add_argument(param.name, **kwargs)
-            else:
-                options = arg.options
-                kwargs['dest'] = param.name
-
-                if arg.is_bool or arg.is_bool_or:
-                    if arg.inverse_help:
-                        inverse_help = arg.inverse_help
-                    elif arg.help:
-                        first_letter = kwargs['help'][0].lower()
-                        the_rest = kwargs['help'][1:]
-                        inverse_help = 'Don\'t {first_letter}{the_rest}'.format_map(locals())
-                    else:
-                        inverse_help = arg.help
-
-                if arg.is_bool_or:
-                    # Allow --xyz or --xyz=<value>
-                    other_type = arg.type.type
-                    true_or_value_kwargs = kwargs.copy()
-                    true_or_value_kwargs['type'] = other_type
-                    if arg.choices is not None:
-                        true_or_value_kwargs['choices'] = arg.choices
-                    true_or_value_kwargs['action'] = BoolOrAction
-                    true_or_value_kwargs['nargs'] = '?'
-                    true_or_value_kwargs['metavar'] = metavar
-
-                    if arg.inverse_option is DISABLE:
-                        true_or_value_arg_names = options
-                    else:
-                        true_or_value_arg_names = options[:-1]
-
-                    parser.add_argument(*true_or_value_arg_names, **true_or_value_kwargs)
-
-                    if arg.inverse_option is not DISABLE:
-                        # Allow --no-xyz
-                        false_kwargs = kwargs.copy()
-                        false_kwargs['help'] = inverse_help
-                        parser.add_argument(options[-1], action='store_false', **false_kwargs)
-                elif arg.is_bool:
-                    if arg.inverse_option is DISABLE:
-                        true_arg_names = options
-                    else:
-                        true_arg_names = options[:-1]
-
-                    parser.add_argument(*true_arg_names, action='store_true', **kwargs)
-
-                    if arg.inverse_option is not DISABLE:
-                        false_kwargs = kwargs.copy()
-                        false_kwargs['help'] = inverse_help
-                        parser.add_argument(options[-1], action='store_false', **false_kwargs)
-                elif arg.is_dict:
-                    kwargs['action'] = arg.action or DictAddAction
-                    kwargs['metavar'] = metavar
-                    parser.add_argument(*options, **kwargs)
-                elif arg.is_list:
-                    kwargs['action'] = arg.action or ListAppendAction
-                    kwargs['metavar'] = metavar
-                    parser.add_argument(*options, **kwargs)
-                elif arg.is_tuple:
-                    kwargs['action'] = arg.action or TupleAppendAction
-                    kwargs['metavar'] = metavar
-                    parser.add_argument(*options, **kwargs)
-                else:
-                    kwargs['type'] = arg.type
-                    kwargs['action'] = arg.action
-                    if arg.choices is not None:
-                        kwargs['choices'] = arg.choices
-                    kwargs['metavar'] = metavar
-                    parser.add_argument(*options, **kwargs)
+            inverse_args = arg.add_argument_inverse_args
+            if inverse_args is not None:
+                options, kwargs = inverse_args
+                parser.add_argument(*options, **kwargs)
 
         return parser
+
+    @cached_property
+    def positionals(self):
+        args = self.args.items()
+        return OrderedDict((name, arg) for (name, arg) in args if arg.is_positional)
+
+    @cached_property
+    def var_positional(self):
+        args = self.args.items()
+        for name, arg in args:
+            if arg.is_var_positional:
+                return arg
+        return None
+
+    @cached_property
+    def optionals(self):
+        args = self.args.items()
+        return OrderedDict((name, arg) for (name, arg) in args if arg.is_optional)
+
+    @cached_property
+    def option_map(self):
+        """Map command-line options to args."""
+        option_map = OrderedDict()
+        for arg in self.args.values():
+            for option in arg.options:
+                option_map[option] = arg
+        return option_map
 
     @property
     def help(self):
