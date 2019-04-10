@@ -243,6 +243,30 @@ class Command:
                 parsed_args[k] = None
         return parsed_args
 
+    def parse_optional(self, string):
+        """Parse string into name, option, and value (if possible).
+
+        If the string is a known option name, the string, the
+        corresponding option, and ``None`` will be returned.
+
+        If the string has the form ``--option=<value>`` or
+        ``-o=<value>``, it will be split on equals into an option name
+        and value. If the option name is known, the option name, the
+        corresponding option, and the value will be returned.
+
+        In all other cases, ``None`` will be returned to indicate that
+        the string doesn't correspond to a known option.
+
+        """
+        option_map = self.option_map
+        if string in option_map:
+            return string, option_map[string], None
+        if '=' in string:
+            name, value = string.split('=', 1)
+            if name in option_map:
+                return name, option_map[name], value
+        return None
+
     def expand_short_options(self, argv):
         """Convert grouped short options like `-abc` to `-a, -b, -c`.
 

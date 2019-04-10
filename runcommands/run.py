@@ -216,52 +216,41 @@ class Run(Command):
         if not argv:
             return argv, [], []
 
+        argv = self.expand_short_options(argv)
+        argc = len(argv)
         run_argv = []
-        option = None
-        option_map = self.option_map
-        parser = self.arg_parser
-        parse_optional = parser._parse_optional
+        parse_optional = self.parse_optional
 
-        for i, a in enumerate(argv):
-            option_data = parse_optional(a)
-            if option_data is not None:
-                # Arg looks like an option (according to argparse).
-                action, name, value = option_data
-                if name not in option_map:
-                    # Unknown option.
-                    if name == '--':
-                        i += 1
-                    break
-                run_argv.append(a)
-                if value is None:
-                    # The option's value will be expected on the next pass.
-                    option = option_map[name]
-                else:
-                    # A value was supplied with -nVALUE, -n=VALUE, or
-                    # --name=VALUE.
-                    option = None
-            elif option is not None:
-                choices = action.choices or ()
-                if option.takes_value:
-                    run_argv.append(a)
-                    option = None
-                elif a in choices or hasattr(choices, a):
-                    run_argv.append(a)
-                    option = None
-                else:
-                    # Unexpected option value
-                    break
-            else:
-                # The first arg doesn't look like an option (it's probably
-                # a command name).
+        i = 0
+        while i < argc:
+            a = argv[i]
+
+            if a == '--':
+                # Explicit end of run args.
+                i += 1
                 break
-        else:
-            # All args were consumed by run command; none remain.
+
+            option_data = parse_optional(a)
+
+            if option_data is not None:
+                # Arg is a known run option.
+                name, option, value = option_data
+                run_argv.append(a)
+
+                if value is None and option.takes_value:
+                    # Collect the option's value if it takes one and one
+                    # wasn't provided via --opt=<value>.
+                    j = i + 1
+                    if j < argc:
+                        run_argv.append(argv[j])
+                        i = j
+            else:
+                # Arg is not an option.
+                break
+
             i += 1
 
-        remaining = argv[i:]
-
-        return argv, run_argv, remaining
+        return argv, run_argv, argv[i:]
 
     def find_config_file(self, config_file):
         if config_file:
