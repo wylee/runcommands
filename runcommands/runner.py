@@ -57,14 +57,18 @@ class CommandRunner:
         partition = [command, command_args]
 
         prev_args = chain([None], args[:-1])
-        next_args = chain(args[1:], [None])
 
-        for prev_arg, arg, next_arg in zip(prev_args, args, next_args):
+        for prev_arg, arg in zip(prev_args, args):
             if arg in collection:
+                # Found a command name. If the previous arg wasn't an
+                # option expecting a value, assume the command name is
+                # the next command to run and not an option value or
+                # positional.
                 option = command.option_map.get(prev_arg)
                 if option is None or not option.takes_value:
                     break
-            if arg.startswith(':') and arg != ':':
+            if arg and arg[0] == ':' and arg != ':' and arg[1:] in collection:
+                # Found an escaped command name. Unescape it.
                 arg = arg[1:]
             command_args.append(arg)
 
