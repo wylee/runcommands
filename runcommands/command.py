@@ -193,7 +193,7 @@ class Command:
         try:
             result = self.run(argv, **overrides)
         except RunCommandsError as result:
-            if getattr(self, 'raise_on_error', False):
+            if self.debug:
                 raise
             return_code = result.return_code if hasattr(result, 'return_code') else 1
             result_str = str(result)

@@ -26,8 +26,6 @@ class Run(Command):
         'environ',
     )
 
-    raise_on_error = True
-
     def implementation(self,
                        commands_module: arg(short_option='-m') = DEFAULT_COMMANDS_MODULE,
                        config_file: arg(short_option='-f') = None,
@@ -83,8 +81,6 @@ class Run(Command):
         a value and not a command name.
 
         """
-        self.raise_on_error = bool(debug)
-
         collection = Collection.load_from_module(commands_module)
         config_file = self.find_config_file(config_file)
         cli_globals = globals_ or {}
@@ -200,6 +196,8 @@ class Run(Command):
 
     def run(self, argv, **kwargs):
         all_argv, run_argv, command_argv = self.partition_argv(argv)
+        if '-d' in run_argv or '--debug' in run_argv:
+            self.debug = True
         cli_args = tuple(self.parse_args(run_argv))
         kwargs.update({
             'all_argv': all_argv,
