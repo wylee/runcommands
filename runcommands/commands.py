@@ -101,7 +101,7 @@ def git_version(short: 'Get short hash' = True, show: 'Print version to stdout' 
 
 
 @command
-def local(args,
+def local(args: arg(container=list),
           cd=None,
           environ: arg(type=dict) = None,
           replace_env=False,
@@ -211,7 +211,7 @@ def local(args,
 
 
 @command
-def remote(cmd,
+def remote(cmd: arg(container=list),
            host,
            user=None,
            port=None,
