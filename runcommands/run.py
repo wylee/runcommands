@@ -121,6 +121,11 @@ class Run(Command):
                 # Normalize arg names from default args section.
                 for name in tuple(command_default_args):
                     param = command.find_parameter(name)
+                    if param is None:
+                        raise RunnerError(
+                            'Unknown arg for command {command_name} in default args section of '
+                            '{config_file}: {name}'
+                            .format_map(locals()))
                     if param is not None and name != param.name:
                         command_default_args[param.name] = command_default_args.pop(name)
 
