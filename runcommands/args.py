@@ -276,9 +276,15 @@ class Arg:
         if self.inverse_help:
             inverse_help = self.inverse_help
         elif self.help:
-            first_letter = kwargs['help'][0].lower()
-            rest = kwargs['help'][1:]
-            inverse_help = 'Don\'t {first_letter}{rest}'.format_map(locals())
+            help_ = kwargs['help']
+            if help_.startswith('Don\'t '):
+                inverse_help = help_[6:].capitalize()
+            elif help_.startswith('Do not '):
+                inverse_help = help_[7:].capitalize()
+            else:
+                first_letter = help_[0].lower()
+                rest = help_[1:]
+                inverse_help = 'Don\'t {first_letter}{rest}'.format_map(locals())
         else:
             inverse_help = self.help
 
