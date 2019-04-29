@@ -107,6 +107,6 @@ def print_commands(collection, shell):
 
 def print_command_options(cmd, prefix=''):
     for name, cmd_arg in cmd.args.items():
-        for option in cmd_arg.options:
+        for option in cmd_arg.all_options:
             if option.startswith(prefix):
                 print(option)

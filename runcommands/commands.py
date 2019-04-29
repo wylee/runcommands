@@ -9,10 +9,7 @@ import tempfile
 from .args import arg, bool_or
 from .command import command
 from .result import Result
-from .util import abs_path, flatten_args, isatty, printer, StreamOptions
-
-
-__all__ = ['copy_file', 'git_version', 'local', 'remote', 'sync']
+from .util import abs_path, flatten_args, get_commands_in_namespace, isatty, printer, StreamOptions
 
 
 @command
@@ -104,7 +101,7 @@ def git_version(short: 'Get short hash' = True, show: 'Print version to stdout' 
 
 
 @command
-def local(args,
+def local(args: arg(container=list),
           cd=None,
           environ: arg(type=dict) = None,
           replace_env=False,
@@ -214,7 +211,7 @@ def local(args,
 
 
 @command
-def remote(cmd,
+def remote(cmd: arg(container=list),
            host,
            user=None,
            port=None,
@@ -222,7 +219,7 @@ def remote(cmd,
            run_as=None,
            shell='/bin/sh',
            cd=None,
-           environ: arg(type=dict) = None,
+           environ: arg(container=dict) = None,
            paths=(),
            # Args passed through to local command:
            stdout: arg(type=StreamOptions) = None,
@@ -370,3 +367,6 @@ def sync(source,
         destination,
     )
     return local(args, stdout=stdout, stderr=stderr, echo=echo, raise_on_error=raise_on_error)
+
+
+__all__ = list(get_commands_in_namespace())

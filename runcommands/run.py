@@ -6,7 +6,7 @@ import yaml
 from jinja2 import Environment as TemplateEnvironment, TemplateRuntimeError
 
 from . import __version__
-from .args import arg, NestedDictAddAction
+from .args import arg, json_value
 from .command import Command
 from .collection import Collection
 from .const import DEFAULT_COMMANDS_MODULE
@@ -26,15 +26,13 @@ class Run(Command):
         'environ',
     )
 
-    raise_on_error = True
-
     def implementation(self,
                        commands_module: arg(short_option='-m') = DEFAULT_COMMANDS_MODULE,
                        config_file: arg(short_option='-f') = None,
                        # Globals
                        globals_: arg(
-                           type=dict,
-                           action=NestedDictAddAction,
+                           container=dict,
+                           type=json_value,
                            help='Global variables & default args for *all* commands; will be '
                                 'injected into itself, default args, and environment variables '
                                 '(higher precedence than keyword args)'
@@ -49,7 +47,7 @@ class Run(Command):
                        ) = None,
                        # Environment variables
                        environ: arg(
-                           type=dict,
+                           container=dict,
                            help='Additional environment variables; '
                                 'added just before commands are run'
                        ) = None,
@@ -83,8 +81,6 @@ class Run(Command):
         a value and not a command name.
 
         """
-        self.raise_on_error = bool(debug)
-
         collection = Collection.load_from_module(commands_module)
         config_file = self.find_config_file(config_file)
         cli_globals = globals_ or {}
@@ -125,6 +121,11 @@ class Run(Command):
                 # Normalize arg names from default args section.
                 for name in tuple(command_default_args):
                     param = command.find_parameter(name)
+                    if param is None:
+                        raise RunnerError(
+                            'Unknown arg for command {command_name} in default args section of '
+                            '{config_file}: {name}'
+                            .format_map(locals()))
                     if param is not None and name != param.name:
                         command_default_args[param.name] = command_default_args.pop(name)
 
@@ -143,8 +144,8 @@ class Run(Command):
                 # specified as being tuples.
                 for name, value in command_default_args.items():
                     command_arg = command.find_arg(name)
-                    if issubclass(command_arg.type, tuple) and isinstance(value, list):
-                        command_default_args[name] = tuple(value)
+                    if command_arg.container and isinstance(value, list):
+                        command_default_args[name] = command_arg.container(value)
 
             default_args = {name: args for name, args in default_args.items() if args}
 
@@ -200,6 +201,8 @@ class Run(Command):
 
     def run(self, argv, **kwargs):
         all_argv, run_argv, command_argv = self.partition_argv(argv)
+        if '-d' in run_argv or '--debug' in run_argv:
+            self.debug = True
         cli_args = tuple(self.parse_args(run_argv))
         kwargs.update({
             'all_argv': all_argv,
@@ -216,54 +219,41 @@ class Run(Command):
         if not argv:
             return argv, [], []
 
-        if '--' in argv:
-            i = argv.index('--')
-            return argv, argv[:i], argv[i + 1:]
-
+        argv = self.expand_short_options(argv)
+        argc = len(argv)
         run_argv = []
-        option = None
-        option_map = self.option_map
-        parser = self.arg_parser
-        parse_optional = parser._parse_optional
+        parse_optional = self.parse_optional
 
-        for i, a in enumerate(argv):
-            option_data = parse_optional(a)
-            if option_data is not None:
-                # Arg looks like an option (according to argparse).
-                action, name, value = option_data
-                if name not in option_map:
-                    # Unknown option.
-                    break
-                run_argv.append(a)
-                if value is None:
-                    # The option's value will be expected on the next pass.
-                    option = option_map[name]
-                else:
-                    # A value was supplied with -nVALUE, -n=VALUE, or
-                    # --name=VALUE.
-                    option = None
-            elif option is not None:
-                choices = action.choices or ()
-                if option.takes_value:
-                    run_argv.append(a)
-                    option = None
-                elif a in choices or hasattr(choices, a):
-                    run_argv.append(a)
-                    option = None
-                else:
-                    # Unexpected option value
-                    break
-            else:
-                # The first arg doesn't look like an option (it's probably
-                # a command name).
+        i = 0
+        while i < argc:
+            a = argv[i]
+
+            if a == '--':
+                # Explicit end of run args.
+                i += 1
                 break
-        else:
-            # All args were consumed by run command; none remain.
+
+            option_data = parse_optional(a)
+
+            if option_data is not None:
+                # Arg is a known run option.
+                name, option, value = option_data
+                run_argv.append(a)
+
+                if value is None and option.takes_value:
+                    # Collect the option's value if it takes one and one
+                    # wasn't provided via --opt=<value>.
+                    j = i + 1
+                    if j < argc:
+                        run_argv.append(argv[j])
+                        i = j
+            else:
+                # Arg is not an option.
+                break
+
             i += 1
 
-        remaining = argv[i:]
-
-        return argv, run_argv, remaining
+        return argv, run_argv, argv[i:]
 
     def find_config_file(self, config_file):
         if config_file:
