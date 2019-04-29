@@ -1,8 +1,18 @@
 # RunCommands
 
-## 1.0a36 - unreleased
+## 1.0a36 - 2019-04-29
 
-In progress...
+- Default args read from config are now checked and a useful exception is
+  raised if an unknown arg is encountered.
+- Fixed/improved handling of container args. This deconflates the type of
+  a container from the type of values it contains. It also allows commands to
+  use `*args` to collect an arbitrary number of positional args.
+- Fixed handling of `--` on the command line. Now, each command can make use of
+  `--` to specify the end of options and that the remaining args are
+  positional.
+- The command to run via the `local` or `remote` commands no longer needs to be
+  quoted on the command line.
+- Improved parsing and expansion of grouped short options like `-xyz`.
 
 ## 1.0a35 - 2019-03-17
 
