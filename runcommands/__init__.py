@@ -3,4 +3,4 @@ from .command import command
 
 
 __all__ = ['__version__', 'arg', 'bool_or', 'command', 'json_value']
-__version__ = '1.0a36'
+__version__ = '1.0a37.dev0'
