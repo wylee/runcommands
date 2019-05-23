@@ -1,8 +1,9 @@
 # RunCommands
 
-## 1.0a37 - unreleased
+## 1.0a37 - 2019-05-22
 
-In progress...
+- Allow env-specific default args, which take precedence over top level default
+  args (the default default args).
 
 ## 1.0a36 - 2019-04-29
 
