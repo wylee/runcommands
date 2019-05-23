@@ -1,5 +1,10 @@
 # RunCommands
 
+## 1.0a37 - 2019-05-22
+
+- Allow env-specific default args, which take precedence over top level default
+  args (the default default args).
+
 ## 1.0a36 - 2019-04-29
 
 - Default args read from config are now checked and a useful exception is

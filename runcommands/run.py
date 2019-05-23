@@ -107,13 +107,22 @@ class Run(Command):
                     env_globals = envs[env]
                 except KeyError:
                     raise RunnerError('Unknown env: {env}'.format_map(locals()))
+
+                # Don't add env's default args to globals, but save them
+                # so they they can be included in the global envs dict
+                # (for inspection purposes).
+                env_default_args = env_globals.pop('args')
+
                 globals_ = merge_dicts(config_file_globals, env_globals, cli_globals)
                 globals_['envs'] = envs
+
+                env_globals['args'] = env_default_args
             else:
+                env_default_args = {}
                 globals_ = merge_dicts(config_file_globals, cli_globals)
 
             default_args = {name: {} for name in collection}
-            default_args = merge_dicts(default_args, args.get('args') or {})
+            default_args = merge_dicts(default_args, args['args'], env_default_args)
 
             for command_name, command_default_args in default_args.items():
                 command = collection[command_name]
@@ -282,9 +291,12 @@ class Run(Command):
                     'Arg cannot be specified in config file: {name}'
                     .format_map(locals()))
 
-        for env, value in args['envs'].items():
-            if value is None:
-                args['envs'][env] = {}
+        envs = args['envs']
+        for env, data in envs.items():
+            if data is None:
+                data = {}
+                envs[env] = data
+            data.setdefault('args', {})
 
         default_args = args.pop('args')
 
