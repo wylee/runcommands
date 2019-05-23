@@ -1,6 +1,6 @@
 import os
 from importlib import import_module
-from importlib.machinery import SourceFileLoader
+from importlib.util import module_from_spec, spec_from_file_location
 from typing import MutableMapping
 
 from .command import Command
@@ -36,8 +36,9 @@ class Collection(MutableMapping):
                 raise_does_not_exist = True
                 does_not_exist_message = 'Commands file does not exist: {commands_module}'
             else:
-                module_loader = SourceFileLoader('commands', commands_module)
-                module = module_loader.load_module()
+                spec = spec_from_file_location('commands', commands_module)
+                module = module_from_spec(spec)
+                spec.loader.exec_module(module)
         else:
             try:
                 module = import_module(path)
