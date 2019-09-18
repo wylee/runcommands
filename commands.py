@@ -41,7 +41,12 @@ def virtualenv(where='.venv', python='python', overwrite=False):
 def install(where='.venv', python='python', upgrade=False, overwrite=False):
     virtualenv(where=where, python=python, overwrite=overwrite)
     pip = '{where}/bin/pip'.format(where=where)
-    local((pip, 'install', '--upgrade' if upgrade else '', '-e', '.[dev,tox]'))
+    local((
+        pip, 'install',
+        ('--upgrade', '--upgrade-strategy', 'eager') if upgrade else None,
+        '--editable', '.[dev,tox]',
+        ('pip', 'setuptools') if upgrade else None,
+    ), echo=True)
 
 
 @command
