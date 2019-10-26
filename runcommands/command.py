@@ -280,15 +280,27 @@ class Command:
         new_argv = []
         for arg in argv:
             result = self.parse_multi_short_option(arg)
+            result, is_multi_short_option = self.parse_multi_short_option(arg)
             new_argv.extend(result)
         return new_argv
 
     def parse_multi_short_option(self, arg):
+        """Parse args like '-xyz' into ['-x', '-y', '-z'].
+
+        Returns the arg, parsed or not, in a list along with a flag to
+        indicate whether arg is a multi short option.
+
+        For example::
+
+            '-a' -> ['-a'], False
+            '-xyz' -> ['-x', '-y', '-z'], True
+
+        """
         if len(arg) < 3 or arg[0] != '-' or arg[1] == '-' or arg[2] == '=':
             # Not a multi short option like '-abc'.
-            return [arg]
+            return [arg], False
         # Appears to be a multi short option.
-        return ['-{a}'.format(a=a) for a in arg[1:]]
+        return ['-{a}'.format(a=a) for a in arg[1:]], True
 
     def normalize_name(self, name):
         name = camel_to_underscore(name)
