@@ -1,8 +1,12 @@
 # RunCommands
 
-## 1.0a38 - unreleased
+## 1.0a38 - 2019-10-25
 
-In progress...
+- Support Python 3.8.
+- Don't attempt to parse command args after `--` as multi short options. Args
+  after `--` should be passed verbatim.
+- When determining if help was requested for a command, ignore args after `--`.
+  Args after `--` aren't command options.
 
 ## 1.0a37 - 2019-05-22
 
