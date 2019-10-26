@@ -96,7 +96,18 @@ class CommandToRun:
         self.name = command.name
         self.command = command
         self.argv = argv
-        self.help_requested = '-h' in argv or '--help' in argv
+
+        # Ignore args after -- when determining whether help was
+        # requested for a command because such args aren't command
+        # options.
+        try:
+            dash_dash_index = argv.index('--')
+        except ValueError:
+            help_requested_argv = argv
+        else:
+            help_requested_argv = argv[:dash_dash_index]
+
+        self.help_requested = '-h' in help_requested_argv or '--help' in help_requested_argv
 
     def run(self):
         return self.command.run(self.argv)
