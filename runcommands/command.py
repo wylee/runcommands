@@ -277,18 +277,43 @@ class Command:
         be parsed into multiple short options.
 
         """
+        debug = self.debug
+        parse_multi_short_option = self.parse_multi_short_option
+        if debug:
+            has_multi_short_options = False
+            printer.debug('Expanding short options:')
         new_argv = []
-        for arg in argv:
-            result = self.parse_multi_short_option(arg)
+        for i, arg in enumerate(argv):
+            result, is_multi_short_option = parse_multi_short_option(arg)
+            if debug:
+                has_multi_short_options = has_multi_short_options or is_multi_short_option
+                if is_multi_short_option:
+                    printer.debug('    Found multi short option:', arg, '=>', result)
+            if arg == '--':
+                new_argv.extend(argv[i:])
+                break
             new_argv.extend(result)
+        if debug and not has_multi_short_options:
+            printer.debug('    No mult short options found')
         return new_argv
 
     def parse_multi_short_option(self, arg):
+        """Parse args like '-xyz' into ['-x', '-y', '-z'].
+
+        Returns the arg, parsed or not, in a list along with a flag to
+        indicate whether arg is a multi short option.
+
+        For example::
+
+            '-a' -> ['-a'], False
+            '-xyz' -> ['-x', '-y', '-z'], True
+
+        """
         if len(arg) < 3 or arg[0] != '-' or arg[1] == '-' or arg[2] == '=':
             # Not a multi short option like '-abc'.
-            return [arg]
+            return [arg], False
         # Appears to be a multi short option.
-        return ['-{a}'.format(a=a) for a in arg[1:]]
+        return ['-{a}'.format(a=a) for a in arg[1:]], True
 
     def normalize_name(self, name):
         name = camel_to_underscore(name)

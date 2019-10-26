@@ -83,13 +83,11 @@ def git_version(short: 'Get short hash' = True, show: 'Print version to stdout' 
         ['git', 'describe', '--exact-match'],
         stdout='capture', stderr='hide', echo=False, raise_on_error=False)
 
-    if result:
-        return result.stdout
-
-    # Fall back to hash
-    result = local(
-        ['git', 'rev-parse', '--short' if short else None, 'HEAD'],
-        stdout='capture', stderr='hide', echo=False, raise_on_error=False)
+    if not result:
+        # Fall back to hash
+        result = local(
+            ['git', 'rev-parse', '--short' if short else None, 'HEAD'],
+            stdout='capture', stderr='hide', echo=False, raise_on_error=False)
 
     if result:
         version = result.stdout.strip()

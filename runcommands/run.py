@@ -174,7 +174,6 @@ class Run(Command):
             print('RunCommands', __version__)
 
         if debug:
-            print()
             printer.debug('Commands module:', commands_module)
             printer.debug('Config file:', config_file)
             printer.debug('All args:', all_argv)
