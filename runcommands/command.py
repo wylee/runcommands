@@ -277,11 +277,23 @@ class Command:
         be parsed into multiple short options.
 
         """
+        debug = self.debug
+        parse_multi_short_option = self.parse_multi_short_option
+        if debug:
+            has_multi_short_options = False
+            printer.debug('Expanding short options:')
         new_argv = []
         for arg in argv:
             result = self.parse_multi_short_option(arg)
             result, is_multi_short_option = self.parse_multi_short_option(arg)
+            result, is_multi_short_option = parse_multi_short_option(arg)
+            if debug:
+                has_multi_short_options = has_multi_short_options or is_multi_short_option
+                if is_multi_short_option:
+                    printer.debug('    Found multi short option:', arg, '=>', result)
             new_argv.extend(result)
+        if debug and not has_multi_short_options:
+            printer.debug('    No mult short options found')
         return new_argv
 
     def parse_multi_short_option(self, arg):
