@@ -36,6 +36,10 @@ class ArgConfig:
             specified, or if the ``default`` value for the arg is a
             container, the ``type`` will be applied to the container's
             values.
+        positional (bool): An arg will automatically be considered
+            positional if it doesn't have a default value, so this
+            doesn't usually need to be passed explicitly. It can be used
+            to force an arg that normally be optional positional.
         choices (sequence): A sequence of allowed choices for the arg.
         help (str): Help string for the arg.
         inverse_help (str): Inverse help string for the arg (for the
@@ -58,6 +62,7 @@ class ArgConfig:
     def __init__(self, *,
                  container=None,
                  type=None,
+                 positional=None,
                  choices=None,
                  help=None,
                  inverse_help=None,
@@ -80,6 +85,7 @@ class ArgConfig:
 
         self.container = container
         self.type = type
+        self.positional = positional
         self.choices = choices
         self.help = help
         self.inverse_help = inverse_help
@@ -120,6 +126,10 @@ class Arg:
             specified, or if the ``default`` value for the arg is a
             container, the ``type`` will be applied to the container's
             values.
+        positional (bool): An arg will automatically be considered
+            positional if it doesn't have a default value, so this
+            doesn't usually need to be passed explicitly. It can be used
+            to force an arg that normally be optional positional.
         default (object): Default value for the arg.
         choices (sequence): A sequence of allowed choices for the arg.
         help (str): Help string for the arg.
@@ -139,6 +149,7 @@ class Arg:
                  name,
                  container,
                  type,
+                 positional,
                  default,
                  choices,
                  help,
@@ -159,6 +170,9 @@ class Arg:
         else:
             is_positional = False
             is_optional = True
+
+        if positional is not None:
+            is_positional = positional
 
         metavar = name.upper().replace('-', '_')
         if container and len(name) > 1 and name.endswith('s'):
@@ -218,6 +232,8 @@ class Arg:
             if is_positional:
                 if container:
                     nargs = '+'
+                elif is_optional:
+                    nargs = '?'
             elif is_var_positional:
                 nargs = '*'
             elif is_bool_or:
@@ -324,6 +340,7 @@ class HelpArg(Arg):
             name='help',
             container=None,
             type=bool,
+            positional=None,
             default=False,
             choices=None,
             help=None,

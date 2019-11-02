@@ -436,6 +436,7 @@ class Command:
             annotation = get_arg_config(param)
             container = annotation.container
             type = annotation.type
+            positional = annotation.positional
             choices = annotation.choices
             help = annotation.help
             inverse_help = annotation.inverse_help
@@ -446,8 +447,9 @@ class Command:
             nargs = annotation.nargs
 
             default = param.default
+            is_positional = positional or default is param.empty
 
-            if default is not param.empty:
+            if not is_positional:
                 if not short_option:
                     short_option = get_short_option(name, names, used_short_options)
                     used_short_options.add(short_option)
@@ -463,6 +465,7 @@ class Command:
                 name=name,
                 container=container,
                 type=type,
+                positional=positional,
                 default=default,
                 choices=choices,
                 help=help,
@@ -579,3 +582,4 @@ class Command:
 
 
 command = Command.command
+subcommand = Command.subcommand
