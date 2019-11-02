@@ -153,7 +153,7 @@ class Run(Command):
                 # specified as being tuples.
                 for name, value in command_default_args.items():
                     command_arg = command.find_arg(name)
-                    if command_arg.container and isinstance(value, list):
+                    if command_arg and command_arg.container and isinstance(value, list):
                         command_default_args[name] = command_arg.container(value)
 
             default_args = {name: args for name, args in default_args.items() if args}
