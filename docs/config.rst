@@ -38,11 +38,11 @@ Lowest to highest:
 1. Keyword args
 2. Global args from config file
 3. Global args passed via `run` command
-3. Env-specific global args from config file
-4. Env-specific default args from config file
-5. Default args from config file
-6. Command line args
-7. Direct call args
+4. Env-specific global args from config file
+5. Env-specific default args from config file
+6. Default args from config file
+7. Command line args
+8. Direct call args
 
 Interpolation
 =============
