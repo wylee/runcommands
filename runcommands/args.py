@@ -2,6 +2,7 @@ import argparse
 import builtins
 import json
 import re
+from argparse import SUPPRESS
 from enum import Enum
 from inspect import Parameter
 from typing import Mapping, Sequence
@@ -174,6 +175,8 @@ class Arg:
         if positional is not None:
             is_positional = positional
 
+        is_optional_positional = is_positional and is_optional
+
         metavar = name.upper().replace('-', '_')
         if container and len(name) > 1 and name.endswith('s'):
             metavar = metavar[:-1]
@@ -198,10 +201,12 @@ class Arg:
         if isinstance(type, builtins.type):
             is_bool = issubclass(type, bool)
             is_bool_or = issubclass(type, bool_or)
+            is_enum_bool_or = is_bool_or and issubclass(type, Enum)
             is_enum = issubclass(type, Enum)
         else:
             is_bool = False
             is_bool_or = False
+            is_enum_bool_or = False
             is_enum = False
 
         if is_bool:
@@ -213,8 +218,14 @@ class Arg:
         if not choices:
             if is_enum:
                 choices = type
-            elif is_bool_or and issubclass(type, Enum):
+            elif is_enum_bool_or:
                 choices = type.type
+
+        if choices and is_optional_positional:
+            if is_enum or is_enum_bool_or:
+                type = OptionalPositionalWithEnumChoicesType(choices, default)
+            else:
+                type = OptionalPositionalWithChoicesType(default)
 
         if is_positional or is_var_positional:
             assert short_option is long_option is inverse_option is None, \
@@ -379,6 +390,50 @@ class bool_or:
             name = 'BoolOr{name}'.format(name=type.__name__.title())
             _type_cache[type] = builtins.type(name, (cls,), {'type': type})
         return _type_cache[type]
+
+
+class OptionalPositionalWithChoicesType:
+
+    # Passed as type to ArgumentParser.add_argument() for optional
+    # positionals that have choices. This is necessary to handle the
+    # case where the positional's value isn't specified on the command
+    # line--argparse will set the value to argparse.SUPPRESS, which
+    # won't be a valid choice, so it needs to be intercepted and
+    # converted to a valid choice.
+
+    def __init__(self, default):
+        if default is None:
+            default = ''
+        self.default = default
+
+    def __call__(self, value):
+        if value == SUPPRESS:
+            return self.default
+        return value
+
+
+class OptionalPositionalWithEnumChoicesType:
+
+    # Passed as type to ArgumentParser.add_argument() for optional
+    # positionals that have choices that's an Enum. This is necessary to
+    # handle the case where the positional's value isn't specified on
+    # the command line--argparse will set the value to
+    # argparse.SUPPRESS, which won't be a valid Enum member, so it needs
+    # to be intercepted and converted to a valid member.
+
+    def __init__(self, enum, default):
+        self.enum = enum
+        if default is None:
+            # XXX: Is this a sane default or should we raise an error?
+            default = 'none'
+        elif isinstance(default, str):
+            default = enum[default]
+        self.default = default
+
+    def __call__(self, name):
+        if name == SUPPRESS:
+            return self.default
+        return self.enum[name]
 
 
 class BoolOrAction(argparse.Action):

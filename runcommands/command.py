@@ -582,4 +582,3 @@ class Command:
 
 
 command = Command.command
-subcommand = Command.subcommand
