@@ -190,7 +190,9 @@ class Arg:
                 container = tuple
 
         if type is None:
-            if container is None:
+            if isinstance(choices, builtins.type) and issubclass(choices, Enum):
+                type = choices
+            elif container is None:
                 if default not in (None, parameter.empty):
                     type = default.__class__
                 else:
