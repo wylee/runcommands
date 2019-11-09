@@ -18,6 +18,12 @@ console_scripts = [
 if os.getenv('VIRTUAL_ENV'):
     console_scripts.append('run = runcommands.__main__:main')
 
+install_release_console_script = os.getenv('RUNCOMMANDS_INSTALL_RELEASE_CONSOLE_SCRIPT') or ''
+install_release_console_script = install_release_console_script.lower()
+install_release_console_script = install_release_console_script in ('1', 'true', 'yes')
+if install_release_console_script:
+    console_scripts.append('release = runcommands.commands:release.console_script')
+
 setup(
     name='runcommands',
     version=__version__,

@@ -7,6 +7,9 @@ A few commands are provided out of the box:
 - `copy-file`: Copy a local file, optionally as a template.
 - `git-version`: Show the tag or SHA1 corresponding to `HEAD`.
 - `local`: Run a local command via :func:`subprocess.run()`.
+- `release`: Make a release of a package. If the
+  `RUNCOMMANDS_INSTALL_RELEASE_CONSOLE_SCRIPT` is set to a truthy value,
+  a `release` console script will be installed.
 - `remote`: Run a remote command via SSH.
 - `sync`: Sync local files to remote server or vice versa using `rsync`.
 
