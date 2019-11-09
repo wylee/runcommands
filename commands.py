@@ -11,7 +11,8 @@ if 'runcommands' not in sys.path:
 
 from runcommands import command  # noqa: E402
 from runcommands.args import DISABLE, arg  # noqa: E402
-from runcommands.commands import copy_file, git_version, local  # noqa: E402,F401
+from runcommands.commands import copy_file as _copy_file, local as _local  # noqa: E402
+from runcommands.commands import git_version  # noqa: E402,F401
 from runcommands.util import abort, asset_path, confirm, printer, prompt  # noqa: E402
 
 
@@ -20,7 +21,7 @@ def virtualenv(where='.venv', python='python', overwrite=False):
     exists = os.path.exists(where)
 
     def create():
-        local((python, '-m', 'venv', where))
+        _local((python, '-m', 'venv', where))
         printer.success(
             'Virtualenv created; activate it by running `source {where}/bin/activate`'
             .format_map(locals()))
@@ -41,7 +42,7 @@ def virtualenv(where='.venv', python='python', overwrite=False):
 def install(where='.venv', python='python', upgrade=False, overwrite=False):
     virtualenv(where=where, python=python, overwrite=overwrite)
     pip = '{where}/bin/pip'.format(where=where)
-    local((
+    _local((
         pip, 'install',
         ('--upgrade', '--upgrade-strategy', 'eager') if upgrade else None,
         '--editable', '.[dev,tox]',
@@ -83,7 +84,7 @@ def install_completion(
             message = 'File exists. Overwrite?'.format_map(locals())
             overwrite = confirm(message, abort_on_unconfirmed=True)
 
-    copy_file(source, destination)
+    _copy_file(source, destination)
     printer.info('Installed; remember to:\n    source {destination}'.format_map(locals()))
 
 
@@ -129,8 +130,8 @@ def tox(envs: 'Pass -e option to tox with the specified environments' = (),
         recreate: 'Pass --recreate flag to tox' = False,
         clean: 'Remove tox directory first' = False):
     if clean:
-        local('rm -rf .tox', echo=True)
-    local((
+        _local('rm -rf .tox', echo=True)
+    _local((
         'tox',
         ('-e', ','.join(envs)) if envs else None,
         '--recreate' if recreate else None,
@@ -141,7 +142,7 @@ def tox(envs: 'Pass -e option to tox with the specified environments' = (),
 def lint(show_errors: arg(help='Show errors') = True,
          disable_ignore: arg(inverse_option=DISABLE, help='Don\'t ignore any errors') = False,
          disable_noqa: arg(inverse_option=DISABLE, help='Ignore noqa directives') = False):
-    result = local((
+    result = _local((
         'flake8', '.',
         '--ignore=' if disable_ignore else None,
         '--disable-noqa' if disable_noqa else None,
@@ -225,7 +226,7 @@ def release(version=None, date=None, tag_name=None, next_version=None, prepare=T
         with open(file_name, 'w') as fp:
             fp.writelines(lines)
 
-    result = local('git rev-parse --abbrev-ref HEAD', stdout='capture')
+    result = _local('git rev-parse --abbrev-ref HEAD', stdout='capture')
     current_branch = result.stdout.strip()
     if current_branch == 'master':
         abort(1, 'Cannot release from master branch')
@@ -344,27 +345,27 @@ def release(version=None, date=None, tag_name=None, next_version=None, prepare=T
         update_line(init_module, init_line_number, updated_init_line)
         update_line(changelog, changelog_line_number, updated_changelog_line)
 
-        local(('git', 'diff', init_module, changelog))
+        _local(('git', 'diff', init_module, changelog))
         yes or confirm('Commit these changes?', abort_on_unconfirmed=True)
         msg = 'Prepare release {version}'.format_map(locals())
         msg = prompt('Commit message', default=msg)
-        local(('git', 'commit', init_module, changelog, '-m', msg))
+        _local(('git', 'commit', init_module, changelog, '-m', msg))
 
     # Merge and tag
     if merge:
         printer.header('Merging', current_branch, 'into master for release', version)
-        local('git log --oneline --reverse master..')
+        _local('git log --oneline --reverse master..')
         msg = 'Merge these changes from {current_branch} into master for release {version}?'
         msg = msg.format_map(locals())
         yes or confirm(msg, abort_on_unconfirmed=True)
-        local('git checkout master')
+        _local('git checkout master')
         msg = '"Merge branch \'{current_branch}\' for release {version}"'.format_map(locals())
-        local(('git', 'merge', '--no-ff', current_branch, '-m', msg))
+        _local(('git', 'merge', '--no-ff', current_branch, '-m', msg))
         if create_tag:
             printer.header('Tagging release', version)
             msg = '"Release {version}"'.format_map(locals())
-            local(('git', 'tag', '-a', '-m', msg, version))
-        local(('git', 'checkout', current_branch))
+            _local(('git', 'tag', '-a', '-m', msg, version))
+        _local(('git', 'checkout', current_branch))
 
     # Resume
     if resume:
@@ -384,11 +385,11 @@ def release(version=None, date=None, tag_name=None, next_version=None, prepare=T
         with open(changelog, 'w') as fp:
             fp.writelines(lines)
 
-        local(('git', 'diff', init_module, changelog))
+        _local(('git', 'diff', init_module, changelog))
         yes or confirm('Commit these changes?', abort_on_unconfirmed=True)
         msg = 'Resume development at {next_version}'.format_map(locals())
         msg = prompt('Commit message', default=msg)
-        local(('git', 'commit', init_module, changelog, '-m', msg))
+        _local(('git', 'commit', init_module, changelog, '-m', msg))
 
 
 @command
@@ -396,7 +397,7 @@ def build_docs(source='docs', destination='docs/_build', builder='html', clean=F
     if clean:
         printer.info('Removing {destination}...'.format_map(locals()))
         shutil.rmtree(destination)
-    local((
+    _local((
         'sphinx-build',
         '-b',
         builder,
