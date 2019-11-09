@@ -271,7 +271,7 @@ class Command:
         """Convert grouped short options like `-abc` to `-a, -b, -c`.
 
         This is necessary because we set ``allow_abbrev=False`` on the
-        ``ArgumentParser`` in :prop:`self.arg_parser`. The argparse docs
+        ``ArgumentParser`` in :attr:`self.arg_parser`. The argparse docs
         say ``allow_abbrev`` applies only to long options, but it also
         affects whether short options grouped behind a single dash will
         be parsed into multiple short options.
