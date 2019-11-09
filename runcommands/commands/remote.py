@@ -28,14 +28,14 @@ def remote(cmd: arg(container=list),
            ) -> Result:
     """Run a remote command via SSH.
 
-    Runs a remote shell command using ``ssh`` in a subprocess like so:
+    Runs a remote shell command using ``ssh`` in a subprocess like so::
 
-    ssh -q [-t] [<user>@]<host> [sudo [-u <run_as>] -H] /bin/sh -c '
-        [cd <cd> &&]
-        [export XYZ="xyz" &&]
-        [export PATH="<path>" &&]
-        <cmd>
-    '
+        ssh -q [-t] [<user>@]<host> [sudo [-u <run_as>] -H] /bin/sh -c '
+            [cd <cd> &&]
+            [export XYZ="xyz" &&]
+            [export PATH="<path>" &&]
+            <cmd>
+        '
 
     Args:
         cmd (list|str): The command to run. If this is a list, it will
