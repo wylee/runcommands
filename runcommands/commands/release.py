@@ -213,7 +213,7 @@ def release(package: 'Name of package directory (relative to CWD)',
         if create_tag:
             printer.header('Tagging release', version)
             msg = '"Release {version}"'.format_map(locals())
-            local(('git', 'tag', '-a', '-m', msg, version))
+            local(('git', 'tag', '-a', '-m', msg, tag_name))
         local(('git', 'checkout', current_branch))
 
     # Resume
