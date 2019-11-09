@@ -1,3 +1,4 @@
+import os
 from setuptools import find_packages, setup
 
 with open('runcommands/__init__.py') as fp:
@@ -7,6 +8,15 @@ with open('runcommands/__init__.py') as fp:
 
 with open('README.rst') as fp:
     long_description = fp.read().strip()
+
+console_scripts = [
+    'runcommand = runcommands.__main__:main',
+    'runcommands = runcommands.__main__:main',
+    'runcommands-complete = runcommands.completion:complete.console_script',
+]
+
+if os.getenv('VIRTUAL_ENV'):
+    console_scripts.append('run = runcommands.__main__:main')
 
 setup(
     name='runcommands',
@@ -37,13 +47,7 @@ setup(
         ],
     },
     entry_points={
-        'console_scripts': [
-            'run = runcommands.__main__:main',
-            'runcmd = runcommands.__main__:main',
-            'runcommand = runcommands.__main__:main',
-            'runcommands = runcommands.__main__:main',
-            'runcommands-complete = runcommands.completion:complete.console_script',
-        ],
+        'console_scripts': console_scripts,
     },
     classifiers=[
         'Development Status :: 3 - Alpha',
