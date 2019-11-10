@@ -115,7 +115,7 @@ class Command:
                 raise CommandError(
                     'Missing implementation; it must be passed in as a function or defined as a '
                     'method on the command class')
-            default_name = self.__class__.name
+            default_name = self.__class__.__name__
         else:
             self.implementation = implementation
             default_name = implementation.__name__
