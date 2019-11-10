@@ -6,7 +6,7 @@ import time
 from collections import OrderedDict
 from typing import Mapping
 
-from .args import Arg, ArgConfig, HelpArg
+from .args import DEFAULT_PLACEHOLDER, Arg, ArgConfig, HelpArg
 from .exc import CommandError, RunCommandsError
 from .util import cached_property, camel_to_underscore, get_hr, printer
 
@@ -207,12 +207,23 @@ class Command:
         return return_code
 
     def __call__(self, *args, **kwargs):
-        passed = set(tuple(self.parameters)[:len(args)])
+        self_args = self.args
+        default_args = self.default_args
+
+        # Take note of which args/options were passed. Args that aren't
+        # passed and that have a default set via config will be set to
+        # their default values.
+        positionals = tuple(self.parameters)[:len(args)]
+        passed = {positionals[i]: arg for i, arg in enumerate(args)}
         passed.update(kwargs)
 
+        for name, value in kwargs.items():
+            if name not in default_args and value is DEFAULT_PLACEHOLDER:
+                kwargs[name] = self_args[name].default
+
         defaults = {}
-        for name, value in self.default_args.items():
-            if name not in passed:
+        for name, value in default_args.items():
+            if name not in passed or passed[name] is DEFAULT_PLACEHOLDER:
                 defaults[name] = value
 
         if self.debug:
