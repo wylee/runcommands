@@ -424,6 +424,7 @@ class Command:
                 used_short_options.add(short_option)
 
         for name, param in params.items():
+            empty = param.empty
             name = normalize_name(name)
 
             skip = (
@@ -436,7 +437,6 @@ class Command:
             annotation = get_arg_config(param)
             container = annotation.container
             type = annotation.type
-            positional = annotation.positional
             choices = annotation.choices
             help = annotation.help
             inverse_help = annotation.inverse_help
@@ -447,9 +447,21 @@ class Command:
             nargs = annotation.nargs
 
             default = param.default
-            is_positional = positional or default is param.empty
+            is_var_positional = param.kind is param.VAR_POSITIONAL
+            is_positional = default is empty and not is_var_positional
 
-            if not is_positional:
+            if annotation.default is not empty:
+                if is_positional:
+                    default = annotation.default
+                else:
+                    message = (
+                        'Got default for `{self.name}` command\'s optional arg `{name}` via '
+                        'arg annotation. Optional args must specify their defaults via keyword '
+                        'arg values.'
+                    ).format_map(locals())
+                    raise CommandError(message)
+
+            if not (is_positional or is_var_positional):
                 if not short_option:
                     short_option = get_short_option(name, names, used_short_options)
                     used_short_options.add(short_option)
@@ -465,7 +477,7 @@ class Command:
                 name=name,
                 container=container,
                 type=type,
-                positional=positional,
+                positional=is_positional,
                 default=default,
                 choices=choices,
                 help=help,

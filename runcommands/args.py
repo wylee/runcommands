@@ -37,10 +37,6 @@ class ArgConfig:
             specified, or if the ``default`` value for the arg is a
             container, the ``type`` will be applied to the container's
             values.
-        positional (bool): An arg will automatically be considered
-            positional if it doesn't have a default value, so this
-            doesn't usually need to be passed explicitly. It can be used
-            to force an arg that normally be optional positional.
         choices (sequence): A sequence of allowed choices for the arg.
         help (str): Help string for the arg.
         inverse_help (str): Inverse help string for the arg (for the
@@ -50,6 +46,7 @@ class ArgConfig:
         inverse_option (str): Inverse option for boolean args.
         action (Action): ``argparse`` Action.
         nargs (int|str): Number of command line args to consume.
+        default: Default value for positional args.
 
     .. note:: For convenience, regular dicts can be used to annotate
         args instead; they will be converted to instances of this class
@@ -63,7 +60,6 @@ class ArgConfig:
     def __init__(self, *,
                  container=None,
                  type=None,
-                 positional=None,
                  choices=None,
                  help=None,
                  inverse_help=None,
@@ -71,7 +67,8 @@ class ArgConfig:
                  long_option=None,
                  inverse_option=None,
                  action=None,
-                 nargs=None):
+                 nargs=None,
+                 default=Parameter.empty):
         if short_option is not None:
             if not self.short_option_regex.search(short_option):
                 message = 'Expected short option with form -x, not "{short_option}"'
@@ -86,7 +83,6 @@ class ArgConfig:
 
         self.container = container
         self.type = type
-        self.positional = positional
         self.choices = choices
         self.help = help
         self.inverse_help = inverse_help
@@ -95,6 +91,7 @@ class ArgConfig:
         self.inverse_option = inverse_option
         self.action = action
         self.nargs = nargs
+        self.default = default
 
     def __repr__(self):
         options = self.short_option, self.long_option, self.inverse_option
@@ -129,8 +126,9 @@ class Arg:
             values.
         positional (bool): An arg will automatically be considered
             positional if it doesn't have a default value, so this
-            doesn't usually need to be passed explicitly. It can be used
-            to force an arg that normally be optional positional.
+            doesn't usually need to be passed explicitly. It can be
+            used to force an arg that would normally be optional to
+            be positional.
         default (object): Default value for the arg.
         choices (sequence): A sequence of allowed choices for the arg.
         help (str): Help string for the arg.
