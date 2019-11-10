@@ -7,7 +7,7 @@ configure options.
 
 There are two basic use cases:
 
-1. Standalone console scripts.
+1. Standalone console scripts (including scripts with subcommands).
 2. Collections of commands (similar to make, Fabric, etc).
 
 Building on these, especially #2, there are a couple of more advanced

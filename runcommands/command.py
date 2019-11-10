@@ -108,8 +108,8 @@ class Command:
 
     """
 
-    def __init__(self, implementation=None, name=None, description=None, timed=False,
-                 arg_config=None, default_args=None, debug=False):
+    def __init__(self, implementation=None, name=None, description=None, base_command=None,
+                 timed=False, arg_config=None, default_args=None, debug=False):
         if implementation is None:
             if not hasattr(self, 'implementation'):
                 raise CommandError(
@@ -120,20 +120,38 @@ class Command:
             self.implementation = implementation
             default_name = implementation.__name__
 
-        self.name = (
-            name or
-            getattr(self.__class__, 'name', None) or
-            self.normalize_name(default_name))
+        name = name or getattr(self.__class__, 'name', None) or self.normalize_name(default_name)
 
-        self.description = description or self.get_description_from_docstring(self.implementation)
+        is_subcommand = base_command is not None
+
+        if is_subcommand:
+            name = ':'.join((base_command.name, name))
+
+        description = description or self.get_description_from_docstring(self.implementation)
+        short_description = description.splitlines()[0] if description else None
+
+        self.name = name
+        self.description = description
+        self.short_description = short_description
         self.timed = timed
         self.arg_config = arg_config or {}
         self.debug = debug
         self.default_args = default_args or {}
 
+        # Subcommand-related attributes
+        first_arg = next(iter(self.args.values()), None)
+        self.base_command = base_command
+        self.is_subcommand = is_subcommand
+        self.subcommands = []
+        self.first_arg = first_arg
+        self.first_arg_has_choices = False if first_arg is None else bool(first_arg.choices)
+
+        if is_subcommand:
+            base_command.add_subcommand(self)
+
     @classmethod
-    def command(cls, name=None, description=None, timed=False):
-        args = dict(description=description, timed=timed)
+    def command(cls, name=None, description=None, base_command=None, timed=False):
+        args = dict(description=description, base_command=base_command, timed=timed)
 
         if isinstance(name, type):
             # Bare class decorator
@@ -151,6 +169,44 @@ class Command:
             return cls(implementation=wrapped, name=name, **args)
 
         return wrapper
+
+    @classmethod
+    def subcommand(cls, base_command, name=None, description=None, timed=False):
+        """Create a subcommand of the specified base command."""
+        return cls.command(name, description, base_command, timed)
+
+    @property
+    def is_base_command(self):
+        return bool(self.subcommands)
+
+    @property
+    def subcommand_depth(self):
+        depth = 0
+        base_command = self.base_command
+        while base_command:
+            depth += 1
+            base_command = base_command.base_command
+        return depth
+
+    @cached_property
+    def base_name(self):
+        if self.is_subcommand:
+            return self.name.split(':', self.subcommand_depth)[-1]
+        return self.name
+
+    @cached_property
+    def prog_name(self):
+        if self.is_subcommand:
+            return ' '.join(self.name.split(':', self.subcommand_depth))
+        return self.base_name
+
+    def add_subcommand(self, subcommand):
+        name = subcommand.base_name
+        self.subcommands.append(subcommand)
+        if not self.first_arg_has_choices:
+            if self.first_arg.choices is None:
+                self.first_arg.choices = []
+            self.first_arg.choices.append(name)
 
     def get_description_from_docstring(self, implementation):
         description = implementation.__doc__
@@ -187,13 +243,38 @@ class Command:
         return result
 
     def console_script(self, argv=None, **overrides):
+        debug = self.debug
         argv = sys.argv[1:] if argv is None else argv
+        base_argv = argv
+        is_base_command = self.is_base_command
+        found_subcommand = None
+
         if hasattr(self, 'sigint_handler'):
             signal.signal(signal.SIGINT, self.sigint_handler)
+
+        if is_base_command:
+            base_argv = []
+            subcommand_map = {sub.name: sub for sub in self.subcommands}
+            for i, arg in enumerate(argv):
+                if arg.startswith(':'):
+                    arg = arg[1:]
+                    base_argv.append(arg)
+                else:
+                    qualified_name = '{self.name}:{arg}'.format_map(locals())
+                    if qualified_name in subcommand_map:
+                        found_subcommand = subcommand_map[qualified_name]
+                        base_argv.append(arg)
+                        subcommand_argv = argv[i + 1:]
+                        if debug:
+                            printer.debug('Found subcommand:', found_subcommand.name)
+                        break
+                    else:
+                        base_argv.append(arg)
+
         try:
-            result = self.run(argv, **overrides)
+            result = self.run(base_argv, **overrides)
         except RunCommandsError as result:
-            if self.debug:
+            if debug:
                 raise
             return_code = result.return_code if hasattr(result, 'return_code') else 1
             result_str = str(result)
@@ -204,6 +285,10 @@ class Command:
                     printer.print(result_str)
         else:
             return_code = result.return_code if hasattr(result, 'return_code') else 0
+
+        if found_subcommand:
+            return found_subcommand.console_script(subcommand_argv)
+
         return return_code
 
     def __call__(self, *args, **kwargs):
@@ -521,7 +606,7 @@ class Command:
         use_default_help = isinstance(self.args['help'], HelpArg)
 
         parser = argparse.ArgumentParser(
-            prog=self.name,
+            prog=self.prog_name,
             description=self.description,
             formatter_class=argparse.RawDescriptionHelpFormatter,
             argument_default=argparse.SUPPRESS,
@@ -605,3 +690,4 @@ class Command:
 
 
 command = Command.command
+subcommand = Command.subcommand
