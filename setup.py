@@ -32,7 +32,7 @@ setup(
     author_email='self@wyattbaldwin.com',
     description='A simple command runner',
     long_description=long_description,
-    keywords='commands',
+    keywords=['run', 'commands', 'console', 'scripts', 'terminal'],
     url='https://github.com/wylee/runcommands',
     python_requires='>=3.5',
     install_requires=[
@@ -57,6 +57,7 @@ setup(
     },
     classifiers=[
         'Development Status :: 3 - Alpha',
+        'Environment :: Console',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Topic :: Software Development :: Build Tools',
