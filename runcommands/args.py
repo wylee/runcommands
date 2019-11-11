@@ -58,8 +58,8 @@ class ArgConfig:
 
     """
 
-    short_option_regex = re.compile(r'^-\w$')
-    long_option_regex = re.compile(r'^--\w$')
+    short_option_regex = re.compile(r'-\w')
+    long_option_regex = re.compile(r'--\w+')
 
     def __init__(self, *,
                  container=None,
@@ -74,16 +74,16 @@ class ArgConfig:
                  nargs=None,
                  default=Parameter.empty):
         if short_option is not None:
-            if not self.short_option_regex.search(short_option):
+            if not self.short_option_regex.fullmatch(short_option):
                 message = 'Expected short option with form -x, not "{short_option}"'
                 message = message.format_map(locals())
-                raise ValueError(message)
+                raise CommandError(message)
 
         if long_option is not None:
-            if not self.long_option_regex.search(long_option):
+            if not self.long_option_regex.fullmatch(long_option):
                 message = 'Expected long option with form --option, not "{long_option}"'
                 message = message.format_map(locals())
-                raise ValueError(message)
+                raise CommandError(message)
 
         self.container = container
         self.type = type
