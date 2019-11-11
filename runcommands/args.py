@@ -224,8 +224,12 @@ class Arg:
                 choices = type.type
 
         if is_positional or is_var_positional:
-            assert short_option is long_option is inverse_option is None, \
-                'Positional args cannot be specified with options'
+            options = (short_option, long_option, inverse_option)
+            options = tuple(option for option in options if option is not None)
+            if options:
+                raise CommandError(
+                    'Positional args cannot be specified with options: {options}'
+                    .format(options=', '.join(options)))
 
         if action is None:
             if container:
