@@ -6,7 +6,17 @@ In progress...
 
 ## 1.0a39 - 2019-11-02
 
-In progress...
+- Added support for positional args that have a default value. Includes
+  handling of `choices` args when no choice is passed.
+- Fixed conversion of list-arg-to-tuple for cases where arg doesn't exist on
+  command. This can happen when, for example, a command is run with `run
+  --debug` and the command doesn't have a `debug` arg.
+- Added check to ensure long options are valid. Short options were already
+  being checked.
+- Added the option to pass enum choices via `choices` rather than via `type`.
+  Using `choices` is more natural. The reason `type` was used initially is
+  because such enums are passed to `argparse.add_argument()` as the type
+  converter.
 
 ## 1.0a38 - 2019-10-25
 
