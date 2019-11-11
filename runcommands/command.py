@@ -4,9 +4,10 @@ import signal
 import sys
 import time
 from collections import OrderedDict
+from inspect import Parameter
 from typing import Mapping
 
-from .args import DEFAULT_PLACEHOLDER, Arg, ArgConfig, HelpArg
+from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg
 from .exc import CommandError, RunCommandsError
 from .util import cached_property, camel_to_underscore, get_hr, printer
 
@@ -230,10 +231,19 @@ class Command:
         kwargs = self.parse_args(argv)
         kwargs.update(overrides)
 
-        if self.var_positional:
-            args = kwargs.pop(self.var_positional.dest, ())
-        else:
-            args = ()
+        args = []
+        for arg in self.args.values():
+            name = arg.parameter.name
+            if arg.is_positional:
+                if name in kwargs:
+                    value = kwargs.pop(name)
+                    args.append(value)
+                else:
+                    args.append(POSITIONAL_PLACEHOLDER)
+            elif arg.is_var_positional:
+                if name in kwargs:
+                    value = kwargs.pop(name)
+                    args.extend(value)
 
         result = self(*args, **kwargs)
 
@@ -292,24 +302,55 @@ class Command:
         return return_code
 
     def __call__(self, *args, **kwargs):
-        self_args = self.args
+        arguments = self.args
         default_args = self.default_args
 
-        # Take note of which args/options were passed. Args that aren't
-        # passed and that have a default set via config will be set to
-        # their default values.
-        positionals = tuple(self.parameters)[:len(args)]
-        passed = {positionals[i]: arg for i, arg in enumerate(args)}
-        passed.update(kwargs)
-
-        for name, value in kwargs.items():
-            if name not in default_args and value is DEFAULT_PLACEHOLDER:
-                kwargs[name] = self_args[name].default
-
         defaults = {}
-        for name, value in default_args.items():
-            if name not in passed or passed[name] is DEFAULT_PLACEHOLDER:
+
+        num_args = len(args)
+        new_args = []
+        new_kwargs = kwargs.copy()
+        missing_positionals = []
+
+        for i, arg in enumerate(arguments.values()):
+            name = arg.parameter.name
+            if arg.is_positional:
+                if i < num_args:
+                    value = args[i]
+                    if value is POSITIONAL_PLACEHOLDER:
+                        if name in default_args:
+                            value = default_args[name]
+                        else:
+                            value = arg.default
+                elif name in default_args:
+                    value = default_args[name]
+                else:
+                    value = Parameter.empty
+                if value is Parameter.empty:
+                    missing_positionals.append(arg.name)
+                else:
+                    new_args.append(value)
+            elif arg.is_var_positional:
+                value = args[i:]
+                new_args.extend(value)
+            elif name in kwargs:
+                value = kwargs[name]
+                new_kwargs[name] = value
+            elif name in default_args:
+                value = default_args[name]
+                new_kwargs[name] = value
                 defaults[name] = value
+
+        if missing_positionals:
+            count = len(missing_positionals)
+            ess = '' if count == 1 else 's'
+            verb = 'was' if count == 1 else 'were'
+            missing = ', '.join(missing_positionals)
+            message = (
+                '{count} positional arg{ess} {verb}n\'t passed to the {self.name} command '
+                '(and no default{ess} {verb} set): {missing}')
+            message = message.format_map(locals())
+            raise CommandError(message)
 
         if self.debug:
             printer.debug('Command called:', self.name)
@@ -318,15 +359,12 @@ class Command:
             if defaults:
                 printer.debug('    Added default args:', ', '.join(defaults))
 
-        if defaults:
-            kwargs.update(defaults)
-
         if self.debug:
             printer.debug('Running command:', self.name)
-            printer.debug('    Final positional args:', repr(args))
-            printer.debug('    Final keyword args:', repr(kwargs))
+            printer.debug('    Final positional args:', new_args)
+            printer.debug('    Final keyword args:', new_kwargs)
 
-        return self.implementation(*args, **kwargs)
+        return self.implementation(*new_args, **new_kwargs)
 
     def parse_args(self, argv):
         argv = self.expand_short_options(argv)
@@ -500,10 +538,6 @@ class Command:
         params = self.parameters
         args = OrderedDict()
 
-        # This will be overridden if the command explicitly defines an
-        # arg named help.
-        args['help'] = HelpArg(command=self)
-
         normalize_name = self.normalize_name
         get_arg_config = self.get_arg_config
         get_short_option = self.get_short_option_for_arg
@@ -584,6 +618,9 @@ class Command:
                 action=action,
                 nargs=nargs,
             )
+
+        if 'help' not in args:
+            args['help'] = HelpArg(command=self)
 
         option_map = OrderedDict()
         for arg in args.values():
