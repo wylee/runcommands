@@ -87,7 +87,7 @@ def install_completion(
 
 
 @command
-def test(tests=(), fail_fast=False, with_coverage=True, with_lint=True):
+def test(*tests, fail_fast=False, with_coverage=True, with_lint=True):
     original_working_directory = os.getcwd()
 
     if tests:
@@ -107,8 +107,7 @@ def test(tests=(), fail_fast=False, with_coverage=True, with_lint=True):
         coverage.start()
 
     if tests:
-        for name in tests:
-            runner.run(loader.loadTestsFromName(name))
+        runner.run(loader.loadTestsFromNames(tests))
     else:
         tests = loader.discover('.')
         result = runner.run(tests)
