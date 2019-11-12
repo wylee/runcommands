@@ -138,6 +138,7 @@ class Command:
         self.arg_config = arg_config or {}
         self.debug = debug
         self.default_args = default_args or {}
+        self.mutual_exclusion_groups = {}
 
         # Subcommand-related attributes
         first_arg = next(iter(self.args.values()), None)
@@ -575,6 +576,7 @@ class Command:
             inverse_option = annotation.inverse_option
             action = annotation.action
             nargs = annotation.nargs
+            mutual_exclusion_group = annotation.mutual_exclusion_group
 
             default = param.default
             is_var_positional = param.kind is param.VAR_POSITIONAL
@@ -617,6 +619,7 @@ class Command:
                 inverse_option=inverse_option,
                 action=action,
                 nargs=nargs,
+                mutual_exclusion_group=mutual_exclusion_group,
             )
 
         if 'help' not in args:
@@ -666,7 +669,15 @@ class Command:
                 kwargs = kwargs.copy()
                 kwargs['nargs'] = '*' if arg.container else '?'
 
-            parser.add_argument(*options, **kwargs)
+            mutual_exclusion_group_name = arg.mutual_exclusion_group
+            if mutual_exclusion_group_name:
+                if mutual_exclusion_group_name not in self.mutual_exclusion_groups:
+                    self.mutual_exclusion_groups[mutual_exclusion_group_name] = \
+                        parser.add_mutually_exclusive_group()
+                mutual_exclusion_group = self.mutual_exclusion_groups[mutual_exclusion_group_name]
+                mutual_exclusion_group.add_argument(*options, **kwargs)
+            else:
+                parser.add_argument(*options, **kwargs)
 
             inverse_args = arg.add_argument_inverse_args
             if inverse_args is not None:

@@ -50,6 +50,8 @@ class ArgConfig:
         inverse_option (str): Inverse option for boolean args.
         action (Action): ``argparse`` Action.
         nargs (int|str): Number of command line args to consume.
+        mutual_exclusion_group (str): Name of mutual exclusion group to
+            add this arg to.
         default: Default value for positional args.
 
     .. note:: For convenience, regular dicts can be used to annotate
@@ -72,6 +74,7 @@ class ArgConfig:
                  inverse_option=None,
                  action=None,
                  nargs=None,
+                 mutual_exclusion_group=None,
                  default=Parameter.empty):
         if short_option is not None:
             if not self.short_option_regex.fullmatch(short_option):
@@ -95,6 +98,7 @@ class ArgConfig:
         self.inverse_option = inverse_option
         self.action = action
         self.nargs = nargs
+        self.mutual_exclusion_group = mutual_exclusion_group
         self.default = default
 
     def __repr__(self):
@@ -143,6 +147,8 @@ class Arg:
         inverse_option (str): Inverse option for boolean args.
         action (Action): ``argparse`` Action.
         nargs (int|str): Number of command line args to consume.
+        mutual_exclusion_group (str): Name of mutual exclusion group to
+            add this arg to.
 
     """
 
@@ -161,7 +167,8 @@ class Arg:
                  long_option,
                  inverse_option,
                  action,
-                 nargs):
+                 nargs,
+                 mutual_exclusion_group):
 
         command = command
 
@@ -283,6 +290,7 @@ class Arg:
         self.all_options = all_options
         self.action = action
         self.nargs = nargs
+        self.mutual_exclusion_group = mutual_exclusion_group
 
     @cached_property
     def add_argument_args(self):
@@ -363,6 +371,7 @@ class HelpArg(Arg):
             inverse_option=None,
             action=None,
             nargs=None,
+            mutual_exclusion_group=None,
         )
 
 
