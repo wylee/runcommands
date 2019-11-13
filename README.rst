@@ -2,11 +2,12 @@ RunCommands
 +++++++++++
 
 A simple command runner that uses ``argparse`` from the Python standard
-library under the hood. Runs on Python 3 only (3.5 and up).
+library under the hood. Runs on Python 3 only (3.5 and up). Uses annotations to
+configure options.
 
 There are two basic use cases:
 
-1. Standalone console scripts.
+1. Standalone console scripts (including scripts with subcommands).
 2. Collections of commands (similar to make, Fabric, etc).
 
 Building on these, especially #2, there are a couple of more advanced
@@ -30,7 +31,9 @@ Define a command:
     from runcommands.commands import local
 
     @command
-    def test():
+    def test(*tests: arg(help='Specific tests to run (instead of using discovery)')):
+        if tests:
+            local(('python', '-m', 'unittest', tests))
         local('python -m unittest discover .')
 
 Show its help::

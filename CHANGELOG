@@ -1,8 +1,36 @@
 # RunCommands
 
+## 1.0a40 - 2019-11-12
+
+- Added support for commands with subcommands (like `git log`).
+- Added support for mutually exclusive command args. Corresponds to
+  `argparse.ArgumentParser.add_mutually_exclusive_group()`.
+- Added support for positional args that have a default value. These are args
+  that you want to pass positionally but that are optional.
+- Added `release` command to built-in commands.
+- Removed `collect_commands()` utility function. It was too magical without
+  providing much benefity.
+- The `run` console script is now only installed when an active virtualenv is
+  detected (indicated by the presence of the `VIRTUAL_ENV` environment
+  variable). "Run" is pretty generic and only installing `run` in virtualenvs
+  is intended to reduce the possibility of conflicts.
+- The `runcmd` console script is no longer installed. It was a not-very-useful
+  alias.
+- Improved internals, esp. wrt. handling of positional args.
+
 ## 1.0a39 - 2019-11-02
 
-In progress...
+- Added support for positional args that have a default value. Includes
+  handling of `choices` args when no choice is passed.
+- Fixed conversion of list-arg-to-tuple for cases where arg doesn't exist on
+  command. This can happen when, for example, a command is run with `run
+  --debug` and the command doesn't have a `debug` arg.
+- Added check to ensure long options are valid. Short options were already
+  being checked.
+- Added the option to pass enum choices via `choices` rather than via `type`.
+  Using `choices` is more natural. The reason `type` was used initially is
+  because such enums are passed to `argparse.add_argument()` as the type
+  converter.
 
 ## 1.0a38 - 2019-10-25
 

@@ -1,3 +1,4 @@
+import os
 from setuptools import find_packages, setup
 
 with open('runcommands/__init__.py') as fp:
@@ -8,6 +9,21 @@ with open('runcommands/__init__.py') as fp:
 with open('README.rst') as fp:
     long_description = fp.read().strip()
 
+console_scripts = [
+    'runcommand = runcommands.__main__:main',
+    'runcommands = runcommands.__main__:main',
+    'runcommands-complete = runcommands.completion:complete.console_script',
+]
+
+if os.getenv('VIRTUAL_ENV'):
+    console_scripts.append('run = runcommands.__main__:main')
+
+install_release_console_script = os.getenv('RUNCOMMANDS_INSTALL_RELEASE_CONSOLE_SCRIPT') or ''
+install_release_console_script = install_release_console_script.lower()
+install_release_console_script = install_release_console_script in ('1', 'true', 'yes')
+if install_release_console_script:
+    console_scripts.append('release = runcommands.commands:release.console_script')
+
 setup(
     name='runcommands',
     version=__version__,
@@ -16,7 +32,7 @@ setup(
     author_email='self@wyattbaldwin.com',
     description='A simple command runner',
     long_description=long_description,
-    keywords='commands',
+    keywords=['run', 'commands', 'console', 'scripts', 'terminal'],
     url='https://github.com/wylee/runcommands',
     python_requires='>=3.5',
     install_requires=[
@@ -37,16 +53,11 @@ setup(
         ],
     },
     entry_points={
-        'console_scripts': [
-            'run = runcommands.__main__:main',
-            'runcmd = runcommands.__main__:main',
-            'runcommand = runcommands.__main__:main',
-            'runcommands = runcommands.__main__:main',
-            'runcommands-complete = runcommands.completion:complete.console_script',
-        ],
+        'console_scripts': console_scripts,
     },
     classifiers=[
         'Development Status :: 3 - Alpha',
+        'Environment :: Console',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Topic :: Software Development :: Build Tools',

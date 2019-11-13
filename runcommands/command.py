@@ -4,9 +4,10 @@ import signal
 import sys
 import time
 from collections import OrderedDict
+from inspect import Parameter
 from typing import Mapping
 
-from .args import Arg, ArgConfig, HelpArg
+from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg
 from .exc import CommandError, RunCommandsError
 from .util import cached_property, camel_to_underscore, get_hr, printer
 
@@ -108,32 +109,51 @@ class Command:
 
     """
 
-    def __init__(self, implementation=None, name=None, description=None, timed=False,
-                 arg_config=None, default_args=None, debug=False):
+    def __init__(self, implementation=None, name=None, description=None, base_command=None,
+                 timed=False, arg_config=None, default_args=None, debug=False):
         if implementation is None:
             if not hasattr(self, 'implementation'):
                 raise CommandError(
                     'Missing implementation; it must be passed in as a function or defined as a '
                     'method on the command class')
-            default_name = self.__class__.name
+            default_name = self.__class__.__name__
         else:
             self.implementation = implementation
             default_name = implementation.__name__
 
-        self.name = (
-            name or
-            getattr(self.__class__, 'name', None) or
-            self.normalize_name(default_name))
+        name = name or getattr(self.__class__, 'name', None) or self.normalize_name(default_name)
 
-        self.description = description or self.get_description_from_docstring(self.implementation)
+        is_subcommand = base_command is not None
+
+        if is_subcommand:
+            name = ':'.join((base_command.name, name))
+
+        description = description or self.get_description_from_docstring(self.implementation)
+        short_description = description.splitlines()[0] if description else None
+
+        self.name = name
+        self.description = description
+        self.short_description = short_description
         self.timed = timed
         self.arg_config = arg_config or {}
         self.debug = debug
         self.default_args = default_args or {}
+        self.mutual_exclusion_groups = {}
+
+        # Subcommand-related attributes
+        first_arg = next(iter(self.args.values()), None)
+        self.base_command = base_command
+        self.is_subcommand = is_subcommand
+        self.subcommands = []
+        self.first_arg = first_arg
+        self.first_arg_has_choices = False if first_arg is None else bool(first_arg.choices)
+
+        if is_subcommand:
+            base_command.add_subcommand(self)
 
     @classmethod
-    def command(cls, name=None, description=None, timed=False):
-        args = dict(description=description, timed=timed)
+    def command(cls, name=None, description=None, base_command=None, timed=False):
+        args = dict(description=description, base_command=base_command, timed=timed)
 
         if isinstance(name, type):
             # Bare class decorator
@@ -151,6 +171,44 @@ class Command:
             return cls(implementation=wrapped, name=name, **args)
 
         return wrapper
+
+    @classmethod
+    def subcommand(cls, base_command, name=None, description=None, timed=False):
+        """Create a subcommand of the specified base command."""
+        return cls.command(name, description, base_command, timed)
+
+    @property
+    def is_base_command(self):
+        return bool(self.subcommands)
+
+    @property
+    def subcommand_depth(self):
+        depth = 0
+        base_command = self.base_command
+        while base_command:
+            depth += 1
+            base_command = base_command.base_command
+        return depth
+
+    @cached_property
+    def base_name(self):
+        if self.is_subcommand:
+            return self.name.split(':', self.subcommand_depth)[-1]
+        return self.name
+
+    @cached_property
+    def prog_name(self):
+        if self.is_subcommand:
+            return ' '.join(self.name.split(':', self.subcommand_depth))
+        return self.base_name
+
+    def add_subcommand(self, subcommand):
+        name = subcommand.base_name
+        self.subcommands.append(subcommand)
+        if not self.first_arg_has_choices:
+            if self.first_arg.choices is None:
+                self.first_arg.choices = []
+            self.first_arg.choices.append(name)
 
     def get_description_from_docstring(self, implementation):
         description = implementation.__doc__
@@ -174,10 +232,19 @@ class Command:
         kwargs = self.parse_args(argv)
         kwargs.update(overrides)
 
-        if self.var_positional:
-            args = kwargs.pop(self.var_positional.dest, ())
-        else:
-            args = ()
+        args = []
+        for arg in self.args.values():
+            name = arg.parameter.name
+            if arg.is_positional:
+                if name in kwargs:
+                    value = kwargs.pop(name)
+                    args.append(value)
+                else:
+                    args.append(POSITIONAL_PLACEHOLDER)
+            elif arg.is_var_positional:
+                if name in kwargs:
+                    value = kwargs.pop(name)
+                    args.extend(value)
 
         result = self(*args, **kwargs)
 
@@ -187,13 +254,38 @@ class Command:
         return result
 
     def console_script(self, argv=None, **overrides):
+        debug = self.debug
         argv = sys.argv[1:] if argv is None else argv
+        base_argv = argv
+        is_base_command = self.is_base_command
+        found_subcommand = None
+
         if hasattr(self, 'sigint_handler'):
             signal.signal(signal.SIGINT, self.sigint_handler)
+
+        if is_base_command:
+            base_argv = []
+            subcommand_map = {sub.name: sub for sub in self.subcommands}
+            for i, arg in enumerate(argv):
+                if arg.startswith(':'):
+                    arg = arg[1:]
+                    base_argv.append(arg)
+                else:
+                    qualified_name = '{self.name}:{arg}'.format_map(locals())
+                    if qualified_name in subcommand_map:
+                        found_subcommand = subcommand_map[qualified_name]
+                        base_argv.append(arg)
+                        subcommand_argv = argv[i + 1:]
+                        if debug:
+                            printer.debug('Found subcommand:', found_subcommand.name)
+                        break
+                    else:
+                        base_argv.append(arg)
+
         try:
-            result = self.run(argv, **overrides)
+            result = self.run(base_argv, **overrides)
         except RunCommandsError as result:
-            if self.debug:
+            if debug:
                 raise
             return_code = result.return_code if hasattr(result, 'return_code') else 1
             result_str = str(result)
@@ -204,16 +296,62 @@ class Command:
                     printer.print(result_str)
         else:
             return_code = result.return_code if hasattr(result, 'return_code') else 0
+
+        if found_subcommand:
+            return found_subcommand.console_script(subcommand_argv)
+
         return return_code
 
     def __call__(self, *args, **kwargs):
-        passed = set(tuple(self.parameters)[:len(args)])
-        passed.update(kwargs)
+        arguments = self.args
+        default_args = self.default_args
 
         defaults = {}
-        for name, value in self.default_args.items():
-            if name not in passed:
+
+        num_args = len(args)
+        new_args = []
+        new_kwargs = kwargs.copy()
+        missing_positionals = []
+
+        for i, arg in enumerate(arguments.values()):
+            name = arg.parameter.name
+            if arg.is_positional:
+                if i < num_args:
+                    value = args[i]
+                    if value is POSITIONAL_PLACEHOLDER:
+                        if name in default_args:
+                            value = default_args[name]
+                        else:
+                            value = arg.default
+                elif name in default_args:
+                    value = default_args[name]
+                else:
+                    value = Parameter.empty
+                if value is Parameter.empty:
+                    missing_positionals.append(arg.name)
+                else:
+                    new_args.append(value)
+            elif arg.is_var_positional:
+                value = args[i:]
+                new_args.extend(value)
+            elif name in kwargs:
+                value = kwargs[name]
+                new_kwargs[name] = value
+            elif name in default_args:
+                value = default_args[name]
+                new_kwargs[name] = value
                 defaults[name] = value
+
+        if missing_positionals:
+            count = len(missing_positionals)
+            ess = '' if count == 1 else 's'
+            verb = 'was' if count == 1 else 'were'
+            missing = ', '.join(missing_positionals)
+            message = (
+                '{count} positional arg{ess} {verb}n\'t passed to the {self.name} command '
+                '(and no default{ess} {verb} set): {missing}')
+            message = message.format_map(locals())
+            raise CommandError(message)
 
         if self.debug:
             printer.debug('Command called:', self.name)
@@ -222,15 +360,12 @@ class Command:
             if defaults:
                 printer.debug('    Added default args:', ', '.join(defaults))
 
-        if defaults:
-            kwargs.update(defaults)
-
         if self.debug:
             printer.debug('Running command:', self.name)
-            printer.debug('    Final positional args:', repr(args))
-            printer.debug('    Final keyword args:', repr(kwargs))
+            printer.debug('    Final positional args:', new_args)
+            printer.debug('    Final keyword args:', new_kwargs)
 
-        return self.implementation(*args, **kwargs)
+        return self.implementation(*new_args, **new_kwargs)
 
     def parse_args(self, argv):
         argv = self.expand_short_options(argv)
@@ -271,7 +406,7 @@ class Command:
         """Convert grouped short options like `-abc` to `-a, -b, -c`.
 
         This is necessary because we set ``allow_abbrev=False`` on the
-        ``ArgumentParser`` in :prop:`self.arg_parser`. The argparse docs
+        ``ArgumentParser`` in :attr:`self.arg_parser`. The argparse docs
         say ``allow_abbrev`` applies only to long options, but it also
         affects whether short options grouped behind a single dash will
         be parsed into multiple short options.
@@ -404,10 +539,6 @@ class Command:
         params = self.parameters
         args = OrderedDict()
 
-        # This will be overridden if the command explicitly defines an
-        # arg named help.
-        args['help'] = HelpArg(command=self)
-
         normalize_name = self.normalize_name
         get_arg_config = self.get_arg_config
         get_short_option = self.get_short_option_for_arg
@@ -424,6 +555,7 @@ class Command:
                 used_short_options.add(short_option)
 
         for name, param in params.items():
+            empty = param.empty
             name = normalize_name(name)
 
             skip = (
@@ -436,7 +568,6 @@ class Command:
             annotation = get_arg_config(param)
             container = annotation.container
             type = annotation.type
-            positional = annotation.positional
             choices = annotation.choices
             help = annotation.help
             inverse_help = annotation.inverse_help
@@ -445,11 +576,24 @@ class Command:
             inverse_option = annotation.inverse_option
             action = annotation.action
             nargs = annotation.nargs
+            mutual_exclusion_group = annotation.mutual_exclusion_group
 
             default = param.default
-            is_positional = positional or default is param.empty
+            is_var_positional = param.kind is param.VAR_POSITIONAL
+            is_positional = default is empty and not is_var_positional
 
-            if not is_positional:
+            if annotation.default is not empty:
+                if is_positional:
+                    default = annotation.default
+                else:
+                    message = (
+                        'Got default for `{self.name}` command\'s optional arg `{name}` via '
+                        'arg annotation. Optional args must specify their defaults via keyword '
+                        'arg values.'
+                    ).format_map(locals())
+                    raise CommandError(message)
+
+            if not (is_positional or is_var_positional):
                 if not short_option:
                     short_option = get_short_option(name, names, used_short_options)
                     used_short_options.add(short_option)
@@ -465,7 +609,7 @@ class Command:
                 name=name,
                 container=container,
                 type=type,
-                positional=positional,
+                positional=is_positional,
                 default=default,
                 choices=choices,
                 help=help,
@@ -475,7 +619,11 @@ class Command:
                 inverse_option=inverse_option,
                 action=action,
                 nargs=nargs,
+                mutual_exclusion_group=mutual_exclusion_group,
             )
+
+        if 'help' not in args:
+            args['help'] = HelpArg(command=self)
 
         option_map = OrderedDict()
         for arg in args.values():
@@ -498,7 +646,7 @@ class Command:
         use_default_help = isinstance(self.args['help'], HelpArg)
 
         parser = argparse.ArgumentParser(
-            prog=self.name,
+            prog=self.prog_name,
             description=self.description,
             formatter_class=argparse.RawDescriptionHelpFormatter,
             argument_default=argparse.SUPPRESS,
@@ -521,7 +669,15 @@ class Command:
                 kwargs = kwargs.copy()
                 kwargs['nargs'] = '*' if arg.container else '?'
 
-            parser.add_argument(*options, **kwargs)
+            mutual_exclusion_group_name = arg.mutual_exclusion_group
+            if mutual_exclusion_group_name:
+                if mutual_exclusion_group_name not in self.mutual_exclusion_groups:
+                    self.mutual_exclusion_groups[mutual_exclusion_group_name] = \
+                        parser.add_mutually_exclusive_group()
+                mutual_exclusion_group = self.mutual_exclusion_groups[mutual_exclusion_group_name]
+                mutual_exclusion_group.add_argument(*options, **kwargs)
+            else:
+                parser.add_argument(*options, **kwargs)
 
             inverse_args = arg.add_argument_inverse_args
             if inverse_args is not None:
@@ -582,3 +738,4 @@ class Command:
 
 
 command = Command.command
+subcommand = Command.subcommand

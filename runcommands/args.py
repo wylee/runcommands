@@ -2,13 +2,17 @@ import argparse
 import builtins
 import json
 import re
-from argparse import SUPPRESS
 from enum import Enum
 from inspect import Parameter
 from typing import Mapping, Sequence
 
 from .exc import CommandError
 from .util import cached_property
+
+
+class POSITIONAL_PLACEHOLDER:
+
+    """Used as a placeholder for positionals."""
 
 
 class DISABLE:
@@ -37,10 +41,6 @@ class ArgConfig:
             specified, or if the ``default`` value for the arg is a
             container, the ``type`` will be applied to the container's
             values.
-        positional (bool): An arg will automatically be considered
-            positional if it doesn't have a default value, so this
-            doesn't usually need to be passed explicitly. It can be used
-            to force an arg that normally be optional positional.
         choices (sequence): A sequence of allowed choices for the arg.
         help (str): Help string for the arg.
         inverse_help (str): Inverse help string for the arg (for the
@@ -50,6 +50,9 @@ class ArgConfig:
         inverse_option (str): Inverse option for boolean args.
         action (Action): ``argparse`` Action.
         nargs (int|str): Number of command line args to consume.
+        mutual_exclusion_group (str): Name of mutual exclusion group to
+            add this arg to.
+        default: Default value for positional args.
 
     .. note:: For convenience, regular dicts can be used to annotate
         args instead; they will be converted to instances of this class
@@ -57,13 +60,12 @@ class ArgConfig:
 
     """
 
-    short_option_regex = re.compile(r'^-\w$')
-    long_option_regex = re.compile(r'^--\w$')
+    short_option_regex = re.compile(r'-\w')
+    long_option_regex = re.compile(r'--\w+')
 
     def __init__(self, *,
                  container=None,
                  type=None,
-                 positional=None,
                  choices=None,
                  help=None,
                  inverse_help=None,
@@ -71,22 +73,23 @@ class ArgConfig:
                  long_option=None,
                  inverse_option=None,
                  action=None,
-                 nargs=None):
+                 nargs=None,
+                 mutual_exclusion_group=None,
+                 default=Parameter.empty):
         if short_option is not None:
-            if not self.short_option_regex.search(short_option):
+            if not self.short_option_regex.fullmatch(short_option):
                 message = 'Expected short option with form -x, not "{short_option}"'
                 message = message.format_map(locals())
-                raise ValueError(message)
+                raise CommandError(message)
 
         if long_option is not None:
-            if not self.long_option_regex.search(long_option):
+            if not self.long_option_regex.fullmatch(long_option):
                 message = 'Expected long option with form --option, not "{long_option}"'
                 message = message.format_map(locals())
-                raise ValueError(message)
+                raise CommandError(message)
 
         self.container = container
         self.type = type
-        self.positional = positional
         self.choices = choices
         self.help = help
         self.inverse_help = inverse_help
@@ -95,6 +98,8 @@ class ArgConfig:
         self.inverse_option = inverse_option
         self.action = action
         self.nargs = nargs
+        self.mutual_exclusion_group = mutual_exclusion_group
+        self.default = default
 
     def __repr__(self):
         options = self.short_option, self.long_option, self.inverse_option
@@ -129,8 +134,9 @@ class Arg:
             values.
         positional (bool): An arg will automatically be considered
             positional if it doesn't have a default value, so this
-            doesn't usually need to be passed explicitly. It can be used
-            to force an arg that normally be optional positional.
+            doesn't usually need to be passed explicitly. It can be
+            used to force an arg that would normally be optional to
+            be positional.
         default (object): Default value for the arg.
         choices (sequence): A sequence of allowed choices for the arg.
         help (str): Help string for the arg.
@@ -141,6 +147,8 @@ class Arg:
         inverse_option (str): Inverse option for boolean args.
         action (Action): ``argparse`` Action.
         nargs (int|str): Number of command line args to consume.
+        mutual_exclusion_group (str): Name of mutual exclusion group to
+            add this arg to.
 
     """
 
@@ -159,7 +167,8 @@ class Arg:
                  long_option,
                  inverse_option,
                  action,
-                 nargs):
+                 nargs,
+                 mutual_exclusion_group):
 
         command = command
 
@@ -174,8 +183,6 @@ class Arg:
 
         if positional is not None:
             is_positional = positional
-
-        is_optional_positional = is_positional and is_optional
 
         metavar = name.upper().replace('-', '_')
         if container and len(name) > 1 and name.endswith('s'):
@@ -223,15 +230,13 @@ class Arg:
             elif is_enum_bool_or:
                 choices = type.type
 
-        if choices and is_optional_positional:
-            if is_enum or is_enum_bool_or:
-                type = OptionalPositionalWithEnumChoicesType(choices, default)
-            else:
-                type = OptionalPositionalWithChoicesType(default)
-
         if is_positional or is_var_positional:
-            assert short_option is long_option is inverse_option is None, \
-                'Positional args cannot be specified with options'
+            options = (short_option, long_option, inverse_option)
+            options = tuple(option for option in options if option is not None)
+            if options:
+                raise CommandError(
+                    'Positional args cannot be specified with options: {options}'
+                    .format(options=', '.join(options)))
 
         if action is None:
             if container:
@@ -285,6 +290,7 @@ class Arg:
         self.all_options = all_options
         self.action = action
         self.nargs = nargs
+        self.mutual_exclusion_group = mutual_exclusion_group
 
     @cached_property
     def add_argument_args(self):
@@ -299,6 +305,8 @@ class Arg:
             'type': self.type,
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        if self.is_positional and self.is_optional:
+            kwargs['default'] = POSITIONAL_PLACEHOLDER
         return args, kwargs
 
     @cached_property
@@ -363,6 +371,7 @@ class HelpArg(Arg):
             inverse_option=None,
             action=None,
             nargs=None,
+            mutual_exclusion_group=None,
         )
 
 
@@ -392,50 +401,6 @@ class bool_or:
             name = 'BoolOr{name}'.format(name=type.__name__.title())
             _type_cache[type] = builtins.type(name, (cls,), {'type': type})
         return _type_cache[type]
-
-
-class OptionalPositionalWithChoicesType:
-
-    # Passed as type to ArgumentParser.add_argument() for optional
-    # positionals that have choices. This is necessary to handle the
-    # case where the positional's value isn't specified on the command
-    # line--argparse will set the value to argparse.SUPPRESS, which
-    # won't be a valid choice, so it needs to be intercepted and
-    # converted to a valid choice.
-
-    def __init__(self, default):
-        if default is None:
-            default = ''
-        self.default = default
-
-    def __call__(self, value):
-        if value == SUPPRESS:
-            return self.default
-        return value
-
-
-class OptionalPositionalWithEnumChoicesType:
-
-    # Passed as type to ArgumentParser.add_argument() for optional
-    # positionals that have choices that's an Enum. This is necessary to
-    # handle the case where the positional's value isn't specified on
-    # the command line--argparse will set the value to
-    # argparse.SUPPRESS, which won't be a valid Enum member, so it needs
-    # to be intercepted and converted to a valid member.
-
-    def __init__(self, enum, default):
-        self.enum = enum
-        if default is None:
-            # XXX: Is this a sane default or should we raise an error?
-            default = 'none'
-        elif isinstance(default, str):
-            default = enum[default]
-        self.default = default
-
-    def __call__(self, name):
-        if name == SUPPRESS:
-            return self.default
-        return self.enum[name]
 
 
 class BoolOrAction(argparse.Action):

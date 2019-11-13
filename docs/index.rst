@@ -38,6 +38,7 @@ Contents
     installation
     quick-start
     defining-commands
+    console-scripts
     built-in-commands
     config
     api/index

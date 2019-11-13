@@ -54,7 +54,9 @@ rst_epilog = """
 
 # Options for autodoc extension -------------------------------------------
 
-autodoc_default_flags = ['members']
+autodoc_default_options = {
+    'members': True,
+}
 
 # Options for intersphinx extension ---------------------------------------
 
