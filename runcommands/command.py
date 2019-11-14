@@ -367,9 +367,9 @@ class Command:
         return self.implementation(*new_args, **new_kwargs)
 
     def parse_args(self, argv):
-        argv = self.expand_short_options(argv)
         if self.debug:
             printer.debug('Parsing args for command `{self.name}`: {argv}'.format_map(locals()))
+        argv = self.expand_short_options(argv)
         parsed_args = self.arg_parser.parse_args(argv)
         parsed_args = vars(parsed_args)
         for k, v in parsed_args.items():
@@ -411,11 +411,11 @@ class Command:
         be parsed into multiple short options.
 
         """
+        if self.debug:
+            has_multi_short_options = False
+            printer.debug('Expanding short options for `{self.name}`: {argv}'.format_map(locals()))
         debug = self.debug
         parse_multi_short_option = self.parse_multi_short_option
-        if debug:
-            has_multi_short_options = False
-            printer.debug('Expanding short options:')
         new_argv = []
         for i, arg in enumerate(argv):
             result, is_multi_short_option = parse_multi_short_option(arg)
