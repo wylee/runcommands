@@ -229,7 +229,7 @@ class Command:
         if self.timed:
             start_time = time.monotonic()
 
-        kwargs = self.parse_args(argv)
+        kwargs = argv if isinstance(argv, dict) else self.parse_args(argv)
         kwargs.update(overrides)
 
         args = []

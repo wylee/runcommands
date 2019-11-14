@@ -211,14 +211,14 @@ class Run(Command):
         all_argv, run_argv, command_argv = self.partition_argv(argv)
         if '-d' in run_argv or '--debug' in run_argv:
             self.debug = True
-        cli_args = tuple(self.parse_args(run_argv))
+        cli_argv = self.parse_args(run_argv)
         kwargs.update({
             'all_argv': all_argv,
             'run_argv': run_argv,
             'command_argv': command_argv,
-            'cli_args': cli_args,
+            'cli_args': tuple(cli_argv),
         })
-        return super().run(run_argv, **kwargs)
+        return super().run(cli_argv, **kwargs)
 
     def partition_argv(self, argv=None):
         if argv is None:
