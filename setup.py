@@ -1,6 +1,14 @@
 import os
 from setuptools import find_packages, setup
 
+
+def as_bool(value):
+    # Convert env var to bool
+    if not isinstance(value, str):
+        return value
+    return value.lower() in ('1', 'true', 'yes')
+
+
 with open('runcommands/__init__.py') as fp:
     for line in fp:
         if line.startswith('__version__'):
@@ -9,20 +17,21 @@ with open('runcommands/__init__.py') as fp:
 with open('README.rst') as fp:
     long_description = fp.read().strip()
 
-console_scripts = [
-    'runcommand = runcommands.__main__:main',
-    'runcommands = runcommands.__main__:main',
-    'runcommands-complete = runcommands.completion:complete.console_script',
-]
+# Install run, runcommand, and runcommands main console scripts by default
+default_aliases = 'run runcommand runcommands'
+script_names = os.getenv('RUNCOMMANDS_CONSOLE_SCRIPTS', default_aliases).split()
+script_path = 'runcommands.__main__:main'
+console_scripts = ['{name} = {path}'.format(name=name, path=script_path) for name in script_names]
 
-if os.getenv('VIRTUAL_ENV'):
-    console_scripts.append('run = runcommands.__main__:main')
+# Install runcommands-complete completion console script by default
+install_complete_console_script = os.getenv('RUNCOMMANDS_INSTALL_COMPLETE_CONSOLE_SCRIPT', True)
+if as_bool(install_complete_console_script):
+    console_scripts.append('runcommands-complete = runcommands.completion:complete.console_script')
 
-install_release_console_script = os.getenv('RUNCOMMANDS_INSTALL_RELEASE_CONSOLE_SCRIPT') or ''
-install_release_console_script = install_release_console_script.lower()
-install_release_console_script = install_release_console_script in ('1', 'true', 'yes')
-if install_release_console_script:
-    console_scripts.append('release = runcommands.commands:release.console_script')
+# The release console script is *not* installed by default
+install_release_console_script = os.getenv('RUNCOMMANDS_INSTALL_RELEASE_CONSOLE_SCRIPT', False)
+if as_bool(install_release_console_script):
+    console_scripts.append('make-release = runcommands.commands:release.console_script')
 
 setup(
     name='runcommands',
