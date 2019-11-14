@@ -344,10 +344,18 @@ class Arg:
         return args, kwargs
 
     def __str__(self):
-        string = '{kind} arg: {self.name}{default} ({self.type.__name__})'
+        string = '{kind} arg: {self.name}{default}: type={type}'
         kind = 'Positional' if self.is_positional else 'Optional'
         has_default = self.default not in (Parameter.empty, None)
         default = '[={self.default}]'.format_map(locals()) if has_default else ''
+        if self.is_bool:
+            type = 'flag'
+        elif self.is_bool_or:
+            type = 'flag|{self.type.__name__}'.format_map(locals())
+        elif self.type is None:
+            type = None
+        else:
+            type = self.type.__name__
         return string.format_map(locals())
 
 
