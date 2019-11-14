@@ -224,11 +224,10 @@ class Command:
         return description
 
     def run(self, argv=None, **overrides):
-        argv = sys.argv[1:] if argv is None else argv
-
         if self.timed:
             start_time = time.monotonic()
 
+        argv = sys.argv[1:] if argv is None else argv
         kwargs = argv if isinstance(argv, dict) else self.parse_args(argv)
         kwargs.update(overrides)
 
