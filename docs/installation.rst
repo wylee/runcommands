@@ -18,7 +18,8 @@ To install the project for development::
 
     git clone https://github.com/wylee/runcommands
     cd runcommands
-    ./commands.py install
+    python -m venv .venv
+    .venv/bin/pip install -e .[dev,tox]
 
 Shell Completion
 ================
