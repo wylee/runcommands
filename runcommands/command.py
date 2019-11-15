@@ -410,44 +410,73 @@ class Command:
         affects whether short options grouped behind a single dash will
         be parsed into multiple short options.
 
+        See :meth:`parse_multi_short_option` for details on how multi
+        short options are parsed.
+
+        Returns:
+            list: Original argv if no multi short options found
+            list: Expanded argv if multi short options found
+
         """
         if self.debug:
-            has_multi_short_options = False
             printer.debug('Expanding short options for `{self.name}`: {argv}'.format_map(locals()))
         debug = self.debug
+        has_multi_short_options = False
         parse_multi_short_option = self.parse_multi_short_option
         new_argv = []
         for i, arg in enumerate(argv):
-            result, is_multi_short_option = parse_multi_short_option(arg)
-            if debug:
-                has_multi_short_options = has_multi_short_options or is_multi_short_option
-                if is_multi_short_option:
-                    printer.debug('    Found multi short option:', arg, '=>', result)
             if arg == '--':
                 new_argv.extend(argv[i:])
                 break
-            new_argv.extend(result)
+            short_options = parse_multi_short_option(arg)
+            if short_options:
+                new_argv.extend(short_options)
+                has_multi_short_options = True
+            else:
+                new_argv.append(arg)
+            if debug and short_options:
+                printer.debug('    Found multi short option:', arg, '=>', short_options)
         if debug and not has_multi_short_options:
-            printer.debug('    No mult short options found')
-        return new_argv
+            printer.debug('    No multi short options found')
+        return new_argv if has_multi_short_options else argv
 
     def parse_multi_short_option(self, arg):
         """Parse args like '-xyz' into ['-x', '-y', '-z'].
 
-        Returns the arg, parsed or not, in a list along with a flag to
-        indicate whether arg is a multi short option.
+        Examples::
 
-        For example::
+            'abc' -> None                         # not an option
+            '--option' -> None                    # long option
+            '-a' -> None                          # short option but not multi
+            '-xyz' -> ['-x', '-y', '-z']          # multi short option
+            '-xyz12' -> ['-x', '-y', '-z', '12']  # multi short option w/ value
 
-            '-a' -> ['-a'], False
-            '-xyz' -> ['-x', '-y', '-z'], True
+        Note that parsing stops when a short option that takes a value
+        is encountered--the rest of the arg string is considered the
+        value for that option.
+
+        Returns:
+            None: The arg is not a multi short option
+            list: The arg is a multi short option (perhaps including a
+                value for the last option)
 
         """
         if len(arg) < 3 or arg[0] != '-' or arg[1] == '-' or arg[2] == '=':
             # Not a multi short option like '-abc'.
-            return [arg], False
+            return None
         # Appears to be a multi short option.
-        return ['-{a}'.format(a=a) for a in arg[1:]], True
+        option_map = self.option_map
+        short_options = []
+        for i, char in enumerate(arg[1:], 1):
+            name = '-{char}'.format(char=char)
+            short_options.append(name)
+            option = option_map.get(name)
+            if option is not None and option.takes_value:
+                j = i + 1
+                if j < len(arg):
+                    short_options.append(arg[j:])
+                break
+        return short_options
 
     def normalize_name(self, name):
         name = camel_to_underscore(name)
