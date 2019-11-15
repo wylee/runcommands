@@ -18,7 +18,47 @@ To install the project for development::
 
     git clone https://github.com/wylee/runcommands
     cd runcommands
-    ./commands.py install
+    python -m venv .venv
+    .venv/bin/pip install -e .[dev,tox]
+
+Console Scripts
+===============
+
+On installation, a handful of console scripts will be installed:
+
+- Main: ``run``, ``runcommand``, ``runcommand``
+- Completion: ``runcommands-complete``
+
+The names of the main console script aliases can be overridden by setting the
+``RUNCOMMANDS_CONSOLE_SCRIPTS`` environment variable to a space-separated list
+of script names. For example, to install just one alias of the main console
+script:
+
+.. code-block:: shell
+
+    RUNCOMMANDS_CONSOLE_SCRIPTS="runcommand" pip install -e .[dev,tox]
+
+Or you can use a custom name:
+
+.. code-block:: shell
+
+    RUNCOMMANDS_CONSOLE_SCRIPTS="do-stuff" pip install -e .[dev,tox]
+
+If ``RUNCOMMANDS_CONSOLE_SCRIPTS`` is set to an empty string or other non-
+truthy value, the main console script won't be installed at all.
+
+Likewise, to disable installation of the ``runcommands-complete`` command, set
+``RUNCOMMANDS_INSTALL_COMPLETE_CONSOLE_SCRIPT`` to an empty string or other
+non-truthy value:
+
+.. code-block:: shell
+
+    RUNCOMMANDS_INSTALL_COMPLETE_CONSOLE_SCRIPT="no" pip install -e .[dev,tox]
+
+There's also a standalone ``make-release`` script that's *not* installed by
+default. It can be installed like this:
+
+    RUNCOMMANDS_INSTALL_RELEASE_CONSOLE_SCRIPT="yes" pip install -e .[dev,tox]
 
 Shell Completion
 ================

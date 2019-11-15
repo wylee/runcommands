@@ -54,9 +54,14 @@ rst_epilog = """
 
 # Options for autodoc extension -------------------------------------------
 
-autodoc_default_options = {
-    'members': True,
-}
+# DEPRECATED in Sphinx 3.0
+autodoc_default_flags = ['members']
+
+# This is the new way to specify autodoc config, but it's not supported
+# on Read the Docs yet.
+# autodoc_default_options = {
+#     'members': True,
+# }
 
 # Options for intersphinx extension ---------------------------------------
 

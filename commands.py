@@ -9,7 +9,7 @@ if 'runcommands' not in sys.path:
 
 from runcommands import command  # noqa: E402
 from runcommands.args import DISABLE, arg  # noqa: E402
-from runcommands.commands import copy_file as _copy_file, local as _local  # noqa: E402
+from runcommands.commands import copy_file as _copy_file, local  # noqa: E402
 from runcommands.commands import git_version, release  # noqa: E402,F401
 from runcommands.util import abort, asset_path, confirm, printer  # noqa: E402
 
@@ -19,7 +19,7 @@ def virtualenv(where='.venv', python='python', overwrite=False):
     exists = os.path.exists(where)
 
     def create():
-        _local((python, '-m', 'venv', where))
+        local((python, '-m', 'venv', where))
         printer.success(
             'Virtualenv created; activate it by running `source {where}/bin/activate`'
             .format_map(locals()))
@@ -40,7 +40,7 @@ def virtualenv(where='.venv', python='python', overwrite=False):
 def install(where='.venv', python='python', upgrade=False, overwrite=False):
     virtualenv(where=where, python=python, overwrite=overwrite)
     pip = '{where}/bin/pip'.format(where=where)
-    _local((
+    local((
         pip, 'install',
         ('--upgrade', '--upgrade-strategy', 'eager') if upgrade else None,
         '--editable', '.[dev,tox]',
@@ -127,8 +127,8 @@ def tox(envs: 'Pass -e option to tox with the specified environments' = (),
         recreate: 'Pass --recreate flag to tox' = False,
         clean: 'Remove tox directory first' = False):
     if clean:
-        _local('rm -rf .tox', echo=True)
-    _local((
+        local('rm -rf .tox', echo=True)
+    local((
         'tox',
         ('-e', ','.join(envs)) if envs else None,
         '--recreate' if recreate else None,
@@ -139,7 +139,7 @@ def tox(envs: 'Pass -e option to tox with the specified environments' = (),
 def lint(show_errors: arg(help='Show errors') = True,
          disable_ignore: arg(inverse_option=DISABLE, help='Don\'t ignore any errors') = False,
          disable_noqa: arg(inverse_option=DISABLE, help='Ignore noqa directives') = False):
-    result = _local((
+    result = local((
         'flake8', '.',
         '--ignore=' if disable_ignore else None,
         '--disable-noqa' if disable_noqa else None,
@@ -217,7 +217,7 @@ def build_docs(source='docs', destination='docs/_build', builder='html', clean=F
     if clean:
         printer.info('Removing {destination}...'.format_map(locals()))
         shutil.rmtree(destination)
-    _local((
+    local((
         'sphinx-build',
         '-b',
         builder,

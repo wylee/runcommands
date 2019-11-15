@@ -1,5 +1,32 @@
 # RunCommands
 
+## 1.0a41 - 2019-11-14
+
+- The `run` console script alias is now installed by default along with the
+  `runcommand` and `runcommands` aliases. The `RUNCOMMANDS_CONSOLE_SCRIPTS`
+  environment variable can be used to specify different aliases or to disable
+  installation of the RunCommands console script altogether.
+- The `RUNCOMMANDS_INSTALL_COMPLETE_CONSOLE_SCRIPT` environment variable can be
+  used to *disable* the installation of the `runcommands-complete` console
+  script.
+- The `RUNCOMMANDS_INSTALL_RELEASE_CONSOLE_SCRIPT` environment variable can be
+  used to *enable* installation of the `make-release` console script.
+- Fixed regular expression used to check long options (again). This time, add
+  support for `--multiple-words`.
+- Improved parsing of multi short options. In particular, added support for
+  specifying a value for the last option in the group: `-xyzValue`.
+- Improved partitioning of initial `argv`:
+  - `argv` is now partitioned into `run` args versus commands and their args by
+    finding the first non-option word. This allows for better, more intuitive
+    feedback when bad args are passed to `run` (allowing `argparse` to do its
+    validation instead of aborting with an unhelpful error).
+  - In addition, don't attempt to parse *every* arg in `argv` as a multi short
+    option. Only attempt to parse those that appear to be `run` args (i.e.,
+    those before the first non-option word).
+- Added option to pass a minimum hash length via the `git-version` command's
+  `--short` option. `--short` by itself, as a flag, means let git determine the
+  minimum has length. `--short=N` means use `N` as the minimum.
+
 ## 1.0a40 - 2019-11-12
 
 - Added support for commands with subcommands (like `git log`).

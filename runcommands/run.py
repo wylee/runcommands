@@ -211,14 +211,14 @@ class Run(Command):
         all_argv, run_argv, command_argv = self.partition_argv(argv)
         if '-d' in run_argv or '--debug' in run_argv:
             self.debug = True
-        cli_args = tuple(self.parse_args(run_argv))
+        cli_argv = self.parse_args(run_argv)
         kwargs.update({
             'all_argv': all_argv,
             'run_argv': run_argv,
             'command_argv': command_argv,
-            'cli_args': cli_args,
+            'cli_args': tuple(cli_argv),
         })
-        return super().run(run_argv, **kwargs)
+        return super().run(cli_argv, **kwargs)
 
     def partition_argv(self, argv=None):
         if argv is None:
@@ -227,12 +227,23 @@ class Run(Command):
         if not argv:
             return argv, [], []
 
-        argv = self.expand_short_options(argv)
+        # Consume all args that appear to be options (and their values,
+        # if applicable), even those that aren't know run options, up
+        # until the first non-option word is reached. That word is
+        # assumed to be the start of commands.
+
+        def looks_like_option(s):
+            return bool(
+                (s.startswith('-') or s.startswith('--')) and
+                not s.startswith('---') and
+                s.strip('-')
+            )
+
+        i = 0
         argc = len(argv)
         run_argv = []
         parse_optional = self.parse_optional
 
-        i = 0
         while i < argc:
             a = argv[i]
 
@@ -256,12 +267,19 @@ class Run(Command):
                         run_argv.append(argv[j])
                         i = j
             else:
-                # Arg is not an option.
-                break
+                if not looks_like_option(a):
+                    # Non-option word; assumed to be start of commands.
+                    break
+                short_options = self.parse_multi_short_option(a)
+                if short_options is None:
+                    run_argv.append(a)
+                else:
+                    run_argv.extend(short_options)
 
             i += 1
 
-        return argv, run_argv, argv[i:]
+        command_argv = argv[i:]
+        return argv, run_argv, command_argv
 
     def find_config_file(self, config_file):
         if config_file:
