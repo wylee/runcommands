@@ -61,7 +61,7 @@ class ArgConfig:
     """
 
     short_option_regex = re.compile(r'-\w')
-    long_option_regex = re.compile(r'--\w+')
+    long_option_regex = re.compile(r'--\w+(-\w+)*')
 
     def __init__(self, *,
                  container=None,
