@@ -227,12 +227,23 @@ class Run(Command):
         if not argv:
             return argv, [], []
 
-        argv = self.expand_short_options(argv)
+        # Consume all args that appear to be options (and their values,
+        # if applicable), even those that aren't know run options, up
+        # until the first non-option word is reached. That word is
+        # assumed to be the start of commands.
+
+        def looks_like_option(s):
+            return bool(
+                (s.startswith('-') or s.startswith('--')) and
+                not s.startswith('---') and
+                s.strip('-')
+            )
+
+        i = 0
         argc = len(argv)
         run_argv = []
         parse_optional = self.parse_optional
 
-        i = 0
         while i < argc:
             a = argv[i]
 
@@ -256,12 +267,19 @@ class Run(Command):
                         run_argv.append(argv[j])
                         i = j
             else:
-                # Arg is not an option.
-                break
+                if not looks_like_option(a):
+                    # Non-option word; assumed to be start of commands.
+                    break
+                short_options = self.parse_multi_short_option(a)
+                if short_options is None:
+                    run_argv.append(a)
+                else:
+                    run_argv.extend(short_options)
 
             i += 1
 
-        return argv, run_argv, argv[i:]
+        command_argv = argv[i:]
+        return argv, run_argv, command_argv
 
     def find_config_file(self, config_file):
         if config_file:
