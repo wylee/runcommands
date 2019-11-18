@@ -78,8 +78,16 @@ class Printer:
     def debug(self, *args, color=color_map['debug'], file=sys.stderr, **kwargs):
         self.print(*args, color=color, file=file, **kwargs)
 
-    def hr(self, color=color_map['info']):
-        self.print(get_hr(), color=color)
+    def hr(self, *args, color=color_map['info'], **kwargs):
+        hr = get_hr()
+        if args:
+            sep = kwargs.get('sep') or ' '
+            hr = hr[len(sep.join(args)) + len(sep):]
+            prefix_kwargs = kwargs.copy()
+            prefix_kwargs['sep'] = sep
+            prefix_kwargs['end'] = sep
+            self.print(*args, color=color, **prefix_kwargs)
+        self.print(hr, color=color, **kwargs)
 
 
 printer = Printer()
