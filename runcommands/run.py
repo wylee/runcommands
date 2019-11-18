@@ -211,7 +211,7 @@ class Run(Command):
         all_argv, run_argv, command_argv = self.partition_argv(argv)
         if '-d' in run_argv or '--debug' in run_argv:
             self.debug = True
-        cli_argv = self.parse_args(run_argv)
+        cli_argv = self.parse_args(run_argv, False)
         kwargs.update({
             'all_argv': all_argv,
             'run_argv': run_argv,
