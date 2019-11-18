@@ -366,10 +366,11 @@ class Command:
 
         return self.implementation(*new_args, **new_kwargs)
 
-    def parse_args(self, argv):
+    def parse_args(self, argv, expand_short_options=True):
         if self.debug:
             printer.debug('Parsing args for command `{self.name}`: {argv}'.format_map(locals()))
-        argv = self.expand_short_options(argv)
+        if expand_short_options:
+            argv = self.expand_short_options(argv)
         parsed_args = self.arg_parser.parse_args(argv)
         parsed_args = vars(parsed_args)
         for k, v in parsed_args.items():
