@@ -260,7 +260,9 @@ class Run(Command):
                 name, option, value = option_data
                 run_argv.append(a)
 
-                if value is None and option.takes_value:
+                if a in ('-d', '--debug'):
+                    self.debug = True
+                elif value is None and option.takes_value:
                     # Collect the option's value if it takes one and one
                     # wasn't provided via --opt=<value>.
                     j = i + 1
@@ -278,6 +280,10 @@ class Run(Command):
                     run_argv.append(a)
                 else:
                     run_argv.extend(short_options)
+
+                    if '-d' in short_options:
+                        self.debug = True
+
                     if value is not None:
                         run_argv.append(value)
                     else:
