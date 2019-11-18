@@ -421,7 +421,6 @@ class Command:
         """
         if self.debug:
             printer.debug('Expanding short options for `{self.name}`: {argv}'.format_map(locals()))
-        debug = self.debug
         has_multi_short_options = False
         parse_multi_short_option = self.parse_multi_short_option
         new_argv = []
@@ -437,10 +436,8 @@ class Command:
                 has_multi_short_options = True
             else:
                 new_argv.append(arg)
-            if debug and short_options:
-                printer.debug('    Found multi short option:', arg, '=>', short_options)
-        if debug and not has_multi_short_options:
-            printer.debug('    No multi short options found')
+        if self.debug and not has_multi_short_options:
+            printer.debug('No multi short options found')
         return new_argv if has_multi_short_options else argv
 
     def parse_multi_short_option(self, arg):
@@ -480,6 +477,8 @@ class Command:
                 if j < len(arg):
                     value = arg[j:]
                 break
+        if self.debug and short_options:
+            printer.debug('Parsed multi short option:', arg, '=>', short_options)
         return short_options, value
 
     def normalize_name(self, name):
