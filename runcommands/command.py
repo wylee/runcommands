@@ -429,9 +429,11 @@ class Command:
             if arg == '--':
                 new_argv.extend(argv[i:])
                 break
-            short_options = parse_multi_short_option(arg)
+            short_options, value = parse_multi_short_option(arg)
             if short_options:
                 new_argv.extend(short_options)
+                if value is not None:
+                    new_argv.append(value)
                 has_multi_short_options = True
             else:
                 new_argv.append(arg)
@@ -446,28 +448,29 @@ class Command:
 
         Examples::
 
-            'abc' -> None                         # not an option
-            '--option' -> None                    # long option
-            '-a' -> None                          # short option but not multi
-            '-xyz' -> ['-x', '-y', '-z']          # multi short option
-            '-xyz12' -> ['-x', '-y', '-z', '12']  # multi short option w/ value
+            'abc' -> None, None                   # not an option
+            '--option' -> None, None              # long option
+            '-a' -> None, None                    # short option but not multi
+            '-xyz' -> ['-x', '-y', '-z'], None    # multi short option
+            '-xyz12' -> ['-x', '-y', '-z'], '12'  # multi short option w/ value
 
         Note that parsing stops when a short option that takes a value
         is encountered--the rest of the arg string is considered the
         value for that option.
 
         Returns:
-            None: The arg is not a multi short option
-            list: The arg is a multi short option (perhaps including a
-                value for the last option)
+            (None, None): The arg is not a multi short option
+            (list, str|None): The arg is a multi short option (perhaps
+                including a value for the last option)
 
         """
         if len(arg) < 3 or arg[0] != '-' or arg[1] == '-' or arg[2] == '=':
             # Not a multi short option like '-abc'.
-            return None
+            return None, None
         # Appears to be a multi short option.
         option_map = self.option_map
         short_options = []
+        value = None
         for i, char in enumerate(arg[1:], 1):
             name = '-{char}'.format(char=char)
             short_options.append(name)
@@ -475,9 +478,9 @@ class Command:
             if option is not None and option.takes_value:
                 j = i + 1
                 if j < len(arg):
-                    short_options.append(arg[j:])
+                    value = arg[j:]
                 break
-        return short_options
+        return short_options, value
 
     def normalize_name(self, name):
         name = camel_to_underscore(name)

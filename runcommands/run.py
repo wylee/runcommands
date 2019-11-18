@@ -270,11 +270,13 @@ class Run(Command):
                 if not looks_like_option(a):
                     # Non-option word; assumed to be start of commands.
                     break
-                short_options = self.parse_multi_short_option(a)
+                short_options, value = self.parse_multi_short_option(a)
                 if short_options is None:
                     run_argv.append(a)
                 else:
                     run_argv.extend(short_options)
+                    if value is not None:
+                        run_argv.append(value)
 
             i += 1
 
