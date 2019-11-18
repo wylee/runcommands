@@ -243,6 +243,7 @@ class Run(Command):
         argc = len(argv)
         run_argv = []
         parse_optional = self.parse_optional
+        parse_multi_short_option = self.parse_multi_short_option
 
         while i < argc:
             a = argv[i]
@@ -270,7 +271,9 @@ class Run(Command):
                 if not looks_like_option(a):
                     # Non-option word; assumed to be start of commands.
                     break
-                short_options, value = self.parse_multi_short_option(a)
+
+                short_options, value = parse_multi_short_option(a)
+
                 if short_options is None:
                     run_argv.append(a)
                 else:
