@@ -16,10 +16,6 @@ class CommandRunner:
     def run(self, argv):
         commands_to_run = self.get_commands_to_run(self.collection, argv)
 
-        if self.debug:
-            for command in commands_to_run:
-                self.print_debug('Command to run:', command)
-
         help_requested = False
         for command in commands_to_run:
             if command.help_requested:
@@ -33,12 +29,17 @@ class CommandRunner:
         return tuple(command.run() for command in commands_to_run)
 
     def get_commands_to_run(self, collection, argv):
+        debug = self.debug
+        partition_args = self.partition_args
         commands_to_run = []
         while argv:
-            command, command_argv = self.partition_args(collection, argv)
-            commands_to_run.append(CommandToRun(command, command_argv))
+            command, command_argv = partition_args(collection, argv)
+            command_to_run = CommandToRun(command, command_argv)
+            commands_to_run.append(command_to_run)
             num_consumed = len(command_argv) + 1
             argv = argv[num_consumed:]
+            if debug:
+                printer.debug('Command to run:', command_to_run)
         return commands_to_run
 
     def partition_args(self, collection, args):
@@ -70,10 +71,6 @@ class CommandRunner:
             command_args.append(arg)
 
         return partition
-
-    def print_debug(self, *args, **kwargs):
-        if self.debug:
-            printer.debug(*args, **kwargs)
 
     def print_usage(self):
         if not self.collection:
