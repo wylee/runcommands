@@ -280,6 +280,18 @@ class Run(Command):
                     run_argv.extend(short_options)
                     if value is not None:
                         run_argv.append(value)
+                    else:
+                        # Collect the last short option's value if it
+                        # takes one and one wasn't provided via
+                        # -abc<value>.
+                        option_data = parse_optional(short_options[-1])
+                        if option_data is not None:
+                            name, option, value = option_data
+                            if value is None and option.takes_value:
+                                j = i + 1
+                                if j < argc:
+                                    run_argv.append(argv[j])
+                                    i = j
 
             i += 1
 
