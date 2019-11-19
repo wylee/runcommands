@@ -211,7 +211,7 @@ class Run(Command):
         all_argv, run_argv, command_argv = self.partition_argv(argv)
         if '-d' in run_argv or '--debug' in run_argv:
             self.debug = True
-        cli_argv = self.parse_args(run_argv)
+        cli_argv = self.parse_args(run_argv, False)
         kwargs.update({
             'all_argv': all_argv,
             'run_argv': run_argv,
@@ -243,6 +243,7 @@ class Run(Command):
         argc = len(argv)
         run_argv = []
         parse_optional = self.parse_optional
+        parse_multi_short_option = self.parse_multi_short_option
 
         while i < argc:
             a = argv[i]
@@ -259,7 +260,9 @@ class Run(Command):
                 name, option, value = option_data
                 run_argv.append(a)
 
-                if value is None and option.takes_value:
+                if a in ('-d', '--debug'):
+                    self.debug = True
+                elif value is None and option.takes_value:
                     # Collect the option's value if it takes one and one
                     # wasn't provided via --opt=<value>.
                     j = i + 1
@@ -270,11 +273,31 @@ class Run(Command):
                 if not looks_like_option(a):
                     # Non-option word; assumed to be start of commands.
                     break
-                short_options = self.parse_multi_short_option(a)
+
+                short_options, value = parse_multi_short_option(a)
+
                 if short_options is None:
                     run_argv.append(a)
                 else:
                     run_argv.extend(short_options)
+
+                    if '-d' in short_options:
+                        self.debug = True
+
+                    if value is not None:
+                        run_argv.append(value)
+                    else:
+                        # Collect the last short option's value if it
+                        # takes one and one wasn't provided via
+                        # -abc<value>.
+                        option_data = parse_optional(short_options[-1])
+                        if option_data is not None:
+                            name, option, value = option_data
+                            if value is None and option.takes_value:
+                                j = i + 1
+                                if j < argc:
+                                    run_argv.append(argv[j])
+                                    i = j
 
             i += 1
 

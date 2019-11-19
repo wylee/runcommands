@@ -71,6 +71,7 @@ def release(version: 'Version to release' = None,
     print_step('Merging?', merge)
     print_step('Tagging?', create_tag)
     print_step('Resuming development?', resume)
+    print_step('Testing?', test)
 
     if not version_file:
         version_file, version_line_number, current_version = find_version_file()

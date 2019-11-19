@@ -1,5 +1,16 @@
 # RunCommands
 
+## 1.0a43 - 2019-11-18
+
+- Fixed some issues with parsing short option group, especially during the
+  initial partitioning of `argv`:
+  - Made sure the last option in a short option group gets a value.
+  - Stopped reparsing `run` args for short option groups since they're parsed
+    when partitioning `argv`.
+  - Moved parsing of short option groups for commands to an earlier point in
+    the process so it's possible to tell if help was requested if the help
+    option was passed as part of a multi short option group.
+
 ## 1.0a42 - 2019-11-17
 
 - Improved `release` command.
