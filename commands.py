@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import getpass
 import os
 import shutil
 import sys
@@ -215,16 +216,42 @@ def make_dist(quiet=False):
 
 
 @command
-def upload_dists(make=True, quiet=False):
+def upload_dists(
+    make: arg(help='Make dist first? [yes]') = True,
+    quiet: arg(help='Make dist quietly? [no]') = False,
+    username: arg(help='Twine username [$USER]') = None,
+    password_command: arg(
+        help='Command to retrieve twine password '
+             '(e.g. `password-manager show-password PyPI`) '
+             '[twine prompt]'
+    ) = None
+):
+    """Upload distributions in ./dist using ``twine``."""
     if make:
         make_dist(quiet)
+
     dists = os.listdir('dist')
     if not dists:
         abort(1, 'No distributions found in dist directory')
+
+    if not username:
+        username = getpass.getuser()
+    environ = {'TWINE_USERNAME': username}
+
+    if password_command:
+        printer.info('Retrieving password via `{password_command}`...'.format_map(locals()))
+        result = local(password_command, stdout='capture')
+        password = result.stdout.strip()
+        environ['TWINE_PASSWORD'] = password
+
+    printer.warning('TWINE_USERNAME:', username)
+    if password:
+        printer.warning('TWINE_PASSWORD:', '*' * len(password))
+
     for file in dists:
         path = os.path.join('dist', file)
         if confirm('Upload dist?: {path}'.format_map(locals())):
-            local(('twine', 'upload', path))
+            local(('twine', 'upload', path), environ=environ)
         else:
             printer.warning('Skipped dist:', path)
 
