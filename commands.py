@@ -171,28 +171,10 @@ def clean(verbose=False):
     Skips hidden directories.
 
     """
-    def rm(name):
-        if os.path.isfile(name):
-            os.remove(name)
-            if verbose:
-                printer.info('Removed file:', name)
-        else:
-            if verbose:
-                printer.info('File not present:', name)
-
-    def rmdir(name):
-        if os.path.isdir(name):
-            shutil.rmtree(name)
-            if verbose:
-                printer.info('Removed directory:', name)
-        else:
-            if verbose:
-                printer.info('Directory not present:', name)
-
     root = os.getcwd()
 
-    rmdir('build')
-    rmdir('dist')
+    rmdir('build', verbose)
+    rmdir('dist', verbose)
 
     for path, dirs, files in os.walk(root):
         rel_path = os.path.relpath(path, root)
@@ -209,7 +191,7 @@ def clean(verbose=False):
 
         for f in files:
             if f.endswith('.pyc') or f.endswith('.pyo'):
-                rm(os.path.join(rel_path, f))
+                rmfile(os.path.join(rel_path, f), verbose)
 
 
 @command
@@ -224,6 +206,50 @@ def build_docs(source='docs', destination='docs/_build', builder='html', clean=F
         source,
         destination,
     ))
+
+
+@command
+def make_dist(quiet=False):
+    rmdir('dist', verbose=not quiet)
+    local('python setup.py sdist', stdout='hide' if quiet else None)
+
+
+@command
+def upload_dists(make=True, quiet=False):
+    if make:
+        make_dist(quiet)
+    dists = os.listdir('dist')
+    if not dists:
+        abort(1, 'No distributions found in dist directory')
+    for file in dists:
+        path = os.path.join('dist', file)
+        if confirm('Upload dist?: {path}'.format_map(locals())):
+            local(('twine', 'upload', path))
+        else:
+            printer.warning('Skipped dist:', path)
+
+
+# Utilities
+
+
+def rmfile(name, verbose=False):
+    if os.path.isfile(name):
+        os.remove(name)
+        if verbose:
+            printer.info('Removed file:', name)
+    else:
+        if verbose:
+            printer.info('File not present:', name)
+
+
+def rmdir(name, verbose=False):
+    if os.path.isdir(name):
+        shutil.rmtree(name)
+        if verbose:
+            printer.info('Removed directory:', name)
+    else:
+        if verbose:
+            printer.info('Directory not present:', name)
 
 
 if __name__ == '__main__':

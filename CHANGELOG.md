@@ -1,5 +1,17 @@
 # RunCommands
 
+## 1.0a44 - 2019-11-19
+
+- Fixed a couple regressions regarding default args introduced in 1.0a40:
+  - Add globals to keyword args for commands that have `**kwargs`.
+  - Track args that came from defaults.
+- Fixed/improved handling of args in `Command.__call__()` introduced in 1.0a40:
+  - Ensure positional args can be passed via keyword args.
+  - Ensure optional args can be passed positionally.
+- Fixed `complete` command so it doesn't show command usage when parsing args.
+- Added `make-dist` and `upload-dists` commands.
+- Revamped `Printer` utility.
+
 ## 1.0a43 - 2019-11-18
 
 - Fixed some issues with parsing short option group, especially during the

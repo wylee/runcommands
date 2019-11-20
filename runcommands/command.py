@@ -305,41 +305,59 @@ class Command:
         arguments = self.args
         default_args = self.default_args
 
-        defaults = {}
-
         num_args = len(args)
+        new_arg_names = set()  # Track names of args passed positionally
         new_args = []
         new_kwargs = kwargs.copy()
+        from_default_args = []
         missing_positionals = []
 
         for i, arg in enumerate(arguments.values()):
             name = arg.parameter.name
             if arg.is_positional:
-                if i < num_args:
+                if name in kwargs:
+                    new_arg_names.add(name)
+                    new_args.append(kwargs[name])
+                elif i < num_args:
                     value = args[i]
                     if value is POSITIONAL_PLACEHOLDER:
                         if name in default_args:
                             value = default_args[name]
+                            from_default_args.append(name)
                         else:
                             value = arg.default
+                    if value is Parameter.empty:
+                        missing_positionals.append(arg.name)
+                    else:
+                        new_arg_names.add(name)
+                        new_args.append(value)
                 elif name in default_args:
-                    value = default_args[name]
+                    new_kwargs[name] = default_args[name]
+                    from_default_args.append(name)
                 else:
-                    value = Parameter.empty
-                if value is Parameter.empty:
                     missing_positionals.append(arg.name)
-                else:
-                    new_args.append(value)
             elif arg.is_var_positional:
                 value = args[i:]
-                new_args.extend(value)
-            elif name in kwargs:
-                value = kwargs[name]
-                new_kwargs[name] = value
-            elif name in default_args:
-                value = default_args[name]
-                new_kwargs[name] = value
-                defaults[name] = value
+                if value:
+                    new_arg_names.add(name)
+                    new_args.extend(value)
+            elif arg.is_optional:
+                if name in kwargs:
+                    new_kwargs[name] = kwargs[name]
+                elif i < num_args:
+                    new_kwargs[name] = args[i]
+                elif name in default_args:
+                    new_kwargs[name] = default_args[name]
+                    from_default_args.append(name)
+            else:
+                raise AssertionError('This should never happen')
+
+        args_found = set(new_kwargs) | new_arg_names
+
+        for name, value in default_args.items():
+            if name not in args_found:
+                new_kwargs[name] = default_args[name]
+                from_default_args.append(name)
 
         if missing_positionals:
             count = len(missing_positionals)
@@ -356,8 +374,8 @@ class Command:
             printer.debug('Command called:', self.name)
             printer.debug('    Received positional args:', args)
             printer.debug('    Received keyword args:', kwargs)
-            if defaults:
-                printer.debug('    Added default args:', ', '.join(defaults))
+            if from_default_args:
+                printer.debug('    Added default args:', ', '.join(from_default_args))
 
         if self.debug:
             printer.debug('Running command:', self.name)
@@ -516,7 +534,7 @@ class Command:
             annotation = ArgConfig(**annotation)
         return annotation
 
-    def get_short_option_for_arg(self, name, names, used):
+    def get_short_option_for_arg(self, name, used):
         first_char = name[0]
         first_char_upper = first_char.upper()
 
@@ -556,9 +574,7 @@ class Command:
     def parameters(self):
         implementation = self.implementation
         signature = inspect.signature(implementation)
-        params = tuple(signature.parameters.items())
-        params = OrderedDict(params)
-        return params
+        return signature.parameters
 
     @cached_property
     def has_kwargs(self):
@@ -570,13 +586,22 @@ class Command:
         params = self.parameters
         args = OrderedDict()
 
+        empty = Parameter.empty
+        keyword_only = Parameter.KEYWORD_ONLY
+        var_keyword = Parameter.VAR_KEYWORD
+        var_positional = Parameter.VAR_POSITIONAL
+
         normalize_name = self.normalize_name
         get_arg_config = self.get_arg_config
         get_short_option = self.get_short_option_for_arg
         get_long_option = self.get_long_option_for_arg
         get_inverse_option = self.get_inverse_option_for_arg
 
-        names = {normalize_name(name) for name in params}
+        params = OrderedDict((
+            (normalize_name(n), p)
+            for n, p in params.items()
+            if not (n.startswith('_') or p.kind is keyword_only or p.kind is var_keyword)
+        ))
 
         used_short_options = set()
         for param in params.values():
@@ -586,16 +611,6 @@ class Command:
                 used_short_options.add(short_option)
 
         for name, param in params.items():
-            empty = param.empty
-            name = normalize_name(name)
-
-            skip = (
-                name.startswith('_') or
-                param.kind is param.VAR_KEYWORD or
-                param.kind is param.KEYWORD_ONLY)
-            if skip:
-                continue
-
             annotation = get_arg_config(param)
             container = annotation.container
             type = annotation.type
@@ -610,7 +625,7 @@ class Command:
             mutual_exclusion_group = annotation.mutual_exclusion_group
 
             default = param.default
-            is_var_positional = param.kind is param.VAR_POSITIONAL
+            is_var_positional = param.kind is var_positional
             is_positional = default is empty and not is_var_positional
 
             if annotation.default is not empty:
@@ -626,7 +641,7 @@ class Command:
 
             if not (is_positional or is_var_positional):
                 if not short_option:
-                    short_option = get_short_option(name, names, used_short_options)
+                    short_option = get_short_option(name, used_short_options)
                     used_short_options.add(short_option)
                 if not long_option:
                     long_option = get_long_option(name)

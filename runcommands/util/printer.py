@@ -1,3 +1,4 @@
+import enum
 import shutil
 import sys
 
@@ -18,32 +19,47 @@ class Printer:
         'debug': Color.cyan,
     }
 
-    def __init__(self, color_map=None):
-        if color_map is not None:
-            self.color_map = color_map
+    def __init__(self, colors: enum.Enum = Color, color_map: dict = None, default_color=None):
+        self.colors = colors
+        self.color_map = {color.name: color for color in colors}
+        for name, color in self.__class__.color_map.items():
+            self.color_map[name] = color
+        if color_map:
+            for name, color in color_map.items():
+                self.color_map[name] = self.get_color(color)
+        self.default_color = self.get_color(default_color)
 
-    def colorize(self, *args, color=Color.none, sep=' ', end=Color.reset):
-        if not isinstance(color, Color):
-            if color in self.color_map:
-                color = self.color_map[color]
-            else:
-                try:
-                    color = Color[color]
-                except KeyError:
-                    raise ValueError('Unknown color: {color}'.format(color=color))
+    def __call__(self, *args, **kwargs):
+        self.print(*args, **kwargs)
+
+    def get_color(self, color):
+        if color is None:
+            return self.color_map['none']
+        if isinstance(color, self.colors):
+            return color
+        try:
+            return self.color_map[color]
+        except KeyError:
+            raise ValueError('Unknown color: {color}'.format(color=color)) from None
+
+    def colorize(self, *args, color=None, sep=' ', end='reset'):
+        color = self.get_color(color)
         args = (color,) + args
         string = []
         for arg in args[:-1]:
             string.append(str(arg))
-            if not isinstance(arg, Color):
+            if not isinstance(arg, self.colors):
                 string.append(sep)
         string.append(str(args[-1]))
         string = ''.join(string)
         if end:
+            end = self.get_color(end)
             string = '{string}{end}'.format_map(locals())
         return string
 
-    def print(self, *args, color=Color.none, file=sys.stdout, **kwargs):
+    def print(self, *args, color=None, file=sys.stdout, **kwargs):
+        if color is None:
+            color = self.default_color
         if isatty(file):
             colorize_kwargs = kwargs.copy()
             colorize_kwargs.pop('end', None)
@@ -51,34 +67,52 @@ class Printer:
             string = self.colorize(*args, color=color, **colorize_kwargs)
             print(string, file=file, **kwargs)
         else:
-            args = [a for a in args if not isinstance(a, Color)]
+            args = [a for a in args if not isinstance(a, self.colors)]
             print(*args, file=file, **kwargs)
 
-    def header(self, *args, color=color_map['header'], **kwargs):
+    def header(self, *args, color=None, **kwargs):
+        if color is None:
+            color = self.color_map['header']
         self.print(*args, color=color, **kwargs)
 
-    def info(self, *args, color=color_map['info'], **kwargs):
+    def info(self, *args, color=None, **kwargs):
+        if color is None:
+            color = self.color_map['info']
         self.print(*args, color=color, **kwargs)
 
-    def success(self, *args, color=color_map['success'], **kwargs):
+    def success(self, *args, color=None, **kwargs):
+        if color is None:
+            color = self.color_map['success']
         self.print(*args, color=color, **kwargs)
 
-    def echo(self, *args, color=color_map['echo'], **kwargs):
+    def echo(self, *args, color=None, **kwargs):
+        if color is None:
+            color = self.color_map['echo']
         self.print(*args, color=color, **kwargs)
 
-    def warning(self, *args, color=color_map['warning'], file=sys.stderr, **kwargs):
+    def warning(self, *args, color=None, file=sys.stderr, **kwargs):
+        if color is None:
+            color = self.color_map['warning']
         self.print(*args, color=color, file=file, **kwargs)
 
-    def error(self, *args, color=color_map['error'], file=sys.stderr, **kwargs):
+    def error(self, *args, color=None, file=sys.stderr, **kwargs):
+        if color is None:
+            color = self.color_map['error']
         self.print(*args, color=color, file=file, **kwargs)
 
-    def danger(self, *args, color=color_map['danger'], file=sys.stderr, **kwargs):
+    def danger(self, *args, color=None, file=sys.stderr, **kwargs):
+        if color is None:
+            color = self.color_map['danger']
         self.print(*args, color=color, file=file, **kwargs)
 
-    def debug(self, *args, color=color_map['debug'], file=sys.stderr, **kwargs):
+    def debug(self, *args, color=None, file=sys.stderr, **kwargs):
+        if color is None:
+            color = self.color_map['debug']
         self.print(*args, color=color, file=file, **kwargs)
 
-    def hr(self, *args, color=color_map['info'], **kwargs):
+    def hr(self, *args, color=None, **kwargs):
+        if color is None:
+            color = self.color_map['info']
         hr = get_hr()
         if args:
             sep = kwargs.get('sep') or ' '

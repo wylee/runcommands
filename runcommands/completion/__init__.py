@@ -1,6 +1,7 @@
 import glob
 import os
 import shlex
+from contextlib import redirect_stderr
 
 from ..args import arg
 from ..collection import Collection
@@ -30,7 +31,10 @@ def complete(command_line,
     tokens = shlex.split(command_line[:position])
 
     all_argv, run_argv, command_argv = run.partition_argv(tokens[1:])
-    run_args = run.parse_args(run_argv)
+
+    with open(os.devnull, 'wb') as devnull_fp:
+        with redirect_stderr(devnull_fp):
+            run_args = run.parse_args(run_argv)
 
     module = run_args.get('commands_module')
     module = module or DEFAULT_COMMANDS_MODULE

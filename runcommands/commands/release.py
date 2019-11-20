@@ -124,7 +124,7 @@ def release(version: 'Version to release' = None,
         printer.warning('Continuing with release: {info.version} - {info.date}')
 
     if test:
-        printer.header('Testing...')
+        print_step_header('Testing')
         local(test_command)
     else:
         printer.warning('Skipping tests')
@@ -161,7 +161,7 @@ ReleaseInfo = namedtuple('ReleaseInfo', (
 
 
 def prepare_release(info):
-    printer.header('Preparing release', info.version, 'on', info.date)
+    print_step_header('Preparing release', info.version, 'on', info.date)
 
     updated_init_line = "__version__ = '{info.version}'\n".format_map(locals())
     updated_change_log_line = '## {info.version} - {info.date}\n'.format_map(locals())
@@ -182,7 +182,7 @@ def prepare_release(info):
 
 
 def merge_to_target_branch(info):
-    printer.header(
+    print_step_header(
         'Merging', info.current_branch, 'into', info.target_branch, 'for release', info.version)
 
     local(('git', 'log', '--oneline', '--reverse', '{info.target_branch}..'.format_map(locals())))
@@ -211,7 +211,7 @@ def merge_to_target_branch(info):
 
 
 def create_release_tag(info, merge):
-    printer.header('Tagging release', info.version)
+    print_step_header('Tagging release', info.version)
 
     if merge:
         local(('git', 'checkout', info.target_branch))
@@ -236,7 +236,7 @@ def create_release_tag(info, merge):
 
 
 def resume_development(info):
-    printer.header('Resuming development at', info.next_version)
+    print_step_header('Resuming development at', info.next_version)
 
     updated_init_line = "__version__ = '{info.next_version}.dev0'\n".format_map(locals())
     new_change_log_lines = [
@@ -276,6 +276,10 @@ def resume_development(info):
 def print_step(message, flag):
     printer.info(message, end=' ', flush=True)
     printer.print('yes' if flag else 'no', color='green' if flag else 'red')
+
+
+def print_step_header(arg, *args):
+    printer.hr('\n%s' % arg, *args, color='header', end='\n\n')
 
 
 def get_current_branch():
