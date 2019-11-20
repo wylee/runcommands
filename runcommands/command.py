@@ -556,9 +556,7 @@ class Command:
     def parameters(self):
         implementation = self.implementation
         signature = inspect.signature(implementation)
-        params = tuple(signature.parameters.items())
-        params = OrderedDict(params)
-        return params
+        return signature.parameters
 
     @cached_property
     def has_kwargs(self):
