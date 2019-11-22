@@ -121,8 +121,14 @@ class Run(Command):
                 env_default_args = {}
                 globals_ = merge_dicts(config_file_globals, cli_globals)
 
+            base_default_args = merge_dicts(args['args'], env_default_args)
+
             default_args = {name: {} for name in collection}
-            default_args = merge_dicts(default_args, args['args'], env_default_args)
+            default_args = merge_dicts(default_args, base_default_args)
+
+            # This gives commands access to both their own and other
+            # commands' default args.
+            globals_['default_args'] = base_default_args
 
             for command_name, command_default_args in default_args.items():
                 command = collection[command_name]
