@@ -188,6 +188,7 @@ class Run(Command):
             items = (
                 ('Globals:', globals_),
                 ('Default args:', default_args),
+                ('Env default args:', env_default_args),
                 ('Environment variables:', environ),
             )
             for label, data in items:
