@@ -1,5 +1,13 @@
 # RunCommands
 
+## 1.0a46 - 2019-11-22
+
+- Fixed an issue with default args being added to globals breaking
+  interpolation. Instead of adding the default to globals so that they can be
+  added to commands' default args (if requested), they're now added  directly
+  to commands' default args (when requested). When they're added to globals,
+  that can cause circularity issues when interpolating.
+
 ## 1.0a45 - 2019-11-22
 
 - Fixed handling of default args for var args (`*args`).
