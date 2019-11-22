@@ -126,10 +126,6 @@ class Run(Command):
             default_args = {name: {} for name in collection}
             default_args = merge_dicts(default_args, base_default_args)
 
-            # This gives commands access to both their own and other
-            # commands' default args.
-            globals_['default_args'] = base_default_args
-
             for command_name, command_default_args in default_args.items():
                 command = collection[command_name]
 
@@ -154,6 +150,12 @@ class Run(Command):
                     elif command.has_kwargs:
                         name = name.replace('-', '_')
                         command_default_args[name] = value
+
+                if 'default_args' not in default_args:
+                    # This gives commands access to both their own and
+                    # other commands' default args.
+                    if command.find_parameter('default_args'):
+                        command_default_args['default_args'] = base_default_args
 
                 # Convert lists to tuples for the command's args that are
                 # specified as being tuples.
