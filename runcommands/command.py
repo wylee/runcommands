@@ -341,6 +341,10 @@ class Command:
                 if value:
                     new_arg_names.add(name)
                     new_args.extend(value)
+                elif name in default_args:
+                    value = default_args[name]
+                    new_arg_names.add(name)
+                    new_args.extend(value)
             elif arg.is_optional:
                 if name in kwargs:
                     new_kwargs[name] = kwargs[name]

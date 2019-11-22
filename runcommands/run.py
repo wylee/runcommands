@@ -108,9 +108,9 @@ class Run(Command):
                 except KeyError:
                     raise RunnerError('Unknown env: {env}'.format_map(locals()))
 
-                # Don't add env's default args to globals, but save them
-                # so they they can be included in the global envs dict
-                # (for inspection purposes).
+                # Don't add the selected env's default args dict to
+                # globals, but save it so it can be added back to the
+                # the global envs dict (for inspection purposes).
                 env_default_args = env_globals.pop('args')
 
                 globals_ = merge_dicts(config_file_globals, env_globals, cli_globals)
@@ -121,8 +121,14 @@ class Run(Command):
                 env_default_args = {}
                 globals_ = merge_dicts(config_file_globals, cli_globals)
 
+            base_default_args = merge_dicts(args['args'], env_default_args)
+
             default_args = {name: {} for name in collection}
-            default_args = merge_dicts(default_args, args['args'], env_default_args)
+            default_args = merge_dicts(default_args, base_default_args)
+
+            # This gives commands access to both their own and other
+            # commands' default args.
+            globals_['default_args'] = base_default_args
 
             for command_name, command_default_args in default_args.items():
                 command = collection[command_name]
@@ -182,6 +188,7 @@ class Run(Command):
             items = (
                 ('Globals:', globals_),
                 ('Default args:', default_args),
+                ('Env default args:', env_default_args),
                 ('Environment variables:', environ),
             )
             for label, data in items:
@@ -190,6 +197,8 @@ class Run(Command):
                     for k in sorted(data):
                         v = data[k]
                         printer.debug('  - {k} = {v!r}'.format_map(locals()))
+                else:
+                    printer.debug(label, data)
 
         if environ:
             os.environ.update(environ)

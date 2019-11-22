@@ -1,5 +1,14 @@
 # RunCommands
 
+## 1.0a45 - 2019-11-22
+
+- Fixed handling of default args for var args (`*args`).
+- Added `default_args` to globals so commands can request their own and other
+  commands' default args by adding a `default_args` arg. This allows, for
+  example, setting a default arg for a command that another command can then
+  access via `default_args` instead of duplicating the arg for both commands or
+  adding the arg to globals.
+
 ## 1.0a44 - 2019-11-19
 
 - Fixed a couple regressions regarding default args introduced in 1.0a40:
