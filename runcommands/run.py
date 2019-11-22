@@ -197,6 +197,8 @@ class Run(Command):
                     for k in sorted(data):
                         v = data[k]
                         printer.debug('  - {k} = {v!r}'.format_map(locals()))
+                else:
+                    printer.debug(label, data)
 
         if environ:
             os.environ.update(environ)
