@@ -108,9 +108,9 @@ class Run(Command):
                 except KeyError:
                     raise RunnerError('Unknown env: {env}'.format_map(locals()))
 
-                # Don't add env's default args to globals, but save them
-                # so they they can be included in the global envs dict
-                # (for inspection purposes).
+                # Don't add the selected env's default args dict to
+                # globals, but save it so it can be added back to the
+                # the global envs dict (for inspection purposes).
                 env_default_args = env_globals.pop('args')
 
                 globals_ = merge_dicts(config_file_globals, env_globals, cli_globals)
