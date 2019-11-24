@@ -116,12 +116,12 @@ class Command:
                 raise CommandError(
                     'Missing implementation; it must be passed in as a function or defined as a '
                     'method on the command class')
-            default_name = self.__class__.__name__
+            default_name = self.normalize_class_name(self.__class__.__name__)
         else:
             self.implementation = implementation
-            default_name = implementation.__name__
+            default_name = self.normalize_name(implementation.__name__)
 
-        name = name or getattr(self.__class__, 'name', None) or self.normalize_name(default_name)
+        name = name or getattr(self.__class__, 'name', None) or default_name
 
         is_subcommand = base_command is not None
 
@@ -503,14 +503,20 @@ class Command:
             printer.debug('Parsed multi short option:', arg, '=>', short_options)
         return short_options, value
 
-    def normalize_name(self, name):
-        name = camel_to_underscore(name)
+    @staticmethod
+    def normalize_name(name):
         # Chomp a single trailing underscore *if* the name ends with
         # just one trailing underscore. This accommodates the convention
         # of adding a trailing underscore to reserved/built-in names.
         if name.endswith('_'):
             if name[-2] != '_':
                 name = name[:-1]
+        name = name.replace('_', '-')
+        return name
+
+    @staticmethod
+    def normalize_class_name(name):
+        name = camel_to_underscore(name)
         name = name.replace('_', '-')
         name = name.lower()
         return name
