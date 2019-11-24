@@ -10,6 +10,12 @@ from .exc import CommandError
 from .util import cached_property
 
 
+EMPTY = Parameter.empty
+KEYWORD_ONLY = Parameter.KEYWORD_ONLY
+POSITIONAL_OR_KEYWORD = Parameter.POSITIONAL_OR_KEYWORD
+VAR_POSITIONAL = Parameter.VAR_POSITIONAL
+
+
 class POSITIONAL_PLACEHOLDER:
 
     """Used as a placeholder for positionals."""
@@ -75,7 +81,7 @@ class ArgConfig:
                  action=None,
                  nargs=None,
                  mutual_exclusion_group=None,
-                 default=Parameter.empty):
+                 default=EMPTY):
         if short_option is not None:
             if not self.short_option_regex.fullmatch(short_option):
                 message = 'Expected short option with form -x, not "{short_option}"'
@@ -172,9 +178,9 @@ class Arg:
 
         command = command
 
-        is_keyword_only = parameter.kind is parameter.KEYWORD_ONLY
-        is_var_positional = parameter.kind is parameter.VAR_POSITIONAL
-        if default is parameter.empty:
+        is_keyword_only = parameter.kind is KEYWORD_ONLY
+        is_var_positional = parameter.kind is VAR_POSITIONAL
+        if default is EMPTY:
             is_positional = not (is_var_positional or is_keyword_only)
             is_optional = False
         else:
@@ -200,7 +206,7 @@ class Arg:
             if isinstance(choices, builtins.type) and issubclass(choices, Enum):
                 type = choices
             elif container is None:
-                if default not in (None, parameter.empty):
+                if default not in (None, EMPTY):
                     type = default.__class__
                 else:
                     type = str
@@ -346,7 +352,7 @@ class Arg:
     def __str__(self):
         string = '{kind} arg: {self.name}{default}: type={type}'
         kind = 'Positional' if self.is_positional else 'Optional'
-        has_default = self.default not in (Parameter.empty, None)
+        has_default = self.default not in (EMPTY, None)
         default = '[={self.default}]'.format_map(locals()) if has_default else ''
         if self.is_bool:
             type = 'flag'
@@ -362,7 +368,7 @@ class Arg:
 class HelpArg(Arg):
 
     def __init__(self, *, command):
-        parameter = Parameter('help', Parameter.POSITIONAL_OR_KEYWORD, default=False)
+        parameter = Parameter('help', POSITIONAL_OR_KEYWORD, default=False)
         super().__init__(
             command=command,
             parameter=parameter,
