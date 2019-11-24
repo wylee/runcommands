@@ -604,7 +604,11 @@ class Command:
         params = OrderedDict((
             (normalize_name(n), p)
             for n, p in params.items()
-            if not (n.startswith('_') or p.kind is keyword_only or p.kind is var_keyword)
+            if not (
+                (n.startswith('_')) or
+                (p.kind is keyword_only and p.default is empty) or
+                (p.kind is var_keyword)
+            )
         ))
 
         used_short_options = set()

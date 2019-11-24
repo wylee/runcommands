@@ -178,7 +178,7 @@ class Arg:
 
         command = command
 
-        is_keyword_only = parameter.kind is KEYWORD_ONLY
+        is_keyword_only = parameter.kind is KEYWORD_ONLY and default is EMPTY
         is_var_positional = parameter.kind is VAR_POSITIONAL
         if default is EMPTY:
             is_positional = not (is_var_positional or is_keyword_only)
