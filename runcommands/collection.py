@@ -73,13 +73,8 @@ class Collection(MutableMapping):
         commands = self.commands
         if name in commands:
             return commands[name]
-        first_command = next(iter(self.commands.values()), None)
-        if first_command is not None:
-            name = first_command.normalize_name(name)
-        if name in commands:
-            return commands[name]
-        # Command not found; raise KeyError w/ passed name
-        commands[name]
+        name = Command.normalize_name(name)
+        return commands[name]
 
     def __setitem__(self, name, command):
         self.commands[name] = command
