@@ -58,6 +58,8 @@ non-truthy value:
 There's also a standalone ``make-release`` script that's *not* installed by
 default. It can be installed like this:
 
+.. code-block:: shell
+
     RUNCOMMANDS_INSTALL_RELEASE_CONSOLE_SCRIPT="yes" pip install -e .[dev]
 
 Shell Completion
