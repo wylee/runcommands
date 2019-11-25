@@ -272,6 +272,9 @@ class Arg:
         if inverse_option and inverse_option is not DISABLE:
             all_options += (inverse_option,)
 
+        if is_var_positional and default is EMPTY:
+            default = ()
+
         self.command = command
         self.parameter = parameter
         self.is_positional = is_positional
@@ -285,7 +288,7 @@ class Arg:
         self.type = type
         self.is_bool = is_bool
         self.is_bool_or = is_bool_or
-        self.default = () if is_var_positional else default
+        self.default = default
         self.choices = choices
         self.help = help
         self.inverse_help = inverse_help

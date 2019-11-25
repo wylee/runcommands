@@ -416,6 +416,8 @@ class Command:
                     args_passed.append((var_args_name, var_args))
             elif var_args_name in default_args:
                 var_args = default_args[var_args_name]
+            elif var_positional.default is not empty:
+                var_args = var_positional.default
 
         # Otherwise, the remaining N passed positionals args correspond
         # to the first N optionals.
@@ -711,7 +713,7 @@ class Command:
             is_positional = default is empty and not is_var_positional
 
             if annotation.default is not empty:
-                if is_positional:
+                if is_positional or is_var_positional:
                     default = annotation.default
                 else:
                     message = (
