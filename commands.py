@@ -44,7 +44,7 @@ def install(where='.venv', python='python', upgrade=False, overwrite=False):
     local((
         pip, 'install',
         ('--upgrade', '--upgrade-strategy', 'eager') if upgrade else None,
-        '--editable', '.[dev,tox]',
+        '--editable', '.[dev]',
         ('pip', 'setuptools') if upgrade else None,
     ), echo=True)
 

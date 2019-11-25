@@ -55,11 +55,8 @@ setup(
             'coverage',
             'flake8',
             'Sphinx',
-            'twine',
-        ],
-        'tox': [
-            'flake8',
             'tox',
+            'twine',
         ],
     },
     entry_points={
