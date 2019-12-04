@@ -271,11 +271,23 @@ def upload_dists(
 ):
     """Upload distributions in ./dist using ``twine``."""
     if make:
+        printer.header('Making and uploading distributions')
         make_dist(quiet)
+    else:
+        printer.header('Uploading distributions')
 
     dists = os.listdir('dist')
     if not dists:
         abort(1, 'No distributions found in dist directory')
+
+    paths = [os.path.join('dist', file) for file in dists]
+
+    printer.info('Found distributions:')
+    for path in paths:
+        printer.info('  -', path)
+
+    if not confirm('Continue?'):
+        abort()
 
     if not username:
         username = getpass.getuser()
@@ -291,8 +303,7 @@ def upload_dists(
     if password:
         printer.warning('TWINE_PASSWORD:', '*' * len(password))
 
-    for file in dists:
-        path = os.path.join('dist', file)
+    for path in paths:
         if confirm('Upload dist?: {path}'.format_map(locals())):
             local(('twine', 'upload', path), environ=environ)
         else:
