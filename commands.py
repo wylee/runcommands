@@ -12,6 +12,7 @@ from runcommands import command  # noqa: E402
 from runcommands.args import DISABLE, arg  # noqa: E402
 from runcommands.commands import copy_file as _copy_file, local  # noqa: E402
 from runcommands.commands import git_version, release  # noqa: E402,F401
+from runcommands.commands.release import get_current_branch, get_latest_tag  # noqa: E402
 from runcommands.util import abort, asset_path, confirm, printer  # noqa: E402
 
 
@@ -210,14 +211,56 @@ def build_docs(source='docs', destination='docs/_build', builder='html', clean=F
 
 
 @command
-def make_dist(quiet=False):
+def make_dist(
+    version: arg(help='Tag/version to release [latest tag]') = None,
+    quiet=False
+):
+    """Make a distribution for upload to PyPI.
+
+    Switches to the specified tag or branch, makes the distribution,
+    then switches back to the original branch.
+
+    Intended to be run from the develop branch. If a tag is already
+    checked out, the develop branch will be checked out first and then
+    switched back to after making the distribution.
+
+    """
+    current_branch = get_current_branch()
+    original_branch = 'develop' if current_branch == 'HEAD' else current_branch
+    version = version or get_latest_tag()
+    stdout = 'hide' if quiet else None
+
+    printer.header('Making dist for {version}'.format_map(locals()))
+
+    if version != current_branch:
+        if current_branch == 'HEAD':
+            printer.warning('Not on a branch; checking out develop first')
+        else:
+            printer.info('Currently on branch', current_branch)
+        printer.info('Checking out', version)
+        # XXX: Hide warning about detached HEAD state
+        result = local(('git', 'checkout', version), stdout=stdout, stderr='capture')
+        if result.failed:
+            print(result.stderr, file=sys.stderr)
+
+    printer.info('Removing dist directory')
     rmdir('dist', verbose=not quiet)
-    local('python setup.py sdist', stdout='hide' if quiet else None)
+
+    printer.info('Making sdist for', version)
+    local('python setup.py sdist', stdout=stdout)
+
+    if version != current_branch:
+        printer.info('Switching back to', original_branch)
+        # XXX: Hide message about previous HEAD state and branch info
+        result = local(('git', 'checkout', original_branch), stdout='hide', stderr='capture')
+        if result.failed:
+            print(result.stderr, file=sys.stderr)
 
 
 @command
 def upload_dists(
     make: arg(help='Make dist first? [yes]') = True,
+    version: arg(help='Version/tag to release [latest tag]') = None,
     quiet: arg(help='Make dist quietly? [no]') = False,
     username: arg(help='Twine username [$USER]') = None,
     password_command: arg(
