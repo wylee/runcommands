@@ -10,6 +10,7 @@ from ..util import abs_path, flatten_args, printer, StreamOptions
 
 @command
 def local(args: arg(container=list),
+          background=False,
           cd=None,
           environ: arg(type=dict) = None,
           replace_env=False,
@@ -25,6 +26,13 @@ def local(args: arg(container=list),
 
     Args:
         args (list|str): A list of args or a shell command.
+        background (bool): Run process in background? If this is set,
+            the command will be run in the background via
+            :class:`subprocess.Popen` then this function will
+            immediately return. The call site will need to wait on the
+            returned :class:`Popen` object using :meth:`Popen.wait` or
+            by some other means (perhaps by starting another
+            long-running process in the foreground).
         cd (str): Working directory to change to first.
         environ (dict): Additional environment variables to pass to the
             subprocess.
@@ -43,7 +51,9 @@ def local(args: arg(container=list),
         dry_run (bool): If set, print command instead of running it.
 
     Returns:
-        Result
+        - :class:`Result`: When the command is run in the foreground.
+        - :class:`subprocess.Popen`: When the command is run in the
+            background.
 
     Raises:
         Result: When the subprocess returns a non-zero exit code (and
@@ -108,6 +118,8 @@ def local(args: arg(container=list),
     if dry_run:
         printer.echo('[DRY RUN]', display_str)
         result = Result(args, 0, None, None)
+    elif background:
+        return subprocess.Popen(args, **kwargs)
     else:
         result = subprocess.run(args, **kwargs)
         result = Result.from_subprocess_result(result)

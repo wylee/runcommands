@@ -16,14 +16,13 @@ class CommandRunner:
     def run(self, argv):
         commands_to_run = self.get_commands_to_run(self.collection, argv)
 
-        help_requested = False
-        for command in commands_to_run:
-            if command.help_requested:
-                printer.hr('Help for', command.name, end=os.linesep * 2)
+        show_help_for = [c for c in commands_to_run if c.help_requested]
+        if show_help_for:
+            count = len(show_help_for)
+            for command in show_help_for:
+                if count > 1:
+                    printer.hr('Help for', command.name, end=os.linesep * 2)
                 command.show_help()
-                help_requested = True
-
-        if help_requested:
             return ()
 
         return tuple(command.run() for command in commands_to_run)

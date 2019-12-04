@@ -1,5 +1,19 @@
 # RunCommands
 
+## 1.0a47 - 2019-12-03
+
+- Fixed/improved handling of args in `Command.__call__()` and `Command.run()`.
+  In particular, handle args as much as possible as they would be when doing
+  a normal call, with the primary difference being that positionals can have
+  default values.
+- Improved normalization of command names. In particular, it was previously
+  possible to call a command named `xyz` as `XYZ` on the command line since
+  command-line args were always lower-cased when checking to see if they were
+  command names.
+- Added the option to specify a default value for a command's var args.
+- Added `background` flag to `local` command. This provides an easy way to run
+  a command as a background process (e.g., a file watcher).
+
 ## 1.0a46 - 2019-11-22
 
 - Fixed an issue with default args being added to globals breaking

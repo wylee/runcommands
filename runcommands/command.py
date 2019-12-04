@@ -116,12 +116,12 @@ class Command:
                 raise CommandError(
                     'Missing implementation; it must be passed in as a function or defined as a '
                     'method on the command class')
-            default_name = self.__class__.__name__
+            default_name = self.normalize_class_name(self.__class__.__name__)
         else:
             self.implementation = implementation
-            default_name = implementation.__name__
+            default_name = self.normalize_name(implementation.__name__)
 
-        name = name or getattr(self.__class__, 'name', None) or self.normalize_name(default_name)
+        name = name or getattr(self.__class__, 'name', None) or default_name
 
         is_subcommand = base_command is not None
 
@@ -227,23 +227,81 @@ class Command:
         if self.timed:
             start_time = time.monotonic()
 
-        argv = sys.argv[1:] if argv is None else argv
-        kwargs = argv if isinstance(argv, dict) else self.parse_args(argv)
-        kwargs.update(overrides)
+        empty = Parameter.empty
+        debug = self.debug
+        positionals = self.positionals
+        var_positional = self.var_positional
+        default_args = self.default_args
+
+        if argv is None:
+            argv = sys.argv[1:]
+
+        parsed_args = argv if isinstance(argv, dict) else self.parse_args(argv)
 
         args = []
-        for arg in self.args.values():
+        var_args = ()
+        kwargs = parsed_args.copy()
+        kwargs.update(overrides)
+
+        if debug:
+            # Names of all positional args.
+            arg_names = []
+            # Positional args passed via command line (name, value pairs).
+            args_passed = []
+            # Name of the var args arg.
+            var_args_name = None
+            # Positional args added from command's default args.
+            from_default_args = {}
+            # Positional args added from arg defaults.
+            from_arg_defaults = {}
+
+        # Map command line args to the command's parameters. Extract
+        # positional args from the parsed args dict so they can be
+        # passed positionally, using defaults for positionals that
+        # weren't passed. Nothing special needs to be done for optional
+        # args.
+        for arg in positionals.values():
             name = arg.parameter.name
-            if arg.is_positional:
-                if name in kwargs:
-                    value = kwargs.pop(name)
-                    args.append(value)
+            value = kwargs.pop(name, POSITIONAL_PLACEHOLDER)
+            if value is POSITIONAL_PLACEHOLDER:
+                if name in default_args:
+                    value = default_args[name]
+                    if debug:
+                        from_default_args[name] = value
+                elif arg.default is not empty:
+                    value = arg.default
+                    if debug:
+                        from_arg_defaults[name] = value
                 else:
-                    args.append(POSITIONAL_PLACEHOLDER)
-            elif arg.is_var_positional:
-                if name in kwargs:
-                    value = kwargs.pop(name)
-                    args.extend(value)
+                    raise AssertionError('This should never happen')
+            elif debug:
+                args_passed.append((name, value))
+            if debug:
+                arg_names.append(name)
+            args.append(value)
+
+        if var_positional:
+            var_args_name = var_positional.parameter.name
+            if var_args_name in kwargs:
+                var_args = kwargs.pop(var_args_name)
+                if debug:
+                    args_passed.append((var_args_name, var_args))
+
+        if debug:
+            printer.debug('Command called via command line:', self.name)
+            printer.debug('    Parsed args:', parsed_args)
+            printer.debug('    Overrides:', overrides)
+            printer.debug('    Received positional args:', tuple(args_passed))
+            printer.debug('    Received optional args:', kwargs)
+            printer.debug('    Added positionals from default args:', ', '.join(from_default_args))
+            printer.debug('    Added positionals from arg defaults:', ', '.join(from_arg_defaults))
+            printer.debug('Running command via command line:', self.name)
+            printer.debug('    Positional args:', tuple(zip(arg_names, args)))
+            printer.debug('    Var args:', (var_args_name, var_args) if var_args else var_args)
+            printer.debug('    Optional args:', kwargs)
+
+        if var_args:
+            args = tuple(args) + tuple(var_args)
 
         result = self(*args, **kwargs)
 
@@ -301,92 +359,104 @@ class Command:
 
         return return_code
 
-    def __call__(self, *args, **kwargs):
-        arguments = self.args
+    def __call__(self, *passed_args, **passed_kwargs):
+        empty = Parameter.empty
+        debug = self.debug
+        positionals = tuple(self.positionals.values())
+        num_positionals = len(positionals)
+        var_positional = self.var_positional
         default_args = self.default_args
 
-        num_args = len(args)
-        new_arg_names = set()  # Track names of args passed positionally
-        new_args = []
-        new_kwargs = kwargs.copy()
-        from_default_args = []
-        missing_positionals = []
+        num_passed_args = len(passed_args)
+        args = []
+        var_args = ()
+        kwargs = passed_kwargs.copy()
 
-        for i, arg in enumerate(arguments.values()):
+        if debug:
+            # Positional args passed (name, value pairs).
+            args_passed = []
+            # Name of the var args arg.
+            var_args_name = None
+            # Args added from command's default args.
+            from_default_args = {}
+            # Args added from arg defaults.
+            from_arg_defaults = {}
+
+        # The N passed positional args are mapped to the first N
+        # positional parameters.
+        for arg, value in zip(positionals, passed_args):
             name = arg.parameter.name
-            if arg.is_positional:
-                if name in kwargs:
-                    new_arg_names.add(name)
-                    new_args.append(kwargs[name])
-                elif i < num_args:
-                    value = args[i]
-                    if value is POSITIONAL_PLACEHOLDER:
-                        if name in default_args:
-                            value = default_args[name]
-                            from_default_args.append(name)
-                        else:
-                            value = arg.default
-                    if value is Parameter.empty:
-                        missing_positionals.append(arg.name)
-                    else:
-                        new_arg_names.add(name)
-                        new_args.append(value)
-                elif name in default_args:
-                    new_kwargs[name] = default_args[name]
-                    from_default_args.append(name)
-                else:
-                    missing_positionals.append(arg.name)
-            elif arg.is_var_positional:
-                value = args[i:]
-                if value:
-                    new_arg_names.add(name)
-                    new_args.extend(value)
-                elif name in default_args:
-                    value = default_args[name]
-                    new_arg_names.add(name)
-                    new_args.extend(value)
-            elif arg.is_optional:
-                if name in kwargs:
-                    new_kwargs[name] = kwargs[name]
-                elif i < num_args:
-                    new_kwargs[name] = args[i]
-                elif name in default_args:
-                    new_kwargs[name] = default_args[name]
-                    from_default_args.append(name)
-            else:
-                raise AssertionError('This should never happen')
+            args.append((name, value))
+            if debug:
+                args_passed.append((name, value))
 
-        args_found = set(new_kwargs) | new_arg_names
+        # Use defaults for positionals that weren't passed. This is done
+        # here instead of below with the optionals so they'll be passed
+        # positionally.
+        for arg in positionals[len(args):]:
+            name = arg.parameter.name
+            if name in default_args:
+                value = default_args[name]
+                args.append((name, value))
+                if debug:
+                    from_default_args[name] = value
+            elif arg.default is not empty:
+                value = arg.default
+                args.append((name, value))
+                if debug:
+                    from_arg_defaults[name] = value
 
-        for name, value in default_args.items():
-            if name not in args_found:
-                new_kwargs[name] = default_args[name]
-                from_default_args.append(name)
+        # If the command has var args, it consumes any remaining passed
+        # positional args.
+        if var_positional:
+            var_args_name = var_positional.parameter.name
+            var_args = passed_args[len(args):]
+            if var_args:
+                if debug:
+                    args_passed.append((var_args_name, var_args))
+            elif var_args_name in default_args:
+                var_args = default_args[var_args_name]
+            elif var_positional.default is not empty:
+                var_args = var_positional.default
 
-        if missing_positionals:
-            count = len(missing_positionals)
-            ess = '' if count == 1 else 's'
-            verb = 'was' if count == 1 else 'were'
-            missing = ', '.join(missing_positionals)
-            message = (
-                '{count} positional arg{ess} {verb}n\'t passed to the {self.name} command '
-                '(and no default{ess} {verb} set): {missing}')
-            message = message.format_map(locals())
-            raise CommandError(message)
+        # Otherwise, the remaining N passed positionals args correspond
+        # to the first N optionals.
+        elif num_passed_args > num_positionals:
+            for arg, value in zip(self.optionals.values(), passed_args[num_positionals:]):
+                name = arg.name
+                args.append((name, value))
+                if debug:
+                    args_passed.append((name, value))
 
-        if self.debug:
+        # Use defaults for any optionals that weren't passed that have a
+        # default. Positionals that weren't passed have already had
+        # their defaults set above.
+        arg_names = tuple(item[0] for item in args)
+        get_from_default_args = set(default_args).difference(arg_names, passed_kwargs)
+        for name in get_from_default_args:
+            value = default_args[name]
+            kwargs[name] = value
+            if debug:
+                from_default_args[name] = value
+
+        if debug:
+            var_args_display = (var_args_name, tuple(var_args)) if var_args else ()
             printer.debug('Command called:', self.name)
-            printer.debug('    Received positional args:', args)
-            printer.debug('    Received keyword args:', kwargs)
-            if from_default_args:
-                printer.debug('    Added default args:', ', '.join(from_default_args))
-
-        if self.debug:
+            printer.debug('    Received positional args:', args_passed)
+            printer.debug('    Received keyword args:', passed_kwargs)
+            printer.debug('    Added from default args:', from_default_args)
+            printer.debug('    Added from arg defaults:', from_arg_defaults)
             printer.debug('Running command:', self.name)
-            printer.debug('    Final positional args:', new_args)
-            printer.debug('    Final keyword args:', new_kwargs)
+            printer.debug('    Positional args:', args)
+            printer.debug('    Var args:', var_args_display)
+            printer.debug('    Keyword args:', kwargs)
 
-        return self.implementation(*new_args, **new_kwargs)
+        args = tuple(item[1] for item in args)
+
+        if var_args:
+            args = args + tuple(var_args)
+
+        return self.implementation(*args, **kwargs)
 
     def parse_args(self, argv, expand_short_options=True):
         if self.debug:
@@ -503,14 +573,20 @@ class Command:
             printer.debug('Parsed multi short option:', arg, '=>', short_options)
         return short_options, value
 
-    def normalize_name(self, name):
-        name = camel_to_underscore(name)
+    @staticmethod
+    def normalize_name(name):
         # Chomp a single trailing underscore *if* the name ends with
         # just one trailing underscore. This accommodates the convention
         # of adding a trailing underscore to reserved/built-in names.
         if name.endswith('_'):
             if name[-2] != '_':
                 name = name[:-1]
+        name = name.replace('_', '-')
+        return name
+
+    @staticmethod
+    def normalize_class_name(name):
+        name = camel_to_underscore(name)
         name = name.replace('_', '-')
         name = name.lower()
         return name
@@ -604,7 +680,11 @@ class Command:
         params = OrderedDict((
             (normalize_name(n), p)
             for n, p in params.items()
-            if not (n.startswith('_') or p.kind is keyword_only or p.kind is var_keyword)
+            if not (
+                (n.startswith('_')) or
+                (p.kind is keyword_only and p.default is empty) or
+                (p.kind is var_keyword)
+            )
         ))
 
         used_short_options = set()
@@ -633,7 +713,7 @@ class Command:
             is_positional = default is empty and not is_var_positional
 
             if annotation.default is not empty:
-                if is_positional:
+                if is_positional or is_var_positional:
                     default = annotation.default
                 else:
                     message = (
