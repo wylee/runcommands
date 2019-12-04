@@ -27,19 +27,23 @@ Define a command:
 
 .. code-block:: python
 
-    from runcommands import command
+    from runcommands import arg, command
     from runcommands.commands import local
 
     @command
     def test(*tests: arg(help='Specific tests to run (instead of using discovery)')):
         if tests:
             local(('python', '-m', 'unittest', tests))
-        local('python -m unittest discover .')
+        else:
+            local('python -m unittest discover .')
 
 Show its help::
 
     > run test -h
-    usage: test [-h]
+    test [-h] [TESTS [TESTS ...]]
+
+    positional arguments:
+      TESTS       Specific tests to run (instead of using discovery)
 
     optional arguments:
       -h, --help  show this help message and exit
