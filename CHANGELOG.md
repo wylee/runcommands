@@ -1,5 +1,9 @@
 # RunCommands
 
+## 1.0a48 - unreleased
+
+In progress...
+
 ## 1.0a47 - 2019-12-03
 
 - Fixed/improved handling of args in `Command.__call__()` and `Command.run()`.
