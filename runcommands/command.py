@@ -796,8 +796,7 @@ class Command:
             if arg.is_positional and param.name in default_args:
                 # Positionals are made optional if a default value is
                 # specified via config.
-                kwargs = kwargs.copy()
-                kwargs['nargs'] = '*' if arg.container else '?'
+                options = (self.get_long_option_for_arg(arg.name),)
 
             mutual_exclusion_group_name = arg.mutual_exclusion_group
             if mutual_exclusion_group_name:
