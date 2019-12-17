@@ -1,8 +1,12 @@
 # RunCommands
 
-## 1.0a48 - unreleased
+## 1.0a48 - 2019-12-16
 
-In progress...
+- Fixed an issue with positional args that have a default value and
+  `nargs=N`. Previously, `nargs` would be set to `*` or `?` (depending
+  on whether the arg is a container type or not), but that doesn't work
+  when `nargs=N`. Such args are now converted to options and must be
+  passed via `--arg ...` from the command line.
 
 ## 1.0a47 - 2019-12-03
 
