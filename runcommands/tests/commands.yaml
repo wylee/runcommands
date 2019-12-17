@@ -3,7 +3,7 @@ globals:
   env: "test"
   a: "{{ b }}"
   b: "b"
-  c: "c"
+  d: "d"
 
 envs:
   test:
@@ -12,7 +12,7 @@ args:
   test:
     a: "{{ a }}"
     b: "{{ b }}"
-    c: "x"
+    d: "x"
 
 environ:
   XXX: "{{ a }}"

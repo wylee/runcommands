@@ -287,6 +287,14 @@ def get_current_branch():
     return result.stdout.strip()
 
 
+def get_latest_tag():
+    result = local('git rev-list --tags --max-count=1', stdout='capture')
+    revision = result.stdout.strip()
+    result = local(('git', 'describe', '--tags', revision), stdout='capture')
+    tag = result.stdout.strip()
+    return tag
+
+
 def find_version_file():
     # Try to find __version__ in:
     #

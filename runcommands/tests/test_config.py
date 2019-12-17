@@ -11,8 +11,8 @@ CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'commands.yaml')
 
 
 @command
-def test(a, b, c=None):
-    return a, b, c
+def test(a, b, c, d=None):
+    return a, b, c, d
 
 
 class TestConfig(TestCase):
@@ -46,8 +46,8 @@ class TestConfig(TestCase):
     def test_read_config_and_interpolate(self):
         config = self.read_config_file()
         config = self.interpolate(config)
-        self.assertEqual({'env': 'test', 'a': 'b', 'b': 'b', 'c': 'c'}, config['globals'])
-        self.assertEqual({'test': {'a': 'b', 'b': 'b', 'c': 'x'}}, config['args'])
+        self.assertEqual({'env': 'test', 'a': 'b', 'b': 'b', 'd': 'd'}, config['globals'])
+        self.assertEqual({'test': {'a': 'b', 'b': 'b', 'd': 'x'}}, config['args'])
         self.assertEqual({'XXX': 'b', 'XYZ': 'b'}, config['environ'])
 
     def test_read_config_then_call_command(self):
@@ -57,13 +57,13 @@ class TestConfig(TestCase):
         self.collection.set_default_args(config['args'])
 
         # Uses default args
-        result = runner.run(['test'])[0]
-        self.assertEqual(('b', 'b', 'x'), result)
+        result = runner.run(['test', 'c'])[0]
+        self.assertEqual(('b', 'b', 'c', 'x'), result)
 
         # Uses some default args
-        result = runner.run(['test', 'a'])[0]
-        self.assertEqual(('a', 'b', 'x'), result)
+        result = runner.run(['test', '--a', 'a', 'c'])[0]
+        self.assertEqual(('a', 'b', 'c', 'x'), result)
 
         # Uses no default args
-        result = runner.run(['test', 'x', 'y', '-c', 'z'])[0]
-        self.assertEqual(('x', 'y', 'z'), result)
+        result = runner.run(['test', '--a', 'x', '--b', 'y', 'c', '-d', 'z'])[0]
+        self.assertEqual(('x', 'y', 'c', 'z'), result)
