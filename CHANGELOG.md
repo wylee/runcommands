@@ -1,5 +1,9 @@
 # RunCommands
 
+## 1.0a50 - unreleased
+
+In progress...
+
 ## 1.0a49 - 2019-12-19
 
 - Fixed normalization of default args read from config file. Command and arg
