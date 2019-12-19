@@ -1,5 +1,12 @@
 # RunCommands
 
+## 1.0a49 - 2019-12-19
+
+- Fixed normalization of default args read from config file. Command and arg
+  names are now normalized immediately as they're read from config instead of
+  merging them all together and then normalizing them. This ensures all the
+  default args are consistently and correctly merged.
+
 ## 1.0a48 - 2019-12-16
 
 - Fixed an issue with positional args that have a default value and

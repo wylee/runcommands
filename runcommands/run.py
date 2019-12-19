@@ -97,12 +97,12 @@ class Run(Command):
         if config_file:
             args_from_file = self.read_config_file(config_file, collection)
             args = merge_dicts(args_from_file, {'environ': environ or {}})
-
             config_file_globals = args['globals']
+            env = env or config_file_globals.get('env')
 
-            env = cli_globals.get('env') or config_file_globals.get('env')
             if env:
                 envs = args['envs']
+
                 try:
                     env_globals = envs[env]
                 except KeyError:
@@ -129,17 +129,6 @@ class Run(Command):
             for command_name, command_default_args in default_args.items():
                 command = collection[command_name]
 
-                # Normalize arg names from default args section.
-                for name in tuple(command_default_args):
-                    param = command.find_parameter(name)
-                    if param is None:
-                        raise RunnerError(
-                            'Unknown arg for command {command_name} in default args section of '
-                            '{config_file}: {name}'
-                            .format_map(locals()))
-                    if param is not None and name != param.name:
-                        command_default_args[param.name] = command_default_args.pop(name)
-
                 # Add globals that correspond to this command (that
                 # aren't present in default args section).
                 for name, value in globals_.items():
@@ -148,7 +137,7 @@ class Run(Command):
                         if param.name not in command_default_args:
                             command_default_args[param.name] = value
                     elif command.has_kwargs:
-                        name = name.replace('-', '_')
+                        name = Command.normalize_name(name)
                         command_default_args[name] = value
 
                 if 'default_args' not in default_args:
@@ -342,26 +331,15 @@ class Run(Command):
                     'Arg cannot be specified in config file: {name}'
                     .format_map(locals()))
 
+        self.normalize_command_and_arg_names(args['args'], collection)
+
         envs = args['envs']
         for env, data in envs.items():
             if data is None:
                 data = {}
                 envs[env] = data
             data.setdefault('args', {})
-
-        default_args = args.pop('args')
-
-        for command_name in tuple(default_args):
-            try:
-                command = collection[command_name]
-            except KeyError:
-                raise RunnerError(
-                    'Unknown command in default args section of {config_file}: {command_name}'
-                    .format_map(locals()))
-            if command.name != command_name:
-                default_args[command.name] = default_args.pop(command_name)
-
-        args['args'] = default_args
+            self.normalize_command_and_arg_names(data['args'], collection)
 
         if extends:
             extends = abs_path(extends, relative_to=os.path.dirname(config_file))
@@ -369,6 +347,28 @@ class Run(Command):
             args = merge_dicts(extended_args, args)
 
         return args
+
+    def normalize_command_and_arg_names(self, config, collection):
+        for command_name in tuple(config):
+            try:
+                command = collection[command_name]
+            except KeyError:
+                raise RunnerError(
+                    'Unknown command in default args section of {config_file}: {command_name}'
+                    .format_map(locals()))
+
+            if command.name != command_name:
+                config[command.name] = config.pop(command_name)
+
+            command_default_args = config[command.name]
+            for name in tuple(command_default_args):
+                param = command.find_parameter(name)
+                if param is None:
+                    raise RunnerError(
+                        'Unknown arg for command {command_name} in default args section of '
+                        '{config_file}: {name}'.format_map(locals()))
+                if param is not None and name != param.name:
+                    command_default_args[param.name] = command_default_args.pop(name)
 
     def interpolate(self, globals_, default_args, environ):
         environment = TemplateEnvironment()
