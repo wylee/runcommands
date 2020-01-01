@@ -51,16 +51,16 @@ It's also possible to create console scripts with subcommands a la `git`:
     from runcommands import arg, command, subcommand
 
     @command
-    def base(subcommand: arg(default=None)):
+    def base(subcommand: arg(default=None), verbosity=1):
         # The base command will be called before the subcommand, so it
         # can be used to do common work or show info.
-        print('Running base command')
-        if subcommand is None:
+        print('Running base command with verbosity level', verbosity)
+        if subcommand is not None:
             print('Running subcommand:', subcommand)
 
-     @subcommand
-     def sub(flag=False):
-        print('Sub...', flag)
+     @subcommand(base)
+     def sub(flag=False, verbosity=1):
+        print('Subcommand got flag', flag, 'and verbosity', verbosity)
 
 Add the base command as a console script entry point:
 
@@ -85,13 +85,17 @@ subcommand:
 .. code-block:: shell
 
     > base
-    Running base command
-    > base sub
-    Running base command
-    Sub... False
-    > base sub --flag
-    Running base command
-    Sub... True
+    Running base command with verbosity level 1
+    > base --verbosity 2
+    Running base command with verbosity level 2
+    > base --verbosity 2 sub
+    Running base command with verbosity level 2
+    Running subcommand: sub
+    Subcommand got flag False and verbosity 2
+    > base sub --flag --verbosity 2
+    Running base command with verbosity level 1
+    Running subcommand: sub
+    Subcommand got flag True and verbosity 2
 
 Subcommand Notes
 ----------------
@@ -99,10 +103,14 @@ Subcommand Notes
 - The base command's subcommand arg--i.e., its first arg--will have its
   `choices` automatically populated with the names of its subcommands (unless
   `choices` is explictly set on the subcommand arg).
+- Base commands can only have a single positional arg, the subcommand.
 - The example above doesn't require a subcommand to be passed to the base
   command, because that's probably the most common scenario. To require a
   subcommand, change `subcommand: arg(default=None)` to just `subcommand`
   (i.e., just a regular positional arg).
+- When a subcommand has options in common with its base command(s), the common
+  options will be passed down from the base command(s) (like `verbosity` in the
+  example above).
 - Subcommands can also have subcommands, which can also have subcommands, and
   so on.
 - Although subcommands are mostly intended to be run via console scripts
