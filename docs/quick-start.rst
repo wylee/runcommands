@@ -1,11 +1,8 @@
 Quick Start
 +++++++++++
 
-Existing Project
-================
-
 Summary
--------
+=======
 
 - Add `runcommands` dependency
 - Add `commands.py` to top level project directory
@@ -13,7 +10,7 @@ Summary
 - Write custom commands
 
 Details
--------
+=======
 
 First, add `runcommands` to the project's requirements. If you're using
 setuptools, add it to `install_requires` in `setup.py`. Or you can add
@@ -33,13 +30,18 @@ project. In that module, you can import the built-in commands like this:
 And then run them like this::
 
     > run local --help
-    usage: local [-h] [-c CD] [-e ENVIRON] [-r] [--no-replace-env] [-p PATH] [-s]
-                 [--no-shell] [-S STDOUT] [--stderr STDERR] [-E] [--no-echo] [-R]
-                 [--no-raise-on-error]
-                 ARGS
-    ...
+    local [-h] [-b] [--no-background] [-c CD] [-e ENVIRON] [-r]
+                 [--no-replace-env] [-p [PATHS [PATHS ...]]] [-s] [--no-shell]
+                 [-S STDOUT] [--stderr STDERR] [-E] [--no-echo] [-R]
+                 [--no-raise-on-error] [-d] [--no-dry-run]
+                 ARG [ARG ...]
+
+    Run a local command via :func:`subprocess.run`
+
+    [...]
+
     > run local ls
-    ...
+    [...]
 
 Here's how you define a custom command:
 
@@ -51,7 +53,9 @@ Here's how you define a custom command:
 
     @command
     def test(where='.'):
-        local(['python -m unittest discover', where])
+        """Discover and run unit tests."""
+        local(['python', '-m', 'unittest', 'discover', where])
+
 
 The new `test` command can be run like this::
 
