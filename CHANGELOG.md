@@ -1,8 +1,8 @@
 # RunCommands
 
-## 1.0a50 - unreleased
+## 1.0a50 - 2020-01-03
 
-In progress...
+- Common base command args are now passed down to subcommands.
 
 ## 1.0a49 - 2019-12-19
 
