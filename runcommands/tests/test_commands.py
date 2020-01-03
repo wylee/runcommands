@@ -60,3 +60,22 @@ class TestSubcommand(TestCase):
     def test_call_subsubcommand_with_optional(self):
         result = base.console_script(argv=['sub', 'subsub', 'a', '--optional', 'b'])
         self.assertEqual(result, 'subsub a b')
+
+    def test_call_subsubcommand_with_shared_args(self):
+        @command
+        def base1(cmd, a=None):
+            return Result('base1({cmd}, {a})'.format_map(locals()))
+
+        @subcommand(base1)
+        def sub1(cmd: arg(default=None), a=None, flag=True):
+            return Result('sub1({cmd}, {a}, {flag})'.format_map(locals()))
+
+        @subcommand(sub1)
+        def subsub1(a=None, flag=True):
+            return Result('subsub1({a}, {flag})'.format_map(locals()))
+
+        result = base1.console_script(argv=['-a', 'A', 'sub1', '--no-flag'])
+        self.assertEqual(result, 'sub1(None, A, False)')
+
+        result = base1.console_script(argv=['-a', 'A', 'sub1', '--no-flag', 'subsub1'])
+        self.assertEqual(result, 'subsub1(A, False)')

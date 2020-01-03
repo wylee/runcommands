@@ -313,51 +313,98 @@ class Command:
     def console_script(self, argv=None, **overrides):
         debug = self.debug
         argv = sys.argv[1:] if argv is None else argv
-        base_argv = argv
         is_base_command = self.is_base_command
-        found_subcommand = None
 
         if hasattr(self, 'sigint_handler'):
             signal.signal(signal.SIGINT, self.sigint_handler)
 
         if is_base_command:
-            base_argv = []
-            subcommand_map = {sub.name: sub for sub in self.subcommands}
-            for i, arg in enumerate(argv):
-                if arg.startswith(':'):
-                    arg = arg[1:]
-                    base_argv.append(arg)
-                else:
-                    qualified_name = '{self.name}:{arg}'.format_map(locals())
-                    if qualified_name in subcommand_map:
-                        found_subcommand = subcommand_map[qualified_name]
-                        base_argv.append(arg)
-                        subcommand_argv = argv[i + 1:]
-                        if debug:
-                            printer.debug('Found subcommand:', found_subcommand.name)
-                        break
-                    else:
-                        base_argv.append(arg)
-
-        try:
-            result = self.run(base_argv, **overrides)
-        except RunCommandsError as result:
-            if debug:
-                raise
-            return_code = result.return_code if hasattr(result, 'return_code') else 1
-            result_str = str(result)
-            if result_str:
-                if return_code:
-                    printer.error(result_str, file=sys.stderr)
-                else:
-                    printer.print(result_str)
+            commands = self.partition_subcommands(argv)
         else:
-            return_code = result.return_code if hasattr(result, 'return_code') else 0
+            commands = [(self, argv)]
 
-        if found_subcommand:
-            return found_subcommand.console_script(subcommand_argv)
+        for cmd, cmd_argv in commands:
+            try:
+                result = cmd.run(cmd_argv, **overrides)
+            except RunCommandsError as result:
+                if debug:
+                    raise
+                return_code = result.return_code if hasattr(result, 'return_code') else 1
+                result_str = str(result)
+                if result_str:
+                    if return_code:
+                        printer.error(result_str, file=sys.stderr)
+                    else:
+                        printer.print(result_str)
+            else:
+                return_code = result.return_code if hasattr(result, 'return_code') else 0
 
         return return_code
+
+    def partition_subcommands(self, argv, base=True):
+        debug = self.debug
+        base_argv = []
+        base_args = {}
+        commands = [(self, base_args)]
+        subcommand_map = {sub.name: sub for sub in self.subcommands}
+
+        if debug:
+            printer.debug('Parsing command for subcommands:', self.name)
+            printer.debug('    argv:', argv)
+
+        for i, arg in enumerate(argv):
+            if arg.startswith(':'):
+                base_argv.append(arg[1:])
+            else:
+                base_argv.append(arg)
+                qualified_name = '{self.name}:{arg}'.format_map(locals())
+
+                if qualified_name in subcommand_map:
+                    subcmd = subcommand_map[qualified_name]
+                    remaining_argv = argv[i + 1:]
+
+                    if debug:
+                        printer.debug('Found subcommand:', subcmd.name)
+                        printer.debug('    Base argv:', base_argv)
+                        printer.debug('    Remaining argv:', remaining_argv)
+
+                    base_args.update(self.parse_args(base_argv))
+
+                    if subcmd.is_base_command:
+                        commands.extend(subcmd.partition_subcommands(remaining_argv, False))
+                    else:
+                        subcmd_args = subcmd.parse_args(remaining_argv)
+                        commands.append([subcmd, subcmd_args])
+
+                    break
+        else:
+            # No subcommand found
+            if debug:
+                printer.debug('Found command with no subcommand:', self.name)
+                printer.debug('    argv:', base_argv)
+            base_args.update(self.parse_args(base_argv))
+
+        if base:
+            # Pass base args down to subcommands. Each subcommand will
+            # receive args from *all* preceding base commands.
+            base_cmd, base_args = commands[0]
+            base_args = base_args.copy()
+            for i, (subcmd, subcmd_args) in enumerate(commands[1:], 1):
+                for name, value in base_args.items():
+                    if (
+                        name not in subcmd_args and
+                        base_cmd.args[name].is_optional and
+                        subcmd.find_arg(name)
+                    ):
+                        subcmd_args[name] = value
+                base_cmd = subcmd
+                base_args.update(subcmd_args)
+            if self.debug:
+                printer.debug('Subcommands:')
+                for cmd, cmd_argv in commands:
+                    printer.debug('   ', cmd.name, cmd_argv)
+
+        return commands
 
     def __call__(self, *passed_args, **passed_kwargs):
         empty = Parameter.empty
