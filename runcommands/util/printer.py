@@ -112,7 +112,7 @@ class Printer:
 
     def hr(self, *args, color=None, **kwargs):
         if color is None:
-            color = self.color_map['info']
+            color = self.color_map['header']
         hr = get_hr()
         if args:
             sep = kwargs.get('sep') or ' '

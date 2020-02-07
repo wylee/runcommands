@@ -279,7 +279,7 @@ def print_step(message, flag):
 
 
 def print_step_header(arg, *args):
-    printer.hr('\n%s' % arg, *args, color='header', end='\n\n')
+    printer.hr('\n%s' % arg, *args, end='\n\n')
 
 
 def get_current_branch():
