@@ -70,7 +70,7 @@ class TestSubcommand(TestCase):
         def sub1(cmd: arg(default=None), a=None, flag=True):
             return Result('sub1({cmd}, {a}, {flag})'.format_map(locals()))
 
-        @subcommand(sub1)
+        @sub1.subcommand
         def subsub1(a=None, flag=True):
             return Result('subsub1({a}, {flag})'.format_map(locals()))
 
