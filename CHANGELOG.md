@@ -1,5 +1,19 @@
 # RunCommands
 
+## 1.0a51 - 2020-02-06
+
+- Commonly-used utilities are now exported from the top level package. This is
+  intended to reduce tedium when creating lots of commands spread across many
+  modules.  Includes `abort`, `confirm`, and `printer`.
+- Made it somewhat easier to specify subcommands by allowing
+  `@base_command.subcommand` to be used as a decorator. This reduces the number
+  of imports needed when creating subcommands. It also looks nicer than
+  `@subcommand(base_command)` IMO.
+- Changed the default color of `printer.hr()` from info (blue) to header
+  (magenta) since that's the color I usually want HRs to be.
+- Made it a little easier to specify colors in `printer` by allowing colors in
+  the color map to be accessed as attributes (in addition to item access).
+
 ## 1.0a50 - 2020-01-03
 
 - Common base command args are now passed down to subcommands.

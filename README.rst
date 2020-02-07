@@ -89,6 +89,8 @@ Features
 
 * Easily create standalone console scripts: simply define a function and
   wrap it with the ``@command`` decorator.
+* Easily create standalone console scripts that have subcommands (a la
+  ``git``).
 * Create collections of commands (similar to make, Fabric, etc).
 * Run multiple commands in sequence: ``run build deploy``.
 * Uses ``argparse`` under the hood so command line usage is familiar.

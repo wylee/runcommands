@@ -12,7 +12,7 @@ from .exc import CommandError, RunCommandsError
 from .util import cached_property, camel_to_underscore, get_hr, printer
 
 
-__all__ = ['command', 'Command']
+__all__ = ['command', 'subcommand', 'Command']
 
 
 class Command:
@@ -151,31 +151,10 @@ class Command:
         if is_subcommand:
             base_command.add_subcommand(self)
 
-    @classmethod
-    def command(cls, name=None, description=None, base_command=None, timed=False):
-        args = dict(description=description, base_command=base_command, timed=timed)
-
-        if isinstance(name, type):
-            # Bare class decorator
-            name.implementation.__name__ = camel_to_underscore(name.__name__)
-            return name(**args)
-
-        if callable(name):
-            # Bare function decorator
-            return cls(implementation=name, **args)
-
-        def wrapper(wrapped):
-            if isinstance(wrapped, type):
-                wrapped.implementation.__name__ = camel_to_underscore(wrapped.__name__)
-                return wrapped(name=name, **args)
-            return cls(implementation=wrapped, name=name, **args)
-
-        return wrapper
-
-    @classmethod
-    def subcommand(cls, base_command, name=None, description=None, timed=False):
+    def subcommand(self, name=None, description=None, timed=False):
         """Create a subcommand of the specified base command."""
-        return cls.command(name, description, base_command, timed)
+        base_command = self
+        return command(name, description, base_command, timed, cls=self.__class__)
 
     @property
     def is_base_command(self):
@@ -913,5 +892,26 @@ class Command:
         return 'Command(name={self.name})'.format(self=self)
 
 
-command = Command.command
-subcommand = Command.subcommand
+def command(name=None, description=None, base_command=None, timed=False, cls=Command):
+    args = dict(description=description, base_command=base_command, timed=timed)
+
+    if isinstance(name, type):
+        # Bare class decorator
+        name.implementation.__name__ = camel_to_underscore(name.__name__)
+        return name(**args)
+
+    if callable(name):
+        # Bare function decorator
+        return cls(implementation=name, **args)
+
+    def wrapper(wrapped):
+        if isinstance(wrapped, type):
+            wrapped.implementation.__name__ = camel_to_underscore(wrapped.__name__)
+            return wrapped(name=name, **args)
+        return cls(implementation=wrapped, name=name, **args)
+
+    return wrapper
+
+
+def subcommand(base_command, name=None, description=None, timed=False, cls=Command):
+    return command(name, description, base_command, timed, cls)

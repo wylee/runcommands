@@ -1,6 +1,17 @@
 from .args import arg, bool_or, json_value
 from .command import command, subcommand
+from .util import abort, confirm, printer
 
+__version__ = '1.0a51'
 
-__all__ = ['__version__', 'arg', 'bool_or', 'command', 'json_value', 'subcommand']
-__version__ = '1.0a50'
+__all__ = [
+    '__version__',
+    'abort',
+    'arg',
+    'bool_or',
+    'command',
+    'confirm',
+    'json_value',
+    'printer',
+    'subcommand',
+]
