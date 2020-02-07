@@ -12,7 +12,7 @@ from .exc import CommandError, RunCommandsError
 from .util import cached_property, camel_to_underscore, get_hr, printer
 
 
-__all__ = ['command', 'Command']
+__all__ = ['command', 'subcommand', 'Command']
 
 
 class Command:
