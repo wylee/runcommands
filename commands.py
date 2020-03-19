@@ -1,15 +1,48 @@
 #!/usr/bin/env python3
 import getpass
+import importlib
 import os
 import shutil
 import sys
 import unittest
 
-if 'runcommands' not in sys.path:
-    sys.path.insert(0, os.path.abspath('.'))
+
+if os.path.abspath(sys.argv[0]) == os.path.abspath(__file__):
+    # When running this module directly via `./commands.py` or
+    # `python commands.py`:
+    #
+    # - Ensure virtual env is activated and minimal
+    # - Ensure minimal set of dependencies are installed
+    # - Ensure runcommands project directory is first in sys.path
+
+    def check_dependency(name, dist_name=None, action=None):
+        if sys.version_info > (3, 5):
+            exc_type = ModuleNotFoundError  # noqa
+        else:
+            exc_type = ImportError
+        try:
+            importlib.import_module(name)
+        except exc_type:
+            if action:
+                action(name)
+            else:
+                dist_name = dist_name or name
+                sys.stderr.write('Run `pip install {dist_name}` first\n'.format_map(locals()))
+                sys.exit(2)
+
+    virtual_env = os.getenv('VIRTUAL_ENV')
+    if not virtual_env:
+        sys.stderr.write('No virtual env active\n')
+        sys.stderr.write('Run `python -m venv .venv` first, then activate the virtual env\n')
+        sys.exit(1)
+
+    check_dependency('jinja2')
+    check_dependency('yaml', 'pyyaml')
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 
 from runcommands import command  # noqa: E402
-from runcommands.args import DISABLE, arg  # noqa: E402
+from runcommands.args import arg  # noqa: E402
 from runcommands.commands import copy_file as _copy_file, local  # noqa: E402
 from runcommands.commands import git_version, release  # noqa: E402,F401
 from runcommands.commands.release import get_current_branch, get_latest_tag  # noqa: E402
@@ -139,8 +172,8 @@ def tox(envs: 'Pass -e option to tox with the specified environments' = (),
 
 @command
 def lint(show_errors: arg(help='Show errors') = True,
-         disable_ignore: arg(inverse_option=DISABLE, help='Don\'t ignore any errors') = False,
-         disable_noqa: arg(inverse_option=DISABLE, help='Ignore noqa directives') = False):
+         disable_ignore: arg(no_inverse=True, help='Don\'t ignore any errors') = False,
+         disable_noqa: arg(no_inverse=True, help='Ignore noqa directives') = False):
     result = local((
         'flake8', '.',
         '--ignore=' if disable_ignore else None,

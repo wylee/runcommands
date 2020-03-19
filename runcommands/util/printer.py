@@ -1,13 +1,31 @@
 import enum
 import shutil
 import sys
+from typing import Mapping
 
 from .enums import Color
 from .misc import isatty
 
 
+class ColorMap:
+
+    def __init__(self, color_map: Mapping[str, str]):
+        self.add_colors(color_map)
+
+    def __getitem__(self, name: str):
+        return getattr(self, name)
+
+    def __setitem__(self, name: str, color: str):
+        setattr(self, name, color)
+
+    def add_colors(self, color_map: Mapping[str, str]):
+        for name, color in color_map.items():
+            setattr(self, name, color)
+
+
 class Printer:
 
+    # Symbolic name => color
     color_map = {
         'header': Color.magenta,
         'info': Color.blue,
@@ -19,14 +37,12 @@ class Printer:
         'debug': Color.cyan,
     }
 
-    def __init__(self, colors: enum.Enum = Color, color_map: dict = None, default_color=None):
+    def __init__(self, colors: enum.Enum = Color, color_map: Mapping = None, default_color=None):
         self.colors = colors
-        self.color_map = {color.name: color for color in colors}
-        for name, color in self.__class__.color_map.items():
-            self.color_map[name] = color
+        self.color_map = ColorMap({color.name: color for color in colors})
+        self.color_map.add_colors(self.__class__.color_map)
         if color_map:
-            for name, color in color_map.items():
-                self.color_map[name] = self.get_color(color)
+            self.color_map.add_colors(color_map)
         self.default_color = self.get_color(default_color)
 
     def __call__(self, *args, **kwargs):
@@ -34,7 +50,7 @@ class Printer:
 
     def get_color(self, color):
         if color is None:
-            return self.color_map['none']
+            return self.color_map.none
         if isinstance(color, self.colors):
             return color
         try:
@@ -72,47 +88,47 @@ class Printer:
 
     def header(self, *args, color=None, **kwargs):
         if color is None:
-            color = self.color_map['header']
+            color = self.color_map.header
         self.print(*args, color=color, **kwargs)
 
     def info(self, *args, color=None, **kwargs):
         if color is None:
-            color = self.color_map['info']
+            color = self.color_map.info
         self.print(*args, color=color, **kwargs)
 
     def success(self, *args, color=None, **kwargs):
         if color is None:
-            color = self.color_map['success']
+            color = self.color_map.success
         self.print(*args, color=color, **kwargs)
 
     def echo(self, *args, color=None, **kwargs):
         if color is None:
-            color = self.color_map['echo']
+            color = self.color_map.echo
         self.print(*args, color=color, **kwargs)
 
     def warning(self, *args, color=None, file=sys.stderr, **kwargs):
         if color is None:
-            color = self.color_map['warning']
+            color = self.color_map.warning
         self.print(*args, color=color, file=file, **kwargs)
 
     def error(self, *args, color=None, file=sys.stderr, **kwargs):
         if color is None:
-            color = self.color_map['error']
+            color = self.color_map.error
         self.print(*args, color=color, file=file, **kwargs)
 
     def danger(self, *args, color=None, file=sys.stderr, **kwargs):
         if color is None:
-            color = self.color_map['danger']
+            color = self.color_map.danger
         self.print(*args, color=color, file=file, **kwargs)
 
     def debug(self, *args, color=None, file=sys.stderr, **kwargs):
         if color is None:
-            color = self.color_map['debug']
+            color = self.color_map.debug
         self.print(*args, color=color, file=file, **kwargs)
 
     def hr(self, *args, color=None, **kwargs):
         if color is None:
-            color = self.color_map['info']
+            color = self.color_map.header
         hr = get_hr()
         if args:
             sep = kwargs.get('sep') or ' '

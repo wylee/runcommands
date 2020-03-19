@@ -12,7 +12,7 @@ from .exc import CommandError, RunCommandsError
 from .util import cached_property, camel_to_underscore, get_hr, printer
 
 
-__all__ = ['command', 'Command']
+__all__ = ['command', 'subcommand', 'Command']
 
 
 class Command:
@@ -151,31 +151,10 @@ class Command:
         if is_subcommand:
             base_command.add_subcommand(self)
 
-    @classmethod
-    def command(cls, name=None, description=None, base_command=None, timed=False):
-        args = dict(description=description, base_command=base_command, timed=timed)
-
-        if isinstance(name, type):
-            # Bare class decorator
-            name.implementation.__name__ = camel_to_underscore(name.__name__)
-            return name(**args)
-
-        if callable(name):
-            # Bare function decorator
-            return cls(implementation=name, **args)
-
-        def wrapper(wrapped):
-            if isinstance(wrapped, type):
-                wrapped.implementation.__name__ = camel_to_underscore(wrapped.__name__)
-                return wrapped(name=name, **args)
-            return cls(implementation=wrapped, name=name, **args)
-
-        return wrapper
-
-    @classmethod
-    def subcommand(cls, base_command, name=None, description=None, timed=False):
+    def subcommand(self, name=None, description=None, timed=False):
         """Create a subcommand of the specified base command."""
-        return cls.command(name, description, base_command, timed)
+        base_command = self
+        return command(name, description, base_command, timed, cls=self.__class__)
 
     @property
     def is_base_command(self):
@@ -680,13 +659,22 @@ class Command:
     def get_long_option_for_arg(self, name):
         return '--{name}'.format_map(locals())
 
-    def get_inverse_option_for_arg(self, long_option):
+    def get_inverse_short_option_for_arg(self, short_option, used):
+        inverse_short_option = short_option.upper()
+        if inverse_short_option not in used:
+            return inverse_short_option
+
+    def get_inverse_long_option_for_arg(self, long_option):
         if long_option == '--yes':
             return '--no'
         if long_option == '--no':
             return '--yes'
         if long_option.startswith('--no-'):
             return long_option.replace('--no-', '--', 1)
+        if long_option.startswith('--is-'):
+            return long_option.replace('--is-', '--not-', 1)
+        if long_option.startswith('--with-'):
+            return long_option.replace('--with-', '--without-', 1)
         return long_option.replace('--', '--no-', 1)
 
     def print_elapsed_time(self, elapsed_time):
@@ -722,7 +710,8 @@ class Command:
         get_arg_config = self.get_arg_config
         get_short_option = self.get_short_option_for_arg
         get_long_option = self.get_long_option_for_arg
-        get_inverse_option = self.get_inverse_option_for_arg
+        get_inverse_short_option = self.get_inverse_short_option_for_arg
+        get_inverse_long_option = self.get_inverse_long_option_for_arg
 
         params = OrderedDict((
             (normalize_name(n), p)
@@ -750,7 +739,9 @@ class Command:
             inverse_help = annotation.inverse_help
             short_option = annotation.short_option
             long_option = annotation.long_option
-            inverse_option = annotation.inverse_option
+            no_inverse = annotation.no_inverse
+            inverse_short_option = annotation.inverse_short_option
+            inverse_long_option = annotation.inverse_long_option
             action = annotation.action
             nargs = annotation.nargs
             mutual_exclusion_group = annotation.mutual_exclusion_group
@@ -776,9 +767,15 @@ class Command:
                     used_short_options.add(short_option)
                 if not long_option:
                     long_option = get_long_option(name)
-                if not inverse_option:
-                    # NOTE: The DISABLE marker evaluates as True
-                    inverse_option = get_inverse_option(long_option)
+                if not no_inverse:
+                    if short_option and not inverse_short_option:
+                        inverse_short_option = get_inverse_short_option(
+                            short_option,
+                            used_short_options,
+                        )
+                        used_short_options.add(inverse_short_option)
+                    if not inverse_long_option:
+                        inverse_long_option = get_inverse_long_option(long_option)
 
             args[name] = Arg(
                 command=self,
@@ -793,7 +790,9 @@ class Command:
                 inverse_help=inverse_help,
                 short_option=short_option,
                 long_option=long_option,
-                inverse_option=inverse_option,
+                no_inverse=no_inverse,
+                inverse_short_option=inverse_short_option,
+                inverse_long_option=inverse_long_option,
                 action=action,
                 nargs=nargs,
                 mutual_exclusion_group=mutual_exclusion_group,
@@ -913,5 +912,26 @@ class Command:
         return 'Command(name={self.name})'.format(self=self)
 
 
-command = Command.command
-subcommand = Command.subcommand
+def command(name=None, description=None, base_command=None, timed=False, cls=Command):
+    args = dict(description=description, base_command=base_command, timed=timed)
+
+    if isinstance(name, type):
+        # Bare class decorator
+        name.implementation.__name__ = camel_to_underscore(name.__name__)
+        return name(**args)
+
+    if callable(name):
+        # Bare function decorator
+        return cls(implementation=name, **args)
+
+    def wrapper(wrapped):
+        if isinstance(wrapped, type):
+            wrapped.implementation.__name__ = camel_to_underscore(wrapped.__name__)
+            return wrapped(name=name, **args)
+        return cls(implementation=wrapped, name=name, **args)
+
+    return wrapper
+
+
+def subcommand(base_command, name=None, description=None, timed=False, cls=Command):
+    return command(name, description, base_command, timed, cls)
