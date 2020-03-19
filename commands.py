@@ -42,7 +42,7 @@ if os.path.abspath(sys.argv[0]) == os.path.abspath(__file__):
 
 
 from runcommands import command  # noqa: E402
-from runcommands.args import DISABLE, arg  # noqa: E402
+from runcommands.args import arg  # noqa: E402
 from runcommands.commands import copy_file as _copy_file, local  # noqa: E402
 from runcommands.commands import git_version, release  # noqa: E402,F401
 from runcommands.commands.release import get_current_branch, get_latest_tag  # noqa: E402
@@ -172,8 +172,8 @@ def tox(envs: 'Pass -e option to tox with the specified environments' = (),
 
 @command
 def lint(show_errors: arg(help='Show errors') = True,
-         disable_ignore: arg(inverse_option=DISABLE, help='Don\'t ignore any errors') = False,
-         disable_noqa: arg(inverse_option=DISABLE, help='Ignore noqa directives') = False):
+         disable_ignore: arg(no_inverse=True, help='Don\'t ignore any errors') = False,
+         disable_noqa: arg(no_inverse=True, help='Ignore noqa directives') = False):
     result = local((
         'flake8', '.',
         '--ignore=' if disable_ignore else None,
