@@ -24,9 +24,13 @@ script_path = 'runcommands.__main__:main'
 console_scripts = ['{name} = {path}'.format(name=name, path=script_path) for name in script_names]
 
 # Install runcommands-complete completion console script by default
-install_complete_console_script = os.getenv('RUNCOMMANDS_INSTALL_COMPLETE_CONSOLE_SCRIPT', True)
+install_complete_console_script = os.getenv('RUNCOMMANDS_INSTALL_COMPLETION_CONSOLE_SCRIPTS', True)
 if as_bool(install_complete_console_script):
-    console_scripts.append('runcommands-complete = runcommands.completion:complete.console_script')
+    console_scripts.extend((
+        'runcommands-complete = runcommands.completion:complete.console_script',
+        'runcommands-complete-base-command = '
+        'runcommands.completion:complete_base_command.console_script',
+    ))
 
 # The release console script is *not* installed by default
 install_release_console_script = os.getenv('RUNCOMMANDS_INSTALL_RELEASE_CONSOLE_SCRIPT', False)

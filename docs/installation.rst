@@ -48,12 +48,12 @@ If ``RUNCOMMANDS_CONSOLE_SCRIPTS`` is set to an empty string or other non-
 truthy value, the main console script won't be installed at all.
 
 Likewise, to disable installation of the ``runcommands-complete`` command, set
-``RUNCOMMANDS_INSTALL_COMPLETE_CONSOLE_SCRIPT`` to an empty string or other
+``RUNCOMMANDS_INSTALL_COMPLETION_CONSOLE_SCRIPTS`` to an empty string or other
 non-truthy value:
 
 .. code-block:: shell
 
-    RUNCOMMANDS_INSTALL_COMPLETE_CONSOLE_SCRIPT="no" pip install -e .[dev]
+    RUNCOMMANDS_INSTALL_COMPLETION_CONSOLE_SCRIPTS="no" pip install -e .[dev]
 
 There's also a standalone ``make-release`` script that's *not* installed by
 default. It can be installed like this:

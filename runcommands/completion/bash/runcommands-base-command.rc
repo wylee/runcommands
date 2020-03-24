@@ -1,0 +1,10 @@
+# Source from or copy to ~/.bashrc
+function __complete_runcommands_base_command_${base_command_name} {
+    local candidates=$$(
+        runcommands-complete-base-command -- \
+            "${base_command_path} $$COMP_LINE" "$${COMP_WORDS[COMP_CWORD]}" $${COMP_POINT} bash
+    )
+    COMPREPLY=( $$(compgen -W "$${candidates}" -- "$$2") )
+}
+
+complete -F __complete_runcommands_base_command_${base_command_name} ${base_command_name}
