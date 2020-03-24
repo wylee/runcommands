@@ -38,6 +38,14 @@ class Command:
         debug (bool): When this is set, additional debugging info will
             be shown.
 
+    Other attributes:
+        module: Module containing command
+            For a class, this is just ``self.__class__.__module__``
+            For a function, this is ``self.implementation.__module__``
+        qualname: Qualified name of command within module
+            For a class, this is just ``self.__class__.__qualname``
+            For a function, this is ``self.implementation.__qualname__``
+
     This is typically used via the :func:`command` decorator::
 
         from runcommands import command
@@ -116,9 +124,13 @@ class Command:
                 raise CommandError(
                     'Missing implementation; it must be passed in as a function or defined as a '
                     'method on the command class')
+            self.module = self.__class__.__module__
+            self.qualname = self.__class__.__qualname__
             default_name = self.normalize_class_name(self.__class__.__name__)
         else:
             self.implementation = implementation
+            self.module = implementation.__module__
+            self.qualname = implementation.__qualname__
             default_name = self.normalize_name(implementation.__name__)
 
         name = name or getattr(self.__class__, 'name', None) or default_name
