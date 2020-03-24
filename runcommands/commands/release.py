@@ -202,7 +202,7 @@ def merge_to_target_branch(info):
 
     local(('git', 'checkout', info.target_branch))
 
-    msg = '"Merge branch \'{info.current_branch}\' for release {info.version}"'
+    msg = 'Merge branch \'{info.current_branch}\' for release {info.version}'
     msg = msg.format_map(locals())
     msg = prompt('Commit message', default=msg)
     local(('git', 'merge', '--no-ff', info.current_branch, '-m', msg))
@@ -225,7 +225,7 @@ def create_release_tag(info, merge):
         confirmed = True
 
     if confirmed:
-        msg = '"Release {info.version}"'.format_map(locals())
+        msg = 'Release {info.version}'.format_map(locals())
         local(('git', 'tag', '-a', '-m', msg, info.tag_name))
 
     if merge:
