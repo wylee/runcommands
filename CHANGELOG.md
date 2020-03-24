@@ -1,5 +1,14 @@
 # RunCommands
 
+## 1.0a53 - 2020-03-23
+
+- Added `module` and `qualname` attributes to `Command` instances. These
+  correspond to the built in `__module__` and `__qualname__` attributes of
+  classes and can be used for introspection of a command. E.g., `module` can be
+  used to order commands by module in a command listing.
+- Added support for command line completion for base commands used as console
+  scripts.
+
 ## 1.0a52 - 2020-03-18
 
 - Improve inverse options.

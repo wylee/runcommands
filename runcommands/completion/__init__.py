@@ -1,4 +1,5 @@
 import glob
+import importlib
 import os
 import shlex
 from contextlib import redirect_stderr
@@ -11,10 +12,12 @@ from ..run import run
 
 
 @command
-def complete(command_line,
-             current_token,
-             position,
-             shell: arg(choices=('bash', 'fish'))):
+def complete(
+    command_line,
+    current_token,
+    position,
+    shell: arg(choices=('bash', 'fish')),
+):
     """Find completions for current command.
 
     This assumes that we'll handle all completion logic here and that
@@ -29,7 +32,6 @@ def complete(command_line,
     """
     position = int(position)
     tokens = shlex.split(command_line[:position])
-
     all_argv, run_argv, command_argv = run.partition_argv(tokens[1:])
 
     with open(os.devnull, 'wb') as devnull_fp:
@@ -41,11 +43,65 @@ def complete(command_line,
     module = normalize_path(module)
 
     try:
-        collection = Collection.load_from_module(module)
+        base_collection = Collection.load_from_module(module)
     except Exception:
-        collection = {}
+        base_collection = {}
 
-    found_command = find_command(collection, tokens) or run
+    return _complete(run, base_collection, command_line, current_token, position, shell)
+
+
+@command
+def complete_base_command(
+    base_command,
+    command_line,
+    current_token,
+    position,
+    shell: arg(choices=('bash', 'fish')),
+):
+    """Find completions for a base command and its subcommands.
+
+    This assumes that we'll handle all completion logic here and that
+    the shell's automatic file name completion is disabled.
+
+    Args:
+        base_command: Path to base command as package.module:command
+        command_line: Command line
+        current_token: Token at cursor
+        position: Current cursor position
+        shell: Name of shell
+
+    """
+    module_name, base_command_name = base_command.rsplit('.', 1)
+    module = importlib.import_module(module_name)
+    base_command = getattr(module, base_command_name)
+    base_collection = {c.base_name: c for c in base_command.subcommands}
+    return _complete(base_command, base_collection, command_line, current_token, position, shell)
+
+
+def _complete(
+    base_command,
+    base_collection,
+    command_line,
+    current_token,
+    position,
+    shell,
+):
+    position = int(position)
+    tokens = shlex.split(command_line[:position])
+
+    # XXX: This isn't quite correct because it will return the base
+    #      command in case where it shouldn't. E.g., if `run xxx` is
+    #      typed in, you'll get completions for `run` when you should
+    #      probably just get nothing.
+    found_command = find_command(base_collection, tokens) or base_command
+
+    if found_command.is_subcommand:
+        if found_command.is_base_command:
+            collection = {c.base_name: c for c in found_command.subcommands}
+        else:
+            collection = {}
+    else:
+        collection = base_collection
 
     if current_token:
         # Completing either a command name, option name, or path.

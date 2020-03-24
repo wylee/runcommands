@@ -85,9 +85,24 @@ def install(where='.venv', python='python', upgrade=False, overwrite=False):
 
 @command
 def install_completion(
-        shell: arg(choices=('bash', 'fish'), help='Shell to install completion for'),
-        to: arg(help='~/.bashrc.d/runcommands.rc or ~/.config/fish/runcommands.fish') = None,
-        overwrite: 'Overwrite if exists' = False):
+    shell: arg(
+        choices=('bash', 'fish'),
+        help='Shell to install completion for',
+    ),
+    to: arg(
+        help='~/.bashrc.d/runcommands.rc or ~/.config/fish/runcommands.fish',
+    ) = None,
+    base_command: arg(
+        help='Dotted path to base command',
+    ) = None,
+    base_command_name: arg(
+        short_option='-B',
+        help='Name of base command (if different from implementation name)'
+    ) = None,
+    overwrite: arg(
+        help='Overwrite if exists',
+    ) = False,
+):
     """Install command line completion script.
 
     Currently, bash and fish are supported. The corresponding script
@@ -95,14 +110,36 @@ def install_completion(
     exists at that location, it will be overwritten by default.
 
     """
+    if base_command:
+        if not base_command_name:
+            _, base_command_name = base_command.rsplit('.', 1)
+        source_base_name = 'runcommands-base-command'
+        to_file_name = base_command_name
+        template_type = 'string'
+        template_context = {
+            'base_command_path': base_command,
+            'base_command_name': base_command_name,
+        }
+    else:
+        source_base_name = 'runcommands'
+        to_file_name = ''
+        template_type = None
+        template_context = {}
+
     if shell == 'bash':
-        source = 'runcommands:completion/bash/runcommands.rc'
+        ext = 'rc'
         to = to or '~/.bashrc.d'
     elif shell == 'fish':
-        source = 'runcommands:completion/fish/runcommands.fish'
-        to = to or '~/.config/fish/runcommands.fish'
+        ext = 'fish'
+        to = to or '~/.config/fish'
 
-    source = asset_path(source)
+    if base_command:
+        to = '{to}/{base_command_name}.{ext}'.format_map(locals())
+
+    source_path = 'runcommands:completion/{shell}/{source_base_name}.{ext}'
+    source_path = source_path.format_map(locals())
+    source = asset_path(source_path)
+
     destination = os.path.expanduser(to)
 
     if os.path.isdir(destination):
@@ -117,7 +154,7 @@ def install_completion(
             message = 'File exists. Overwrite?'.format_map(locals())
             overwrite = confirm(message, abort_on_unconfirmed=True)
 
-    _copy_file(source, destination)
+    _copy_file(source, destination, template=template_type, context=template_context)
     printer.info('Installed; remember to:\n    source {destination}'.format_map(locals()))
 
 
