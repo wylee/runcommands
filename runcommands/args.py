@@ -21,12 +21,6 @@ class POSITIONAL_PLACEHOLDER:
     """Used as a placeholder for positionals."""
 
 
-class DISABLE:
-
-    """Marker used to indicate that a bool arg's inverse option should
-    be disabled."""
-
-
 class ArgConfig:
 
     """Configuration for an arg.
@@ -53,7 +47,9 @@ class ArgConfig:
             ``--no-xyz`` variation of boolean args).
         short_option (str): Short command line option.
         long_option (str): Long command line option.
-        inverse_option (str): Inverse option for boolean args.
+        inverse_short_option (str): Inverse short option for boolean
+            args.
+        inverse_long_option (str): Inverse long option for boolean args.
         action (Action): ``argparse`` Action.
         nargs (int|str): Number of command line args to consume.
         mutual_exclusion_group (str): Name of mutual exclusion group to
@@ -77,7 +73,10 @@ class ArgConfig:
                  inverse_help=None,
                  short_option=None,
                  long_option=None,
-                 inverse_option=None,
+                 no_inverse=False,
+                 inverse_short_option=None,
+                 inverse_long_option=None,
+                 inverse_option=None,  # XXX: Temporary alias for inverse_long_option
                  action=None,
                  nargs=None,
                  mutual_exclusion_group=None,
@@ -101,14 +100,21 @@ class ArgConfig:
         self.inverse_help = inverse_help
         self.short_option = short_option
         self.long_option = long_option
-        self.inverse_option = inverse_option
+        self.no_inverse = no_inverse
+        self.inverse_short_option = inverse_short_option
+        self.inverse_long_option = inverse_long_option or inverse_option
         self.action = action
         self.nargs = nargs
         self.mutual_exclusion_group = mutual_exclusion_group
         self.default = default
 
     def __repr__(self):
-        options = self.short_option, self.long_option, self.inverse_option
+        options = (
+            self.short_option,
+            self.long_option,
+            self.inverse_short_option,
+            self.inverse_long_option,
+        )
         options = (option for option in options if option)
         options = ', '.join(options)
         return 'arg<{self.type.__name__}>({options})'.format_map(locals())
@@ -150,7 +156,9 @@ class Arg:
             ``--no-xyz`` variation of boolean args).
         short_option (str): Short command line option.
         long_option (str): Long command line option.
-        inverse_option (str): Inverse option for boolean args.
+        inverse_short_option (str): Inverse short option for boolean
+            args.
+        inverse_long_option (str): Inverse long option for boolean args.
         action (Action): ``argparse`` Action.
         nargs (int|str): Number of command line args to consume.
         mutual_exclusion_group (str): Name of mutual exclusion group to
@@ -171,7 +179,9 @@ class Arg:
                  inverse_help,
                  short_option,
                  long_option,
-                 inverse_option,
+                 no_inverse,
+                 inverse_short_option,
+                 inverse_long_option,
                  action,
                  nargs,
                  mutual_exclusion_group):
@@ -237,7 +247,7 @@ class Arg:
                 choices = type.type
 
         if is_positional or is_var_positional:
-            options = (short_option, long_option, inverse_option)
+            options = (short_option, long_option, inverse_long_option)
             options = tuple(option for option in options if option is not None)
             if options:
                 raise CommandError(
@@ -267,10 +277,15 @@ class Arg:
                     nargs = '*'
 
         options = tuple(opt for opt in (short_option, long_option) if opt is not None)
-
         all_options = options
-        if inverse_option and inverse_option is not DISABLE:
-            all_options += (inverse_option,)
+
+        if no_inverse:
+            inverse_options = ()
+        else:
+            inverse_options = tuple(
+                opt for opt in (inverse_short_option, inverse_long_option) if opt is not None
+            )
+            all_options += inverse_options
 
         if is_var_positional and default is EMPTY:
             default = ()
@@ -295,7 +310,10 @@ class Arg:
         self.short_option = short_option
         self.long_option = long_option
         self.options = options
-        self.inverse_option = inverse_option
+        self.no_inverse = no_inverse
+        self.inverse_short_option = inverse_short_option
+        self.inverse_long_option = inverse_long_option
+        self.inverse_options = inverse_options
         self.all_options = all_options
         self.action = action
         self.nargs = nargs
@@ -320,11 +338,11 @@ class Arg:
 
     @cached_property
     def add_argument_inverse_args(self):
-        if not (self.is_bool or self.is_bool_or) or self.inverse_option is DISABLE:
+        if not (self.is_bool or self.is_bool_or) or self.no_inverse:
             return None
 
+        args = self.inverse_options
         _, kwargs = self.add_argument_args
-        args = (self.inverse_option,)
 
         if self.inverse_help:
             inverse_help = self.inverse_help
@@ -385,7 +403,9 @@ class HelpArg(Arg):
             inverse_help=None,
             short_option='-h',
             long_option='--help',
-            inverse_option=None,
+            no_inverse=True,
+            inverse_short_option=None,
+            inverse_long_option=None,
             action=None,
             nargs=None,
             mutual_exclusion_group=None,

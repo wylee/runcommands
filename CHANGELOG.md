@@ -1,5 +1,9 @@
 # RunCommands
 
+## 1.0a52 - 2020-03-18
+
+- Improve inverse options.
+
 ## 1.0a51 - 2020-02-06
 
 - Commonly-used utilities are now exported from the top level package. This is
