@@ -336,6 +336,7 @@ class Command:
         debug = self.debug
         base_argv = []
         base_args = {}
+        subcmd_args = {}
         commands = [(self, base_args)]
         subcommand_map = {sub.name: sub for sub in self.subcommands}
 
@@ -377,16 +378,30 @@ class Command:
 
         if base:
             # Pass base args down to subcommands. Each subcommand will
-            # receive args from *all* preceding base commands.
+            # receive args from *all* preceding base commands. The last
+            # value for an arg will be used (i.e., if two base commands
+            # have the same option and it was passed to both for some
+            # reason).
             base_cmd, base_args = commands[0]
             base_args = base_args.copy()
+            subcmd_arg_names = set(subcmd_args)
             for i, (subcmd, subcmd_args) in enumerate(commands[1:], 1):
                 for name, value in base_args.items():
-                    if (
-                        name not in subcmd_args and
-                        base_cmd.args[name].is_optional and
-                        subcmd.find_arg(name)
-                    ):
+                    base_cmd_arg = base_cmd.find_arg(name)
+                    subcmd_arg = subcmd.find_arg(name)
+                    pass_down = (
+                        # The subcommand has this option
+                        subcmd_arg and
+                        # And it wasn't passed directly to the subcommand
+                        (name not in subcmd_arg_names) and
+                        # And the base command has this arg too
+                        base_cmd_arg and
+                        # And it's optional...
+                        base_cmd_arg.is_optional and
+                        # ...but not an optional positional
+                        (not base_cmd_arg.is_positional)
+                    )
+                    if pass_down:
                         subcmd_args[name] = value
                 base_cmd = subcmd
                 base_args.update(subcmd_args)
