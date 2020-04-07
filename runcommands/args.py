@@ -109,6 +109,7 @@ class ArgConfig:
         self.default = default
 
     def __repr__(self):
+        type_name = self.type.__name__ if self.type is not None else 'None'
         options = (
             self.short_option,
             self.long_option,
@@ -117,7 +118,7 @@ class ArgConfig:
         )
         options = (option for option in options if option)
         options = ', '.join(options)
-        return 'arg<{self.type.__name__}>({options})'.format_map(locals())
+        return 'arg<{type_name}>({options})'.format_map(locals())
 
 
 arg = ArgConfig
