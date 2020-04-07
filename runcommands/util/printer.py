@@ -126,10 +126,10 @@ class Printer:
             color = self.color_map.debug
         self.print(*args, color=color, file=file, **kwargs)
 
-    def hr(self, *args, color=None, **kwargs):
+    def hr(self, *args, color=None, fill_char='=', **kwargs):
         if color is None:
             color = self.color_map.header
-        hr = get_hr()
+        hr = get_hr(fill_char)
         if args:
             sep = kwargs.get('sep') or ' '
             hr = hr[len(sep.join(args)) + len(sep):]
@@ -143,7 +143,7 @@ class Printer:
 printer = Printer()
 
 
-def get_hr():
+def get_hr(fill_char='='):
     term_size = shutil.get_terminal_size((80, 25))
-    hr = '=' * term_size.columns
+    hr = fill_char * term_size.columns
     return hr
