@@ -1,8 +1,10 @@
 # RunCommands
 
-## 1.0a54 - unreleased
+## 1.0a54 - 2020-04-07
 
-In progress...
+- Fixed/improved subcommand arg passdown logic.
+- Added `fill_char` arg to `Printer.hr()` so a fill char other than `=`
+  can be used.
 
 ## 1.0a53 - 2020-03-23
 
