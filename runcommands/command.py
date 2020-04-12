@@ -9,7 +9,7 @@ from typing import Mapping
 
 from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg
 from .exc import CommandError, RunCommandsError
-from .util import cached_property, camel_to_underscore, get_hr, printer
+from .util import cached_property, camel_to_underscore, get_hr, printer, Data
 
 
 __all__ = ['command', 'subcommand', 'Command']
@@ -31,6 +31,7 @@ class Command:
         timed (bool): Whether the command should be timed. Will print an
             info message showing how long the command took to complete
             when ``True``. Defaults to ``False``.
+        data (Mapping): Arbitrary data to attach to the command.
         arg_config (dict): For commands defined as classes, this can be
             used to configure common base args instead of repeating the
             configuration for each subclass. Note that its keys should
@@ -118,7 +119,7 @@ class Command:
     """
 
     def __init__(self, implementation=None, name=None, description=None, base_command=None,
-                 timed=False, arg_config=None, default_args=None, debug=False):
+                 timed=False, data=None, arg_config=None, default_args=None, debug=False):
         if implementation is None:
             if not hasattr(self, 'implementation'):
                 raise CommandError(
@@ -147,6 +148,7 @@ class Command:
         self.description = description
         self.short_description = short_description
         self.timed = timed
+        self.data = Data(**(data or {}))
         self.arg_config = arg_config or {}
         self.debug = debug
         self.default_args = default_args or {}
@@ -163,10 +165,10 @@ class Command:
         if is_subcommand:
             base_command.add_subcommand(self)
 
-    def subcommand(self, name=None, description=None, timed=False):
+    def subcommand(self, name=None, description=None, timed=False, data=None):
         """Create a subcommand of the specified base command."""
         base_command = self
-        return command(name, description, base_command, timed, cls=self.__class__)
+        return command(name, description, base_command, timed, data, cls=self.__class__)
 
     @property
     def is_base_command(self):
@@ -939,8 +941,8 @@ class Command:
         return 'Command(name={self.name})'.format(self=self)
 
 
-def command(name=None, description=None, base_command=None, timed=False, cls=Command):
-    args = dict(description=description, base_command=base_command, timed=timed)
+def command(name=None, description=None, base_command=None, timed=False, data=None, cls=Command):
+    args = dict(description=description, base_command=base_command, timed=timed, data=data)
 
     if isinstance(name, type):
         # Bare class decorator
@@ -960,5 +962,5 @@ def command(name=None, description=None, base_command=None, timed=False, cls=Com
     return wrapper
 
 
-def subcommand(base_command, name=None, description=None, timed=False, cls=Command):
-    return command(name, description, base_command, timed, cls)
+def subcommand(base_command, name=None, description=None, timed=False, data=None, cls=Command):
+    return command(name, description, base_command, timed, data, cls)
