@@ -30,11 +30,12 @@ class CommandRunner:
         for command in commands_to_run:
             result = command.run()
             results.append(result)
-            if command.callback is not None:
+            if command.callbacks:
                 commands_with_callbacks.append(command)
 
         for command in commands_with_callbacks:
-            command.callback(command)
+            for callback in command.callbacks:
+                callback(command)
 
         return tuple(results)
 
@@ -94,14 +95,14 @@ class CommandRunner:
 
 class CommandToRun:
 
-    __slots__ = ('name', 'command', 'argv', 'callback', 'help_requested')
+    __slots__ = ('name', 'command', 'argv', 'callbacks', 'help_requested')
 
     def __init__(self, command, argv):
         argv = command.expand_short_options(argv)
         self.name = command.name
         self.command = command
         self.argv = argv
-        self.callback = command.callback
+        self.callbacks = command.callbacks
 
         # Ignore args after -- when determining whether help was
         # requested for a command because such args aren't command
