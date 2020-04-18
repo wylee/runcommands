@@ -2,7 +2,7 @@ from .args import arg, bool_or, json_value
 from .command import command, subcommand
 from .util import abort, confirm, printer
 
-__version__ = '1.0a54'
+__version__ = '1.0a55'
 
 __all__ = [
     '__version__',

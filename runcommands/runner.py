@@ -25,7 +25,19 @@ class CommandRunner:
                 command.show_help()
             return ()
 
-        return tuple(command.run() for command in commands_to_run)
+        results = []
+        commands_with_callbacks = []
+        for command in commands_to_run:
+            result = command.run()
+            results.append(result)
+            if command.callbacks:
+                commands_with_callbacks.append(command)
+
+        for command in commands_with_callbacks:
+            for callback in command.callbacks:
+                callback(command)
+
+        return tuple(results)
 
     def get_commands_to_run(self, collection, argv):
         debug = self.debug
@@ -83,13 +95,14 @@ class CommandRunner:
 
 class CommandToRun:
 
-    __slots__ = ('name', 'command', 'argv', 'help_requested')
+    __slots__ = ('name', 'command', 'argv', 'callbacks', 'help_requested')
 
     def __init__(self, command, argv):
         argv = command.expand_short_options(argv)
         self.name = command.name
         self.command = command
         self.argv = argv
+        self.callbacks = command.callbacks
 
         # Ignore args after -- when determining whether help was
         # requested for a command because such args aren't command

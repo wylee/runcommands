@@ -1,5 +1,14 @@
 # RunCommands
 
+## 1.0a55 - 2020-04-17
+
+- Added ability to attach arbitrary data to commands via `data`
+  attribute on `Command` instances. Data items can be accessed via dot
+  (attribute) or bracket (item) notation.
+- Added command callbacks. These are called after the last command runs,
+  starting with the callbacks for the last command. Callbacks allow for
+  cleanup, post-run messages, etc.
+
 ## 1.0a54 - 2020-04-07
 
 - Fixed/improved subcommand arg passdown logic.

@@ -9,7 +9,7 @@ from typing import Mapping
 
 from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg
 from .exc import CommandError, RunCommandsError
-from .util import cached_property, camel_to_underscore, get_hr, printer
+from .util import cached_property, camel_to_underscore, get_hr, printer, Data
 
 
 __all__ = ['command', 'subcommand', 'Command']
@@ -31,6 +31,12 @@ class Command:
         timed (bool): Whether the command should be timed. Will print an
             info message showing how long the command took to complete
             when ``True``. Defaults to ``False``.
+        data (Mapping): Arbitrary data to attach to the command.
+        callbacks (list): A list of callables that will be called after
+            the command completes. When multiple commands are run
+            at once, their callbacks will be run in the opposite
+            order in which the corresponding commands are run--i.e.,
+            the callbacks for the last command will be run first.
         arg_config (dict): For commands defined as classes, this can be
             used to configure common base args instead of repeating the
             configuration for each subclass. Note that its keys should
@@ -118,7 +124,8 @@ class Command:
     """
 
     def __init__(self, implementation=None, name=None, description=None, base_command=None,
-                 timed=False, arg_config=None, default_args=None, debug=False):
+                 timed=False, data=None, callbacks=None, arg_config=None, default_args=None,
+                 debug=False):
         if implementation is None:
             if not hasattr(self, 'implementation'):
                 raise CommandError(
@@ -147,6 +154,8 @@ class Command:
         self.description = description
         self.short_description = short_description
         self.timed = timed
+        self.data = Data(**(data or {}))
+        self.callbacks = callbacks or []
         self.arg_config = arg_config or {}
         self.debug = debug
         self.default_args = default_args or {}
@@ -163,10 +172,10 @@ class Command:
         if is_subcommand:
             base_command.add_subcommand(self)
 
-    def subcommand(self, name=None, description=None, timed=False):
+    def subcommand(self, name=None, description=None, timed=False, data=None, callbacks=None):
         """Create a subcommand of the specified base command."""
         base_command = self
-        return command(name, description, base_command, timed, cls=self.__class__)
+        return command(name, description, base_command, timed, data, callbacks, cls=self.__class__)
 
     @property
     def is_base_command(self):
@@ -213,6 +222,9 @@ class Command:
             lines = [title] + [line[4:] for line in lines[1:]]
             description = '\n'.join(lines)
         return description
+
+    def add_callback(self, callback):
+        self.callbacks.append(callback)
 
     def run(self, argv=None, **overrides):
         if self.timed:
@@ -314,6 +326,8 @@ class Command:
         else:
             commands = [(self, argv)]
 
+        commands_with_callbacks = []
+
         for cmd, cmd_argv in commands:
             try:
                 result = cmd.run(cmd_argv, **overrides)
@@ -329,6 +343,12 @@ class Command:
                         printer.print(result_str)
             else:
                 return_code = result.return_code if hasattr(result, 'return_code') else 0
+            if cmd.callbacks:
+                commands_with_callbacks.append(cmd)
+
+        for cmd in commands_with_callbacks:
+            for callback in cmd.callbacks:
+                callback(cmd)
 
         return return_code
 
@@ -939,8 +959,11 @@ class Command:
         return 'Command(name={self.name})'.format(self=self)
 
 
-def command(name=None, description=None, base_command=None, timed=False, cls=Command):
-    args = dict(description=description, base_command=base_command, timed=timed)
+def command(name=None, description=None, base_command=None, timed=False, data=None, callbacks=None,
+            cls=Command):
+    args = dict(
+        description=description, base_command=base_command, timed=timed, data=data,
+        callbacks=callbacks)
 
     if isinstance(name, type):
         # Bare class decorator
@@ -960,5 +983,6 @@ def command(name=None, description=None, base_command=None, timed=False, cls=Com
     return wrapper
 
 
-def subcommand(base_command, name=None, description=None, timed=False, cls=Command):
-    return command(name, description, base_command, timed, cls)
+def subcommand(base_command, name=None, description=None, timed=False, data=None, callbacks=None,
+               cls=Command):
+    return command(name, description, base_command, timed, data, callbacks, cls)

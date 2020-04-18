@@ -1,6 +1,7 @@
 import inspect
 from collections import OrderedDict
 
+from .data import Data
 from .decorators import cached_property
 from .enums import Color, StreamOptions
 from .misc import abort, flatten_args, format_if, isatty, load_object, merge_dicts
@@ -12,6 +13,7 @@ from .string import camel_to_underscore
 
 __all__ = [
     'get_commands_in_namespace',
+    'Data',
     'cached_property',
     'Color', 'StreamOptions',
     'abort', 'flatten_args', 'format_if', 'isatty', 'load_object', 'merge_dicts',
