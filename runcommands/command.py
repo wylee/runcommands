@@ -1,4 +1,5 @@
 import argparse
+import builtins
 import inspect
 import signal
 import sys
@@ -792,6 +793,10 @@ class Command:
             default = param.default
             is_var_positional = param.kind is var_positional
             is_positional = default is empty and not is_var_positional
+            is_bool = (
+                (isinstance(type, builtins.type) and issubclass(type, bool)) or
+                isinstance(default, bool)
+            )
 
             if annotation.default is not empty:
                 if is_positional or is_var_positional:
@@ -810,7 +815,7 @@ class Command:
                     used_short_options.add(short_option)
                 if not long_option:
                     long_option = get_long_option(name)
-                if not no_inverse:
+                if is_bool and not no_inverse:
                     if short_option and not inverse_short_option:
                         inverse_short_option = get_inverse_short_option(
                             short_option,
