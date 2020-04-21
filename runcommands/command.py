@@ -141,6 +141,7 @@ class Command:
             default_name = self.normalize_name(implementation.__name__)
 
         name = name or getattr(self.__class__, 'name', None) or default_name
+        base_name = name
 
         is_subcommand = base_command is not None
 
@@ -164,6 +165,7 @@ class Command:
         # Subcommand-related attributes
         first_arg = next(iter(self.args.values()), None)
         self.base_command = base_command
+        self.base_name = base_name
         self.is_subcommand = is_subcommand
         self.subcommands = []
         self.first_arg = first_arg
@@ -189,12 +191,6 @@ class Command:
             depth += 1
             base_command = base_command.base_command
         return depth
-
-    @cached_property
-    def base_name(self):
-        if self.is_subcommand:
-            return self.name.split(':', self.subcommand_depth)[-1]
-        return self.name
 
     @cached_property
     def prog_name(self):
