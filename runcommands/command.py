@@ -1,4 +1,5 @@
 import argparse
+import builtins
 import inspect
 import signal
 import sys
@@ -141,6 +142,7 @@ class Command:
             default_name = self.normalize_name(implementation.__name__)
 
         name = name or getattr(self.__class__, 'name', None) or default_name
+        base_name = name
 
         is_subcommand = base_command is not None
 
@@ -164,6 +166,7 @@ class Command:
         # Subcommand-related attributes
         first_arg = next(iter(self.args.values()), None)
         self.base_command = base_command
+        self.base_name = base_name
         self.is_subcommand = is_subcommand
         self.subcommands = []
         self.first_arg = first_arg
@@ -189,12 +192,6 @@ class Command:
             depth += 1
             base_command = base_command.base_command
         return depth
-
-    @cached_property
-    def base_name(self):
-        if self.is_subcommand:
-            return self.name.split(':', self.subcommand_depth)[-1]
-        return self.name
 
     @cached_property
     def prog_name(self):
@@ -796,6 +793,10 @@ class Command:
             default = param.default
             is_var_positional = param.kind is var_positional
             is_positional = default is empty and not is_var_positional
+            is_bool = (
+                (isinstance(type, builtins.type) and issubclass(type, bool)) or
+                isinstance(default, bool)
+            )
 
             if annotation.default is not empty:
                 if is_positional or is_var_positional:
@@ -814,7 +815,7 @@ class Command:
                     used_short_options.add(short_option)
                 if not long_option:
                     long_option = get_long_option(name)
-                if not no_inverse:
+                if is_bool and not no_inverse:
                     if short_option and not inverse_short_option:
                         inverse_short_option = get_inverse_short_option(
                             short_option,
