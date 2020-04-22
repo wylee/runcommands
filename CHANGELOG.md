@@ -1,8 +1,15 @@
 # RunCommands
 
-## 1.0a56 - unreleased
+## 1.0a56 - 2020-04-21
 
-In progress...
+- Default inverse short and long options are now only set for boolean
+  args. Previously, these would always be set up, which would cause
+  two short options to be consumed for every non-bool arg, which would
+  in turn keep the second short option from being used by another arg.
+  This regression was introduced in 1.0a52.
+- Set the `base_name` attribute in `Command`'s constructor rather than
+  using a cached property. The cached property isn't needed, since the
+  base name is known in the constructor.
 
 ## 1.0a55 - 2020-04-17
 
