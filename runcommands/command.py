@@ -4,10 +4,9 @@ import signal
 import sys
 import time
 from collections import OrderedDict
-from inspect import Parameter
 from typing import Mapping
 
-from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg
+from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg, Parameter
 from .exc import CommandError, RunCommandsError
 from .util import cached_property, camel_to_underscore, get_hr, is_type, printer, Data
 
@@ -667,8 +666,8 @@ class Command:
 
     def find_parameter(self, name):
         """Find parameter by name or normalized arg name."""
-        name = self.normalize_name(name)
-        arg = self.args.get(name)
+            name = self.normalize_name(name)
+            arg = self.args.get(name)
         return None if arg is None else arg.parameter
 
     def get_arg_config(self, param):
@@ -732,7 +731,10 @@ class Command:
     def parameters(self):
         implementation = self.implementation
         signature = inspect.signature(implementation)
-        return signature.parameters
+        parameters = OrderedDict()
+        for name, param in signature.parameters.items():
+            parameters[name] = Parameter(param)
+        return parameters
 
     @cached_property
     def has_kwargs(self):
@@ -745,9 +747,6 @@ class Command:
         args = OrderedDict()
 
         empty = Parameter.empty
-        keyword_only = Parameter.KEYWORD_ONLY
-        var_keyword = Parameter.VAR_KEYWORD
-        var_positional = Parameter.VAR_POSITIONAL
 
         normalize_name = self.normalize_name
         get_arg_config = self.get_arg_config
@@ -760,9 +759,9 @@ class Command:
             (normalize_name(n), p)
             for n, p in params.items()
             if not (
-                (n.startswith('_')) or
-                (p.kind is keyword_only and p.default is empty) or
-                (p.kind is var_keyword)
+                n.startswith('_') or
+                p.is_required_keyword_only or
+                p.is_var_keyword
             )
         ))
 
@@ -790,9 +789,9 @@ class Command:
             mutual_exclusion_group = annotation.mutual_exclusion_group
 
             default = param.default
-            is_var_positional = param.kind is var_positional
-            is_positional = default is empty and not is_var_positional
-            is_bool = is_type(type, bool) or isinstance(default, bool)
+            is_var_positional = param.is_var_positional
+            is_positional = param.is_positional
+            is_bool = is_type(type, bool) or param.is_bool
 
             if annotation.default is not empty:
                 if is_positional or is_var_positional:
