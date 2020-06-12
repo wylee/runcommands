@@ -7,7 +7,7 @@ from inspect import Parameter
 from typing import Mapping, Sequence
 
 from .exc import CommandError
-from .util import cached_property
+from .util import cached_property, is_type
 
 
 EMPTY = Parameter.empty
@@ -214,7 +214,7 @@ class Arg:
                 container = tuple
 
         if type is None:
-            if isinstance(choices, builtins.type) and issubclass(choices, Enum):
+            if is_type(choices, Enum):
                 type = choices
             elif container is None:
                 if default not in (None, EMPTY):

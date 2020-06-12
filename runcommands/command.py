@@ -1,5 +1,4 @@
 import argparse
-import builtins
 import inspect
 import signal
 import sys
@@ -10,7 +9,7 @@ from typing import Mapping
 
 from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg
 from .exc import CommandError, RunCommandsError
-from .util import cached_property, camel_to_underscore, get_hr, printer, Data
+from .util import cached_property, camel_to_underscore, get_hr, is_type, printer, Data
 
 
 __all__ = ['command', 'subcommand', 'Command']
@@ -793,10 +792,7 @@ class Command:
             default = param.default
             is_var_positional = param.kind is var_positional
             is_positional = default is empty and not is_var_positional
-            is_bool = (
-                (isinstance(type, builtins.type) and issubclass(type, bool)) or
-                isinstance(default, bool)
-            )
+            is_bool = is_type(type, bool) or isinstance(default, bool)
 
             if annotation.default is not empty:
                 if is_positional or is_var_positional:
