@@ -57,7 +57,7 @@ setup(
     extras_require={
         'dev': [
             'coverage',
-            'flake8',
+            'flake8<3.8',
             'Sphinx',
             'tox',
             'twine',
