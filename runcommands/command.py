@@ -400,22 +400,38 @@ class Command:
             base_cmd, base_args = commands[0]
             base_args = base_args.copy()
             subcmd_arg_names = set(subcmd_args)
+            empty = Parameter.empty
             for i, (subcmd, subcmd_args) in enumerate(commands[1:], 1):
-                for name, value in base_args.items():
-                    base_cmd_arg = base_cmd.find_arg(name)
-                    subcmd_arg = subcmd.find_arg(name)
+                for base_arg in base_cmd.args.values():
+                    name = base_arg.parameter.name
+                    sub_param = subcmd.find_parameter(name)
                     pass_down = (
-                        # The subcommand has this option
-                        subcmd_arg and
-                        # And it wasn't passed directly to the subcommand
-                        (name not in subcmd_arg_names) and
-                        # And the base command has this arg too
-                        base_cmd_arg and
-                        # And it's optional...
-                        base_cmd_arg.is_optional and
-                        # ...but not an optional positional
-                        (not base_cmd_arg.is_positional)
+                        name not in subcmd_arg_names and
+                        base_arg.is_optional and
+                        not base_arg.is_positional and
+                        sub_param and
+                        (
+                            sub_param.is_optional or
+                            sub_param.is_required_keyword_only
+                        )
                     )
+                    if pass_down:
+                        if name in base_args:
+                            # Arg was passed to base command.
+                            #
+                            # XXX: Don't use base args's default value
+                            #      in this case so subcommand's default
+                            #      will be used.
+                            value = base_args[name]
+                        elif sub_param.is_required_keyword_only:
+                            # Arg was *not* passed to base command.
+                            #
+                            # XXX: Use base arg's default value in this
+                            #      case since there's no subcommand
+                            #      default.
+                            value = base_arg.default
+                        else:
+                            pass_down = False
                     if pass_down:
                         subcmd_args[name] = value
                 base_cmd = subcmd
