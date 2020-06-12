@@ -666,9 +666,13 @@ class Command:
 
     def find_parameter(self, name):
         """Find parameter by name or normalized arg name."""
+        param = self.parameters.get(name)
+        if param is None:
             name = self.normalize_name(name)
             arg = self.args.get(name)
-        return None if arg is None else arg.parameter
+            if arg is not None and not isinstance(arg, HelpArg):
+                param = arg.parameter
+        return param
 
     def get_arg_config(self, param):
         annotation = param.annotation
