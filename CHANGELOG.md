@@ -1,8 +1,41 @@
 # RunCommands
 
-## 1.0a58 - unreleased
+## 1.0a58 - 2020-06-12
 
-In progress...
+- Added 1.0a57 change log.
+
+- Added `is_type()` utility function and used it to tidy up code in a couple
+  places.
+
+- Added `Parameter` class to wrap `inspect.Parameter`. It has some convenience
+  functions that allows some code to be tidied.
+
+- Fixed `Command.find_parameter()` so that it does what it says it does. In
+  particular, it now tries to find a parameter with the passed-in name before
+  normalizing the name and trying to find an _arg_ with that name (and then
+  retrieving the parameter from that arg). This allows parameters that don't
+  have a corresponding arg to be retrieved.
+
+- Improved how args are passed down from base commands to subcommands.
+
+  The main change is that a given base arg will now be passed down to a
+  subcommand when it has a corresponding function _parameter_ rather than a
+  corresponding _arg_ as before (parameter = function parameter; arg = command
+  line arg).
+
+  This allows subcommands to have required keyword-only parameters that can
+  receive args from a base command. Since required keyword-only parameters
+  don't correspond to command line args, this forces these args to be passed to
+  the base command while still giving subcommands a way to get access to them
+  when needed.
+
+  The use case for this is args that need to be handled consistently at a
+  higher level. The specific use case that motivated this was handling "dry
+  run" functionality (esp. pertaining to database transactions).
+
+- Constrained flake8 to <3.8 for now, since 3.8 is finding "errors" that aren't
+  errors--it's calling out quoted strings as undefined names in function arg
+  annotations 🤔
 
 ## 1.0a57 - 2020-06-11
 
