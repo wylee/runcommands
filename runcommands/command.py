@@ -154,7 +154,7 @@ class Command:
         self.description = description
         self.short_description = short_description
         self.timed = timed
-        self.data = Data(**(data or {}))
+        self.__data = Data(**(data or {}))
         self.callbacks = callbacks or []
         self.arg_config = arg_config or {}
         self.debug = debug
@@ -190,6 +190,11 @@ class Command:
             depth += 1
             base_command = base_command.base_command
         return depth
+
+    @property
+    def data(self):
+        # XXX: Read-only property
+        return self.__data
 
     @cached_property
     def prog_name(self):
