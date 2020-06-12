@@ -1,6 +1,6 @@
 # RunCommands
 
-## 1.0a57 - unreleased
+## 1.0a57 - 2020-06-11
 
 In progress...
 
