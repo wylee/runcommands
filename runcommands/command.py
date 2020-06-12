@@ -7,7 +7,7 @@ from collections import OrderedDict
 from typing import Mapping
 
 from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg, Parameter
-from .exc import CommandError, RunCommandsError
+from .exc import CommandError, RunAborted, RunCommandsError
 from .util import cached_property, camel_to_underscore, get_hr, is_type, printer, Data
 
 
@@ -328,12 +328,15 @@ class Command:
 
         commands_with_callbacks = []
 
+        aborted = False
         for cmd, cmd_argv in commands:
             try:
                 result = cmd.run(cmd_argv, **overrides)
             except RunCommandsError as result:
                 if debug:
                     raise
+                if isinstance(result, RunAborted):
+                    aborted = True
                 return_code = result.return_code if hasattr(result, 'return_code') else 1
                 result_str = str(result)
                 if result_str:
@@ -344,11 +347,11 @@ class Command:
             else:
                 return_code = result.return_code if hasattr(result, 'return_code') else 0
             if cmd.callbacks:
-                commands_with_callbacks.append(cmd)
+                commands_with_callbacks.append((cmd, result))
 
-        for cmd in commands_with_callbacks:
+        for cmd, result in commands_with_callbacks:
             for callback in cmd.callbacks:
-                callback(cmd)
+                callback(cmd, result, aborted)
 
         return return_code
 
