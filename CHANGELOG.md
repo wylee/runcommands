@@ -6,7 +6,15 @@ In progress...
 
 ## 1.0a57 - 2020-06-11
 
-In progress...
+- Fixed `Data` class used for attaching arbitrary data to commands via `data`
+  attribute on `Command` instances (added in 1.0a55). Accessing the internal
+  data dict was causing infinite recursion.
+- Improved `Data` so that when a `dict` is added it will be converted to
+  a `Data` object. This is for convenience and consistent access to nested
+  data.
+- Modified `Printer` to flush by default when the console is a TTY. This aligns
+  with what I assume is usually the desired behavior when running commands
+  interactively.
 
 ## 1.0a56 - 2020-04-21
 
