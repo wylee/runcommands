@@ -1,8 +1,14 @@
 # RunCommands
 
-## 1.0a59 - unreleased
+## 1.0a59 - 2020-06-12
 
-In progress...
+- Made `data` property of `Command` instances read only.
+- More args are now passed to command callbacks:
+  - `Command` instance (as before)
+  - result of running command
+  - `aborted` flag, which will be the same for *all* callbacks; this is
+    intended for use in base command callbacks for deciding how to do
+    cleanup
 
 ## 1.0a58 - 2020-06-12
 
