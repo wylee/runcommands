@@ -73,18 +73,19 @@ class Printer:
             string = '{string}{end}'.format_map(locals())
         return string
 
-    def print(self, *args, color=None, file=sys.stdout, **kwargs):
+    def print(self, *args, color=None, end=None, file=sys.stdout, flush=None, **kwargs):
         if color is None:
             color = self.default_color
         if isatty(file):
-            colorize_kwargs = kwargs.copy()
-            colorize_kwargs.pop('end', None)
-            colorize_kwargs.pop('flush', None)
-            string = self.colorize(*args, color=color, **colorize_kwargs)
-            print(string, file=file, **kwargs)
+            if flush is None:
+                flush = True
+            string = self.colorize(*args, color=color, **kwargs)
+            print(string, end=end, file=file, flush=flush, **kwargs)
         else:
+            if flush is None:
+                flush = False
             args = [a for a in args if not isinstance(a, self.colors)]
-            print(*args, file=file, **kwargs)
+            print(*args, end=end, file=file, flush=flush, **kwargs)
 
     def header(self, *args, color=None, **kwargs):
         if color is None:

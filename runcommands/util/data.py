@@ -5,6 +5,9 @@ class Data:
     Data can be added and retrieved as attributes (dot notation) or
     items (bracket notation).
 
+    When a ``dict`` is added, it will be converted to an instance of
+    :class:`Data`.
+
     """
 
     def __init__(self, **data):
@@ -13,11 +16,15 @@ class Data:
             self[name] = value
 
     def __getattr__(self, name):
-        return self.__data[name]
+        data = super().__getattribute__('__data')
+        return data[name]
 
     __getitem__ = __getattr__
 
     def __setattr__(self, name, value):
-        self.__data[name] = value
+        data = super().__getattribute__('__data')
+        if isinstance(value, dict):
+            value = self.__class__(**value)
+        data[name] = value
 
     __setitem__ = __setattr__

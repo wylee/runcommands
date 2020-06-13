@@ -3,22 +3,86 @@ import builtins
 import json
 import re
 from enum import Enum
-from inspect import Parameter
+from inspect import Parameter as BaseParameter
 from typing import Mapping, Sequence
 
 from .exc import CommandError
-from .util import cached_property
+from .util import cached_property, is_type
 
 
-EMPTY = Parameter.empty
-KEYWORD_ONLY = Parameter.KEYWORD_ONLY
-POSITIONAL_OR_KEYWORD = Parameter.POSITIONAL_OR_KEYWORD
-VAR_POSITIONAL = Parameter.VAR_POSITIONAL
+EMPTY = BaseParameter.empty
+KEYWORD_ONLY = BaseParameter.KEYWORD_ONLY
+POSITIONAL_ONLY = BaseParameter.POSITIONAL_ONLY
+POSITIONAL_OR_KEYWORD = BaseParameter.POSITIONAL_OR_KEYWORD
+VAR_KEYWORD = BaseParameter.VAR_KEYWORD
+VAR_POSITIONAL = BaseParameter.VAR_POSITIONAL
 
 
 class POSITIONAL_PLACEHOLDER:
 
     """Used as a placeholder for positionals."""
+
+
+class Parameter:
+
+    """Wrapper for :class:`inspect.Parameter`.
+
+    Adds convenience methods for our typical use cases.
+
+    """
+
+    empty = EMPTY
+    KEYWORD_ONLY = KEYWORD_ONLY
+    POSITIONAL_ONLY = POSITIONAL_ONLY
+    POSITIONAL_OR_KEYWORD = POSITIONAL_OR_KEYWORD
+    VAR_KEYWORD = VAR_KEYWORD
+    VAR_POSITIONAL = VAR_POSITIONAL
+
+    def __init__(self, parameter):
+        self.parameter = parameter
+
+    @cached_property
+    def is_positional(self):
+        kind = self.parameter.kind
+        default = self.parameter.default
+        return (
+            (kind is POSITIONAL_ONLY) or
+            (kind is POSITIONAL_OR_KEYWORD and default is EMPTY)
+        )
+
+    @cached_property
+    def is_var_positional(self):
+        return self.parameter.kind is VAR_POSITIONAL
+
+    @cached_property
+    def is_var_keyword(self):
+        return self.parameter.kind is VAR_KEYWORD
+
+    @cached_property
+    def is_optional(self):
+        kind = self.parameter.kind
+        default = self.parameter.default
+        return (
+            (
+                (kind is POSITIONAL_OR_KEYWORD) or
+                (kind is KEYWORD_ONLY)
+            ) and
+            default is not EMPTY
+        )
+
+    @cached_property
+    def is_required_keyword_only(self):
+        kind = self.parameter.kind
+        default = self.parameter.default
+        return kind is KEYWORD_ONLY and default is EMPTY
+
+    @cached_property
+    def is_bool(self):
+        return isinstance(self.parameter.default, bool)
+
+    def __getattr__(self, name):
+        """Proxy to wrapped :class:`inspect.Parameter`."""
+        return getattr(self.parameter, name)
 
 
 class ArgConfig:
@@ -214,7 +278,7 @@ class Arg:
                 container = tuple
 
         if type is None:
-            if isinstance(choices, builtins.type) and issubclass(choices, Enum):
+            if is_type(choices, Enum):
                 type = choices
             elif container is None:
                 if default not in (None, EMPTY):
@@ -390,7 +454,7 @@ class Arg:
 class HelpArg(Arg):
 
     def __init__(self, *, command):
-        parameter = Parameter('help', POSITIONAL_OR_KEYWORD, default=False)
+        parameter = Parameter(BaseParameter('help', POSITIONAL_OR_KEYWORD, default=False))
         super().__init__(
             command=command,
             parameter=parameter,

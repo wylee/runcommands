@@ -1,5 +1,64 @@
 # RunCommands
 
+## 1.0a59 - 2020-06-12
+
+- Made `data` property of `Command` instances read only.
+- More args are now passed to command callbacks:
+  - `Command` instance (as before)
+  - result of running command
+  - `aborted` flag, which will be the same for *all* callbacks; this is
+    intended for use in base command callbacks for deciding how to do
+    cleanup
+
+## 1.0a58 - 2020-06-12
+
+- Added 1.0a57 change log.
+
+- Added `is_type()` utility function and used it to tidy up code in a couple
+  places.
+
+- Added `Parameter` class to wrap `inspect.Parameter`. It has some convenience
+  functions that allows some code to be tidied.
+
+- Fixed `Command.find_parameter()` so that it does what it says it does. In
+  particular, it now tries to find a parameter with the passed-in name before
+  normalizing the name and trying to find an _arg_ with that name (and then
+  retrieving the parameter from that arg). This allows parameters that don't
+  have a corresponding arg to be retrieved.
+
+- Improved how args are passed down from base commands to subcommands.
+
+  The main change is that a given base arg will now be passed down to a
+  subcommand when it has a corresponding function _parameter_ rather than a
+  corresponding _arg_ as before (parameter = function parameter; arg = command
+  line arg).
+
+  This allows subcommands to have required keyword-only parameters that can
+  receive args from a base command. Since required keyword-only parameters
+  don't correspond to command line args, this forces these args to be passed to
+  the base command while still giving subcommands a way to get access to them
+  when needed.
+
+  The use case for this is args that need to be handled consistently at a
+  higher level. The specific use case that motivated this was handling "dry
+  run" functionality (esp. pertaining to database transactions).
+
+- Constrained flake8 to <3.8 for now, since 3.8 is finding "errors" that aren't
+  errors--it's calling out quoted strings as undefined names in function arg
+  annotations 🤔
+
+## 1.0a57 - 2020-06-11
+
+- Fixed `Data` class used for attaching arbitrary data to commands via `data`
+  attribute on `Command` instances (added in 1.0a55). Accessing the internal
+  data dict was causing infinite recursion.
+- Improved `Data` so that when a `dict` is added it will be converted to
+  a `Data` object. This is for convenience and consistent access to nested
+  data.
+- Modified `Printer` to flush by default when the console is a TTY. This aligns
+  with what I assume is usually the desired behavior when running commands
+  interactively.
+
 ## 1.0a56 - 2020-04-21
 
 - Default inverse short and long options are now only set for boolean
