@@ -45,6 +45,7 @@ class CommandRunner:
         commands_to_run = []
         while argv:
             command, command_argv = partition_args(collection, argv)
+            command.debug = self.debug
             command_to_run = CommandToRun(command, command_argv)
             commands_to_run.append(command_to_run)
             num_consumed = len(command_argv) + 1
