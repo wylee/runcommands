@@ -228,6 +228,12 @@ class Run(Command):
         })
         return super().run(cli_argv, **kwargs)
 
+    def console_script(self, argv=None, **overrides):
+        _argv = sys.argv[1:] if argv is None else argv
+        if '-d' in _argv or '--debug' in _argv:
+            self.debug = True
+        return super().console_script(argv, **overrides)
+
     def partition_argv(self, argv=None):
         if argv is None:
             argv = sys.argv[1:]
