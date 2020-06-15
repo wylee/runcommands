@@ -52,8 +52,16 @@ class Run(Command):
                                 'added just before commands are run'
                        ) = None,
                        # Meta
-                       info: arg(help='Show info and exit') = False,
-                       list_commands: arg(help='Show info & commands and exit') = False,
+                       info: arg(
+                           no_inverse=True,
+                           help='Show info and exit',
+                           mutual_exclusion_group='meta-show',
+                       ) = False,
+                       list_commands: arg(
+                           no_inverse=True,
+                           help='Show info & commands and exit',
+                           mutual_exclusion_group='meta-show',
+                       ) = False,
                        debug: arg(
                            type=bool,
                            help='Print debugging info & re-raise exceptions; also added to globals'
