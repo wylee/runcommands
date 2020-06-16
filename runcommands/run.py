@@ -10,7 +10,7 @@ from .args import arg, json_value
 from .command import Command
 from .collection import Collection
 from .const import DEFAULT_COMMANDS_MODULE
-from .exc import RunnerError
+from .exc import RunAborted, RunnerError
 from .runner import CommandRunner
 from .util import abs_path, merge_dicts, printer
 
@@ -429,8 +429,7 @@ class Run(Command):
         return obj
 
     def sigint_handler(self, _sig_num, _frame):
-        printer.warning('Aborted')
-        sys.exit(0)
+        raise RunAborted(0, message='\nAborted by Ctrl-C (SIGINT)')
 
 
 run = Run()

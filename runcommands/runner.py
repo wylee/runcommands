@@ -1,7 +1,7 @@
 import os
 from itertools import chain
 
-from .exc import RunnerError
+from .exc import RunAborted, RunCommandsError, RunnerError
 from .util import printer
 
 
@@ -14,28 +14,50 @@ class CommandRunner:
         self.debug = debug
 
     def run(self, argv):
+        debug = self.debug
         commands_to_run = self.get_commands_to_run(self.collection, argv)
 
         show_help_for = [c for c in commands_to_run if c.help_requested]
         if show_help_for:
             count = len(show_help_for)
-            for command in show_help_for:
+            for cmd in show_help_for:
                 if count > 1:
-                    printer.hr('Help for', command.name, end=os.linesep * 2)
-                command.show_help()
+                    printer.hr('Help for', cmd.name, end=os.linesep * 2)
+                cmd.show_help()
             return ()
 
+        aborted = False
+        aborted_exc = None
         results = []
         commands_with_callbacks = []
-        for command in commands_to_run:
-            result = command.run()
-            results.append(result)
-            if command.callbacks:
-                commands_with_callbacks.append(command)
 
-        for command in commands_with_callbacks:
-            for callback in command.callbacks:
-                callback(command)
+        for cmd in commands_to_run:
+            try:
+                result = cmd.run()
+            except RunCommandsError as exc:
+                if isinstance(exc, RunAborted):
+                    aborted = True
+                    aborted_exc = exc.create_nested()
+                else:
+                    raise
+                if debug:
+                    if aborted:
+                        printer.debug('\nExiting command runner due to abort')
+                    else:
+                        printer.debug('Exiting command runner due to error')
+                break
+            else:
+                results.append(result)
+                if cmd.callbacks:
+                    commands_with_callbacks.append((cmd, result))
+
+        for cmd, result in commands_with_callbacks:
+            for callback in cmd.callbacks:
+                callback(cmd.command, result, aborted)
+
+        # XXX: Defer till here so callbacks are run first.
+        if aborted:
+            raise aborted_exc
 
         return tuple(results)
 
