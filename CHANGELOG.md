@@ -1,8 +1,12 @@
 # RunCommands
 
-## 1.0a60 - unreleased
+## 1.0a60 - 2020-07-16
 
-In progress...
+- Fixed/improved callback handling. See 58be7ab86a26 for details.
+- In `Printer`, moved default stream assignments for the various print
+  methods from keyword args into the method body. This allows
+  `sys.stdout` and `sys.stderr` to be redirected using
+  `contextlib.redirect_stdout` in tests.
 
 ## 1.0a59 - 2020-06-12
 
