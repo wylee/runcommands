@@ -73,9 +73,11 @@ class Printer:
             string = '{string}{end}'.format_map(locals())
         return string
 
-    def print(self, *args, color=None, end=None, file=sys.stdout, flush=None, **kwargs):
+    def print(self, *args, color=None, end=None, file=None, flush=None, **kwargs):
         if color is None:
             color = self.default_color
+        if file is None:
+            file = sys.stdout
         if isatty(file):
             if flush is None:
                 flush = True
@@ -107,24 +109,32 @@ class Printer:
             color = self.color_map.echo
         self.print(*args, color=color, **kwargs)
 
-    def warning(self, *args, color=None, file=sys.stderr, **kwargs):
+    def warning(self, *args, color=None, file=None, **kwargs):
         if color is None:
             color = self.color_map.warning
+        if file is None:
+            file = sys.stderr
         self.print(*args, color=color, file=file, **kwargs)
 
-    def error(self, *args, color=None, file=sys.stderr, **kwargs):
+    def error(self, *args, color=None, file=None, **kwargs):
         if color is None:
             color = self.color_map.error
+        if file is None:
+            file = sys.stderr
         self.print(*args, color=color, file=file, **kwargs)
 
-    def danger(self, *args, color=None, file=sys.stderr, **kwargs):
+    def danger(self, *args, color=None, file=None, **kwargs):
         if color is None:
             color = self.color_map.danger
+        if file is None:
+            file = sys.stderr
         self.print(*args, color=color, file=file, **kwargs)
 
-    def debug(self, *args, color=None, file=sys.stderr, **kwargs):
+    def debug(self, *args, color=None, file=None, **kwargs):
         if color is None:
             color = self.color_map.debug
+        if file is None:
+            file = sys.stderr
         self.print(*args, color=color, file=file, **kwargs)
 
     def hr(self, *args, color=None, fill_char='=', **kwargs):

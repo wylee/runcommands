@@ -326,28 +326,46 @@ class Command:
         else:
             commands = [(self, argv)]
 
+        aborted = False
+        return_code = 0
         commands_with_callbacks = []
 
-        aborted = False
         for cmd, cmd_argv in commands:
             try:
                 result = cmd.run(cmd_argv, **overrides)
-            except RunCommandsError as result:
-                if debug:
-                    raise
-                if isinstance(result, RunAborted):
-                    aborted = True
-                return_code = result.return_code if hasattr(result, 'return_code') else 1
-                result_str = str(result)
+            except RunCommandsError as exc:
+                # When an internal error is encountered, no more
+                # commands should be run, and callbacks should only be
+                # run on abort (i.e., not for any other error). On
+                # abort, callbacks for the command that was aborted
+                # should *not* be run.
+                return_code = exc.return_code if hasattr(exc, 'return_code') else 1
+                result_str = str(exc)
                 if result_str:
                     if return_code:
-                        printer.error(result_str, file=sys.stderr)
+                        printer.error(result_str)
+                    elif aborted:
+                        printer.warning(result_str)
                     else:
                         printer.print(result_str)
+                if debug:
+                    if aborted:
+                        printer.debug('\nExiting console script due to abort')
+                    else:
+                        printer.debug('Exiting console script due to error')
+                if isinstance(exc, RunAborted):
+                    aborted = True
+                    if exc.is_nested and cmd.callbacks:
+                        commands_with_callbacks.append((cmd, exc))
+                else:
+                    commands_with_callbacks = []
+                    if debug:
+                        raise
+                break
             else:
-                return_code = result.return_code if hasattr(result, 'return_code') else 0
-            if cmd.callbacks:
-                commands_with_callbacks.append((cmd, result))
+                return_code = result.return_code if hasattr(result, 'return_code') else 1
+                if cmd.callbacks:
+                    commands_with_callbacks.append((cmd, result))
 
         for cmd, result in commands_with_callbacks:
             for callback in cmd.callbacks:

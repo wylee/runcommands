@@ -10,7 +10,7 @@ from .args import arg, json_value
 from .command import Command
 from .collection import Collection
 from .const import DEFAULT_COMMANDS_MODULE
-from .exc import RunnerError
+from .exc import RunAborted, RunnerError
 from .runner import CommandRunner
 from .util import abs_path, merge_dicts, printer
 
@@ -52,8 +52,16 @@ class Run(Command):
                                 'added just before commands are run'
                        ) = None,
                        # Meta
-                       info: arg(help='Show info and exit') = False,
-                       list_commands: arg(help='Show info & commands and exit') = False,
+                       info: arg(
+                           no_inverse=True,
+                           help='Show info and exit',
+                           mutual_exclusion_group='meta-show',
+                       ) = False,
+                       list_commands: arg(
+                           no_inverse=True,
+                           help='Show info & commands and exit',
+                           mutual_exclusion_group='meta-show',
+                       ) = False,
                        debug: arg(
                            type=bool,
                            help='Print debugging info & re-raise exceptions; also added to globals'
@@ -219,6 +227,12 @@ class Run(Command):
             'cli_args': tuple(cli_argv),
         })
         return super().run(cli_argv, **kwargs)
+
+    def console_script(self, argv=None, **overrides):
+        _argv = sys.argv[1:] if argv is None else argv
+        if '-d' in _argv or '--debug' in _argv:
+            self.debug = True
+        return super().console_script(argv, **overrides)
 
     def partition_argv(self, argv=None):
         if argv is None:
@@ -415,8 +429,7 @@ class Run(Command):
         return obj
 
     def sigint_handler(self, _sig_num, _frame):
-        printer.warning('Aborted')
-        sys.exit(0)
+        raise RunAborted(0, message='\nAborted by Ctrl-C (SIGINT)')
 
 
 run = Run()
