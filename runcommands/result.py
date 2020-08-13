@@ -1,5 +1,6 @@
 import os
 from subprocess import CompletedProcess
+from typing import Mapping
 
 from .exc import RunCommandsError
 from .util import cached_property
@@ -9,7 +10,6 @@ class Result(RunCommandsError):
 
     def __init__(self, args, return_code, stdout, stderr):
         self.args = args
-        self.args_str = args if isinstance(args, str) else ' '.join(args)
         self.return_code = return_code
         self.stdout = stdout
         self.stderr = stderr
@@ -24,6 +24,18 @@ class Result(RunCommandsError):
             result.stdout,
             result.stderr,
         )
+
+    @cached_property
+    def args_str(self):
+        args = self.args
+        if isinstance(args, str):
+            return args
+        if isinstance(args, Mapping):
+            return ' '.join(
+                '{0} => {1}'.format(item) for item in args.items()
+            )
+        # XXX: Assume list, tuple, or some other kind of sequence
+        return ' '.join(str(a) for a in args)
 
     @cached_property
     def stdout_lines(self):
