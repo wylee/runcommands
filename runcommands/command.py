@@ -8,6 +8,7 @@ from typing import Mapping
 
 from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg, Parameter
 from .exc import CommandError, RunAborted, RunCommandsError
+from .result import Result
 from .util import cached_property, camel_to_underscore, get_hr, is_type, printer, Data
 
 
@@ -363,7 +364,7 @@ class Command:
                         raise
                 break
             else:
-                return_code = result.return_code if hasattr(result, 'return_code') else 1
+                result, return_code = self.process_result(result, cmd_argv)
                 if cmd.callbacks:
                     commands_with_callbacks.append((cmd, result))
 
@@ -372,6 +373,21 @@ class Command:
                 callback(cmd, result, aborted)
 
         return return_code
+
+    def process_result(self, result, argv, stdout=None, stderr=None):
+        """Process the result returned by a command."""
+        if result is None:
+            result = 0
+        if isinstance(result, int):
+            return_code = result
+            result = Result(argv, return_code, stdout, stderr)
+        elif hasattr(result, 'return_code'):
+            # Assume Result or Result-like object.
+            return_code = result.return_code
+        else:
+            # Some other kind of result object.
+            return_code = 0
+        return result, return_code
 
     def partition_subcommands(self, argv, base=True):
         debug = self.debug

@@ -6,10 +6,11 @@ from unittest import TestCase
 from .. import arg, command, subcommand
 from ..commands import local
 from ..exc import RunAborted
+from ..result import Result
 from ..run import run
 
 
-class Result:
+class MockResult:
 
     def __init__(self, return_code):
         self.return_code = return_code
@@ -35,17 +36,17 @@ class Callback:
 
 @command
 def base(subcommand: arg(default=None)):
-    return Result('base {subcommand}'.format_map(locals()))
+    return MockResult('base {subcommand}'.format_map(locals()))
 
 
 @subcommand(base)
 def sub(subcommand: arg(default=None), optional=None):
-    return Result('sub {subcommand} {optional}'.format_map(locals()))
+    return MockResult('sub {subcommand} {optional}'.format_map(locals()))
 
 
 @subcommand(sub)
 def subsub(positional, optional=None):
-    return Result('subsub {positional} {optional}'.format_map(locals()))
+    return MockResult('subsub {positional} {optional}'.format_map(locals()))
 
 
 @base.subcommand
@@ -91,7 +92,8 @@ class TestRun(TestCase):
         self._run()
         self.assertTrue(callback.called)
         self.assertIs(callback.cmd, run)
-        self.assertIsNone(callback.result)  # run doesn't return anything
+        self.assertIsInstance(callback.result, Result)
+        self.assertEqual(callback.result.return_code, 0)
         self.assertFalse(callback.aborted)
         run.callbacks = []
 
@@ -146,15 +148,15 @@ class TestSubcommand(TestCase):
     def test_call_subsubcommand_with_shared_args(self):
         @command
         def base1(cmd, a=None):
-            return Result('base1({cmd}, {a})'.format_map(locals()))
+            return MockResult('base1({cmd}, {a})'.format_map(locals()))
 
         @subcommand(base1)
         def sub1(cmd: arg(default=None), a=None, flag=True):
-            return Result('sub1({cmd}, {a}, {flag})'.format_map(locals()))
+            return MockResult('sub1({cmd}, {a}, {flag})'.format_map(locals()))
 
         @sub1.subcommand
         def subsub1(a=None, flag=True):
-            return Result('subsub1({a}, {flag})'.format_map(locals()))
+            return MockResult('subsub1({a}, {flag})'.format_map(locals()))
 
         result = base1.console_script(argv=['-a', 'A', 'sub1', '--no-flag'])
         self.assertEqual(result, 'sub1(None, A, False)')
