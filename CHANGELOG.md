@@ -1,8 +1,17 @@
 # RunCommands
 
-## 1.0a61 - unreleased
+## 1.0a61 - 2020-08-26
 
-In progress...
+- Improved/fixed/standardized how command results are processed. A
+  `Result` object is now created in most cases, except when a command
+  returns something that's not `None`, an `int`, or a `Result`.
+
+  When a command returns `None` or an `int`, 0 or the `int` is now
+  returned from `Command.console_script` instead of 1 (not sure what the
+  rationale behind returning 1 was in these cases).
+
+  Callbacks will now receive `Result` objects in most cases, which gives
+  them access to commands' stdout, etc.
 
 ## 1.0a60 - 2020-07-16
 
