@@ -1,4 +1,5 @@
 import os
+import shlex
 from subprocess import CompletedProcess
 from typing import Mapping
 
@@ -9,6 +10,7 @@ from .util import cached_property
 class Result(RunCommandsError):
 
     def __init__(self, args, return_code, stdout, stderr):
+        args = shlex.split(args) if isinstance(args, str) else args
         self.args = args
         self.return_code = return_code
         self.stdout = stdout
@@ -28,8 +30,6 @@ class Result(RunCommandsError):
     @cached_property
     def args_str(self):
         args = self.args
-        if isinstance(args, str):
-            return args
         if isinstance(args, Mapping):
             return ' '.join(
                 '{0} => {1}'.format(item) for item in args.items()
