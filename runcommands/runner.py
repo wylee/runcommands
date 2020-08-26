@@ -47,6 +47,7 @@ class CommandRunner:
                         printer.debug('Exiting command runner due to error')
                 break
             else:
+                result, return_code = cmd.process_result(result)
                 results.append(result)
                 if cmd.callbacks:
                     commands_with_callbacks.append((cmd, result))
@@ -142,6 +143,9 @@ class CommandToRun:
     def run(self):
         argv_dict = self.command.parse_args(self.argv, False)
         return self.command.run(argv_dict)
+
+    def process_result(self, result, **kwargs):
+        return self.command.process_result(result, self.argv, **kwargs)
 
     def show_help(self):
         print(self.command.help)
