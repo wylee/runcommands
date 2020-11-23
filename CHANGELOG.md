@@ -1,8 +1,13 @@
 # RunCommands
 
-## 1.0a62 - unreleased
+## 1.0a62 - 2020-11-22
 
-In progress...
+- Drop support for Python 3.5 since it's no longer supported.
+- Add support for Python 3.9. For now, this just means adding Python 3.9
+  to the list of supported version and the list of versions tested via
+  tox.
+- When possible, set type from default value for container args that
+  don't specifiy a type.
 
 ## 1.0a61 - 2020-08-26
 
