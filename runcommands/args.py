@@ -280,11 +280,13 @@ class Arg:
         if type is None:
             if is_type(choices, Enum):
                 type = choices
-            elif container is None:
-                if default not in (None, EMPTY):
-                    type = default.__class__
+            elif container is not None:
+                if default and default is not EMPTY:
+                    type = default[0].__class__
                 else:
                     type = str
+            elif default not in (None, EMPTY):
+                type = default.__class__
             else:
                 type = str
 

@@ -54,12 +54,48 @@ def sub_abort():
     raise RunAborted()
 
 
+@command
+def container_args(
+    positional: arg(container=tuple, type=int),
+    optional: arg(type=int) = (),
+    another_optional: arg(container=list, type=float) = None,
+    third_optional=(42,),
+):
+    return MockResult((positional, optional, another_optional, third_optional))
+
+
 class TestLocalCommand(TestCase):
 
     def test_local_ls(self):
         result = local(['ls', '-1'], cd=os.path.dirname(__file__), stdout='capture')
         self.assertIn('__init__.py', result.stdout_lines)
         self.assertTrue(result)
+
+
+class TestCommandWithContainerArgs(TestCase):
+
+    def test_positional(self):
+        result = container_args.console_script(argv=['1'])
+        self.assertEqual(result, ((1,), (), None, (42,)))
+
+    def test_positional_and_optional(self):
+        result = container_args.console_script(argv=['1', '--optional', '2'])
+        self.assertEqual(result, ((1,), (2,), None, (42,)))
+
+    def test_positional_and_optional_and_optional(self):
+        argv = ['1', '--optional', '2', '--another-optional', '3.14']
+        result = container_args.console_script(argv=argv)
+        self.assertEqual(result, ((1,), (2,), [3.14], (42,)))
+
+    def test_positional_and_optional_and_optional_and_optional(self):
+        argv = [
+            '1',
+            '--optional', '2',
+            '--another-optional', '3.14',
+            '--third-optional', '13',
+        ]
+        result = container_args.console_script(argv=argv)
+        self.assertEqual(result, ((1,), (2,), [3.14], (13,)))
 
 
 class TestRun(TestCase):
