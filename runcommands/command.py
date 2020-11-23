@@ -1,16 +1,15 @@
 import argparse
-import builtins
 import inspect
 import signal
 import sys
 import time
 from collections import OrderedDict
-from inspect import Parameter
 from typing import Mapping
 
-from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg
-from .exc import CommandError, RunCommandsError
-from .util import cached_property, camel_to_underscore, get_hr, printer, Data
+from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg, Parameter
+from .exc import CommandError, RunAborted, RunCommandsError
+from .result import Result
+from .util import cached_property, camel_to_underscore, get_hr, is_type, printer, Data
 
 
 __all__ = ['command', 'subcommand', 'Command']
@@ -156,7 +155,7 @@ class Command:
         self.description = description
         self.short_description = short_description
         self.timed = timed
-        self.data = Data(**(data or {}))
+        self.__data = Data(**(data or {}))
         self.callbacks = callbacks or []
         self.arg_config = arg_config or {}
         self.debug = debug
@@ -192,6 +191,11 @@ class Command:
             depth += 1
             base_command = base_command.base_command
         return depth
+
+    @property
+    def data(self):
+        # XXX: Read-only property
+        return self.__data
 
     @cached_property
     def prog_name(self):
@@ -323,31 +327,67 @@ class Command:
         else:
             commands = [(self, argv)]
 
+        aborted = False
+        return_code = 0
         commands_with_callbacks = []
 
         for cmd, cmd_argv in commands:
             try:
                 result = cmd.run(cmd_argv, **overrides)
-            except RunCommandsError as result:
-                if debug:
-                    raise
-                return_code = result.return_code if hasattr(result, 'return_code') else 1
-                result_str = str(result)
+            except RunCommandsError as exc:
+                # When an internal error is encountered, no more
+                # commands should be run, and callbacks should only be
+                # run on abort (i.e., not for any other error). On
+                # abort, callbacks for the command that was aborted
+                # should *not* be run.
+                return_code = exc.return_code if hasattr(exc, 'return_code') else 1
+                result_str = str(exc)
                 if result_str:
                     if return_code:
-                        printer.error(result_str, file=sys.stderr)
+                        printer.error(result_str)
+                    elif aborted:
+                        printer.warning(result_str)
                     else:
                         printer.print(result_str)
+                if debug:
+                    if aborted:
+                        printer.debug('\nExiting console script due to abort')
+                    else:
+                        printer.debug('Exiting console script due to error')
+                if isinstance(exc, RunAborted):
+                    aborted = True
+                    if exc.is_nested and cmd.callbacks:
+                        commands_with_callbacks.append((cmd, exc))
+                else:
+                    commands_with_callbacks = []
+                    if debug:
+                        raise
+                break
             else:
-                return_code = result.return_code if hasattr(result, 'return_code') else 0
-            if cmd.callbacks:
-                commands_with_callbacks.append(cmd)
+                result, return_code = self.process_result(result, cmd_argv)
+                if cmd.callbacks:
+                    commands_with_callbacks.append((cmd, result))
 
-        for cmd in commands_with_callbacks:
+        for cmd, result in commands_with_callbacks:
             for callback in cmd.callbacks:
-                callback(cmd)
+                callback(cmd, result, aborted)
 
         return return_code
+
+    def process_result(self, result, argv, stdout=None, stderr=None):
+        """Process the result returned by a command."""
+        if result is None:
+            result = 0
+        if isinstance(result, int):
+            return_code = result
+            result = Result(argv, return_code, stdout, stderr)
+        elif hasattr(result, 'return_code'):
+            # Assume Result or Result-like object.
+            return_code = result.return_code
+        else:
+            # Some other kind of result object.
+            return_code = 0
+        return result, return_code
 
     def partition_subcommands(self, argv, base=True):
         debug = self.debug
@@ -402,22 +442,38 @@ class Command:
             base_cmd, base_args = commands[0]
             base_args = base_args.copy()
             subcmd_arg_names = set(subcmd_args)
+            empty = Parameter.empty
             for i, (subcmd, subcmd_args) in enumerate(commands[1:], 1):
-                for name, value in base_args.items():
-                    base_cmd_arg = base_cmd.find_arg(name)
-                    subcmd_arg = subcmd.find_arg(name)
+                for base_arg in base_cmd.args.values():
+                    name = base_arg.parameter.name
+                    sub_param = subcmd.find_parameter(name)
                     pass_down = (
-                        # The subcommand has this option
-                        subcmd_arg and
-                        # And it wasn't passed directly to the subcommand
-                        (name not in subcmd_arg_names) and
-                        # And the base command has this arg too
-                        base_cmd_arg and
-                        # And it's optional...
-                        base_cmd_arg.is_optional and
-                        # ...but not an optional positional
-                        (not base_cmd_arg.is_positional)
+                        name not in subcmd_arg_names and
+                        base_arg.is_optional and
+                        not base_arg.is_positional and
+                        sub_param and
+                        (
+                            sub_param.is_optional or
+                            sub_param.is_required_keyword_only
+                        )
                     )
+                    if pass_down:
+                        if name in base_args:
+                            # Arg was passed to base command.
+                            #
+                            # XXX: Don't use base args's default value
+                            #      in this case so subcommand's default
+                            #      will be used.
+                            value = base_args[name]
+                        elif sub_param.is_required_keyword_only:
+                            # Arg was *not* passed to base command.
+                            #
+                            # XXX: Use base arg's default value in this
+                            #      case since there's no subcommand
+                            #      default.
+                            value = base_arg.default
+                        else:
+                            pass_down = False
                     if pass_down:
                         subcmd_args[name] = value
                 base_cmd = subcmd
@@ -668,9 +724,13 @@ class Command:
 
     def find_parameter(self, name):
         """Find parameter by name or normalized arg name."""
-        name = self.normalize_name(name)
-        arg = self.args.get(name)
-        return None if arg is None else arg.parameter
+        param = self.parameters.get(name)
+        if param is None:
+            name = self.normalize_name(name)
+            arg = self.args.get(name)
+            if arg is not None and not isinstance(arg, HelpArg):
+                param = arg.parameter
+        return param
 
     def get_arg_config(self, param):
         annotation = param.annotation
@@ -733,7 +793,10 @@ class Command:
     def parameters(self):
         implementation = self.implementation
         signature = inspect.signature(implementation)
-        return signature.parameters
+        parameters = OrderedDict()
+        for name, param in signature.parameters.items():
+            parameters[name] = Parameter(param)
+        return parameters
 
     @cached_property
     def has_kwargs(self):
@@ -746,9 +809,6 @@ class Command:
         args = OrderedDict()
 
         empty = Parameter.empty
-        keyword_only = Parameter.KEYWORD_ONLY
-        var_keyword = Parameter.VAR_KEYWORD
-        var_positional = Parameter.VAR_POSITIONAL
 
         normalize_name = self.normalize_name
         get_arg_config = self.get_arg_config
@@ -761,9 +821,9 @@ class Command:
             (normalize_name(n), p)
             for n, p in params.items()
             if not (
-                (n.startswith('_')) or
-                (p.kind is keyword_only and p.default is empty) or
-                (p.kind is var_keyword)
+                n.startswith('_') or
+                p.is_required_keyword_only or
+                p.is_var_keyword
             )
         ))
 
@@ -791,12 +851,9 @@ class Command:
             mutual_exclusion_group = annotation.mutual_exclusion_group
 
             default = param.default
-            is_var_positional = param.kind is var_positional
-            is_positional = default is empty and not is_var_positional
-            is_bool = (
-                (isinstance(type, builtins.type) and issubclass(type, bool)) or
-                isinstance(default, bool)
-            )
+            is_var_positional = param.is_var_positional
+            is_positional = param.is_positional
+            is_bool = is_type(type, bool) or param.is_bool
 
             if annotation.default is not empty:
                 if is_positional or is_var_positional:

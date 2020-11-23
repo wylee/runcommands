@@ -159,7 +159,7 @@ def install_completion(
 
 
 @command
-def test(*tests, fail_fast=False, with_coverage=True, with_lint=True):
+def test(*tests, fail_fast=False, verbosity=1, with_coverage=True, with_lint=True):
     original_working_directory = os.getcwd()
 
     if tests:
@@ -170,7 +170,7 @@ def test(*tests, fail_fast=False, with_coverage=True, with_lint=True):
         coverage_message = ' with coverage' if with_coverage else ''
         printer.header('Running tests{coverage_message}...'.format_map(locals()))
 
-    runner = unittest.TextTestRunner(failfast=fail_fast)
+    runner = unittest.TextTestRunner(failfast=fail_fast, verbosity=verbosity)
     loader = unittest.TestLoader()
 
     if with_coverage:

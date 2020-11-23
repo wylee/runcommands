@@ -2,7 +2,7 @@ RunCommands
 +++++++++++
 
 A simple command runner that uses ``argparse`` from the Python standard
-library under the hood. Runs on Python 3 only (3.5 and up). Uses annotations to
+library under the hood. Runs on Python 3 only (3.6 and up). Uses annotations to
 configure options.
 
 There are two basic use cases:

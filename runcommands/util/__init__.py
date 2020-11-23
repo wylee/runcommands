@@ -1,3 +1,4 @@
+import builtins
 import inspect
 from collections import OrderedDict
 
@@ -21,6 +22,7 @@ __all__ = [
     'get_hr', 'printer',
     'confirm', 'prompt',
     'camel_to_underscore',
+    'is_type',
 ]
 
 
@@ -54,3 +56,10 @@ def get_commands_in_namespace(namespace=None, level=1):
         if isinstance(obj, Command):
             commands[name] = obj
     return OrderedDict((name, commands[name]) for name in sorted(commands))
+
+
+def is_type(obj, type):
+    """Is the object a type object of the specified type?"""
+    if not isinstance(obj, builtins.type):
+        return False
+    return issubclass(obj, type)

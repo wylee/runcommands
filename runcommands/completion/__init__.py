@@ -34,7 +34,7 @@ def complete(
     tokens = shlex.split(command_line[:position])
     all_argv, run_argv, command_argv = run.partition_argv(tokens[1:])
 
-    with open(os.devnull, 'wb') as devnull_fp:
+    with open(os.devnull, 'w') as devnull_fp:
         with redirect_stderr(devnull_fp):
             run_args = run.parse_args(run_argv)
 

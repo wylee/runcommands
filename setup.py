@@ -47,7 +47,7 @@ setup(
     long_description=long_description,
     keywords=['run', 'commands', 'console', 'scripts', 'terminal'],
     url='https://github.com/wylee/runcommands',
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     install_requires=[
         'Jinja2>=2.10',
         'PyYAML>=5.1',
@@ -57,7 +57,7 @@ setup(
     extras_require={
         'dev': [
             'coverage',
-            'flake8',
+            'flake8<3.8',
             'Sphinx',
             'tox',
             'twine',
@@ -73,9 +73,9 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Topic :: Software Development :: Build Tools',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
     ],
 )
