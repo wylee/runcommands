@@ -1,4 +1,5 @@
 import enum
+import os
 import shutil
 import sys
 from typing import Mapping
@@ -47,6 +48,7 @@ class Printer:
         color_map: Mapping = None,
         default_color=None,
     ):
+        self.is_posix = os.name == "posix"
         self.colors = colors
         self.color_map = ColorMap()
         if colors:
@@ -61,6 +63,8 @@ class Printer:
         self.print(*args, **kwargs)
 
     def get_color(self, color):
+        if not self.is_posix:
+            return self.color_map.none
         if color is None:
             return self.color_map.none
         if isinstance(color, self.colors):
