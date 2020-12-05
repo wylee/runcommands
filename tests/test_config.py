@@ -1,10 +1,10 @@
 import os
 from unittest import TestCase
 
-from ..collection import Collection
-from ..command import command
-from ..run import run
-from ..runner import CommandRunner
+from runcommands.collection import Collection
+from runcommands.command import command
+from runcommands.run import run
+from runcommands.runner import CommandRunner
 
 
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'commands.yaml')

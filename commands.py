@@ -14,7 +14,8 @@ if os.path.abspath(sys.argv[0]) == os.path.abspath(__file__):
     #
     # - Ensure virtual env is created and dependencies are installed
     # - Ensure virtual env is activated
-    # - Ensure virtual env site packages directory is first on sys.path
+    # - Ensure virtual env site packages directory is at front of sys.path
+    # - Ensure package src directory is first in sys.path
     if shutil.which('poetry') is None:
         sys.stderr.write('poetry not installed or not on $PATH\n')
         sys.exit(1)
@@ -49,6 +50,8 @@ if os.path.abspath(sys.argv[0]) == os.path.abspath(__file__):
                 os.remove('poetry.lock')
             subprocess.run(['poetry', 'install'])
             activate_venv()
+
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 
 from runcommands import command  # noqa: E402
@@ -158,13 +161,13 @@ def test(*tests, fail_fast=False, verbosity=1, with_coverage=True, with_lint=Tru
 
     if with_coverage:
         from coverage import Coverage
-        coverage = Coverage(source=['runcommands'])
+        coverage = Coverage(source=['src/runcommands'])
         coverage.start()
 
     if tests:
         runner.run(loader.loadTestsFromNames(tests))
     else:
-        tests = loader.discover('.')
+        tests = loader.discover('./tests', top_level_dir='.')
         result = runner.run(tests)
         if not result.errors:
             if with_coverage:

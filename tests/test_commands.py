@@ -3,11 +3,11 @@ import os
 from contextlib import redirect_stderr, redirect_stdout
 from unittest import TestCase
 
-from .. import arg, command, subcommand
-from ..commands import local
-from ..exc import RunAborted
-from ..result import Result
-from ..run import run
+from runcommands import arg, command, subcommand
+from runcommands.commands import local
+from runcommands.exc import RunAborted
+from runcommands.result import Result
+from runcommands.run import run
 
 
 class MockResult:
