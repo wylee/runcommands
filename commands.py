@@ -230,7 +230,7 @@ def lint(show_errors: arg(help='Show errors') = True,
 
 
 @command
-def clean(verbose=False):
+def clean(verbose=False, more=False):
     """Clean up.
 
     Removes:
@@ -240,6 +240,10 @@ def clean(verbose=False):
         - **/__pycache__
         - **/*.py[co]
 
+    When more cleaning is requested, removes:
+
+        - ./.venv/
+        - ./runcommands.egg-info/
     Skips hidden directories.
 
     """
@@ -265,6 +269,9 @@ def clean(verbose=False):
             if f.endswith('.pyc') or f.endswith('.pyo'):
                 rmfile(os.path.join(rel_path, f), verbose)
 
+    if more:
+        rmdir('.venv', verbose)
+        rmdir('runcommands.egg-info', verbose)
 
 @command
 def build_docs(source='docs', destination='docs/_build', builder='html', clean=False):
