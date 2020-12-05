@@ -24,6 +24,7 @@ include = [
 
 [tool.poetry.dependencies]
 python = "^3.6"
+blessings = "^1.7"
 Jinja2 = "^2.10"
 PyYAML = "^5.1"
 
