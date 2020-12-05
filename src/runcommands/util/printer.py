@@ -8,7 +8,6 @@ from .misc import isatty
 
 
 class ColorMap:
-
     def __init__(self, color_map: Mapping[str, str]):
         self.add_colors(color_map)
 
@@ -27,17 +26,22 @@ class Printer:
 
     # Symbolic name => color
     color_map = {
-        'header': Color.magenta,
-        'info': Color.blue,
-        'success': Color.green,
-        'echo': Color.cyan,
-        'warning': Color.yellow,
-        'error': Color.red,
-        'danger': Color.red,
-        'debug': Color.cyan,
+        "header": Color.magenta,
+        "info": Color.blue,
+        "success": Color.green,
+        "echo": Color.cyan,
+        "warning": Color.yellow,
+        "error": Color.red,
+        "danger": Color.red,
+        "debug": Color.cyan,
     }
 
-    def __init__(self, colors: enum.Enum = Color, color_map: Mapping = None, default_color=None):
+    def __init__(
+        self,
+        colors: enum.Enum = Color,
+        color_map: Mapping = None,
+        default_color=None,
+    ):
         self.colors = colors
         self.color_map = ColorMap({color.name: color for color in colors})
         self.color_map.add_colors(self.__class__.color_map)
@@ -56,9 +60,9 @@ class Printer:
         try:
             return self.color_map[color]
         except KeyError:
-            raise ValueError('Unknown color: {color}'.format(color=color)) from None
+            raise ValueError(f"Unknown color: {color}") from None
 
-    def colorize(self, *args, color=None, sep=' ', end='reset'):
+    def colorize(self, *args, color=None, sep=" ", end="reset"):
         color = self.get_color(color)
         args = (color,) + args
         string = []
@@ -67,10 +71,10 @@ class Printer:
             if not isinstance(arg, self.colors):
                 string.append(sep)
         string.append(str(args[-1]))
-        string = ''.join(string)
+        string = "".join(string)
         if end:
             end = self.get_color(end)
-            string = '{string}{end}'.format_map(locals())
+            string = f"{string}{end}"
         return string
 
     def print(self, *args, color=None, end=None, file=None, flush=None, **kwargs):
@@ -137,16 +141,16 @@ class Printer:
             file = sys.stderr
         self.print(*args, color=color, file=file, **kwargs)
 
-    def hr(self, *args, color=None, fill_char='=', **kwargs):
+    def hr(self, *args, color=None, fill_char="=", **kwargs):
         if color is None:
             color = self.color_map.header
         hr = get_hr(fill_char)
         if args:
-            sep = kwargs.get('sep') or ' '
-            hr = hr[len(sep.join(args)) + len(sep):]
+            sep = kwargs.get("sep") or " "
+            hr = hr[len(sep.join(args)) + len(sep) :]
             prefix_kwargs = kwargs.copy()
-            prefix_kwargs['sep'] = sep
-            prefix_kwargs['end'] = sep
+            prefix_kwargs["sep"] = sep
+            prefix_kwargs["end"] = sep
             self.print(*args, color=color, **prefix_kwargs)
         self.print(hr, color=color, **kwargs)
 
@@ -154,7 +158,7 @@ class Printer:
 printer = Printer()
 
 
-def get_hr(fill_char='='):
+def get_hr(fill_char="="):
     term_size = shutil.get_terminal_size((80, 25))
     hr = fill_char * term_size.columns
     return hr

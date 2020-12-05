@@ -8,9 +8,13 @@ from ..command import command
 
 
 @command
-def copy_file(source, destination, follow_symlinks=True,
-              template: arg(type=bool_or(str), choices=('format', 'string')) = False,
-              context=None):
+def copy_file(
+    source,
+    destination,
+    follow_symlinks=True,
+    template: arg(type=bool_or(str), choices=("format", "string")) = False,
+    context=None,
+):
     """Copy source file to destination.
 
     The destination may be a file path or a directory. When it's a
@@ -36,15 +40,15 @@ def copy_file(source, destination, follow_symlinks=True,
     with open(source) as source:
         contents = source.read()
 
-    if template is True or template == 'format':
+    if template is True or template == "format":
         contents = contents.format_map(context)
-    elif template == 'string':
+    elif template == "string":
         string_template = string.Template(contents)
         contents = string_template.substitute(context)
     else:
-        raise ValueError('Unknown template type: %s' % template)
+        raise ValueError("Unknown template type: %s" % template)
 
-    with tempfile.NamedTemporaryFile('w', delete=False) as temp_file:
+    with tempfile.NamedTemporaryFile("w", delete=False) as temp_file:
         temp_file.write(contents)
 
     path = shutil.copy(temp_file.name, destination)

@@ -20,8 +20,9 @@ class Collection(MutableMapping):
         module = cls.get_module(module)
 
         commands = {
-            obj.name: obj for name, obj in vars(module).items()
-            if isinstance(obj, Command) and not name.startswith('_')
+            obj.name: obj
+            for name, obj in vars(module).items()
+            if isinstance(obj, Command) and not name.startswith("_")
         }
 
         return cls(commands)
@@ -30,13 +31,15 @@ class Collection(MutableMapping):
     def get_module(cls, path):
         raise_does_not_exist = False
 
-        if path.endswith('.py'):
+        if path.endswith(".py"):
             commands_module = abs_path(path)
             if not os.path.isfile(commands_module):
                 raise_does_not_exist = True
-                does_not_exist_message = 'Commands file does not exist: {commands_module}'
+                does_not_exist_message = (
+                    f"Commands file does not exist: {commands_module}"
+                )
             else:
-                spec = spec_from_file_location('commands', commands_module)
+                spec = spec_from_file_location("commands", commands_module)
                 module = module_from_spec(spec)
                 spec.loader.exec_module(module)
         else:
@@ -44,10 +47,12 @@ class Collection(MutableMapping):
                 module = import_module(path)
             except ImportError:
                 raise_does_not_exist = True
-                does_not_exist_message = 'Commands module could not be imported: {commands_module}'
+                does_not_exist_message = (
+                    f"Commands module could not be imported: {path}"
+                )
 
         if raise_does_not_exist:
-            raise RunnerError(does_not_exist_message.format_map(locals()))
+            raise RunnerError(does_not_exist_message)
 
         return module
 

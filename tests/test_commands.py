@@ -11,13 +11,11 @@ from runcommands.run import run
 
 
 class MockResult:
-
     def __init__(self, return_code):
         self.return_code = return_code
 
 
 class Callback:
-
     def __init__(self, implementation=None):
         self.called = False
         self.cmd = None
@@ -36,17 +34,17 @@ class Callback:
 
 @command
 def base(subcommand: arg(default=None)):
-    return MockResult('base {subcommand}'.format_map(locals()))
+    return MockResult(f"base {subcommand}")
 
 
 @subcommand(base)
 def sub(subcommand: arg(default=None), optional=None):
-    return MockResult('sub {subcommand} {optional}'.format_map(locals()))
+    return MockResult(f"sub {subcommand} {optional}")
 
 
 @subcommand(sub)
 def subsub(positional, optional=None):
-    return MockResult('subsub {positional} {optional}'.format_map(locals()))
+    return MockResult(f"subsub {positional} {optional}")
 
 
 @base.subcommand
@@ -65,41 +63,41 @@ def container_args(
 
 
 class TestLocalCommand(TestCase):
-
     def test_local_ls(self):
-        result = local(['ls', '-1'], cd=os.path.dirname(__file__), stdout='capture')
-        self.assertIn('__init__.py', result.stdout_lines)
+        result = local(["ls", "-1"], cd=os.path.dirname(__file__), stdout="capture")
+        self.assertIn("__init__.py", result.stdout_lines)
         self.assertTrue(result)
 
 
 class TestCommandWithContainerArgs(TestCase):
-
     def test_positional(self):
-        result = container_args.console_script(argv=['1'])
+        result = container_args.console_script(argv=["1"])
         self.assertEqual(result, ((1,), (), None, (42,)))
 
     def test_positional_and_optional(self):
-        result = container_args.console_script(argv=['1', '--optional', '2'])
+        result = container_args.console_script(argv=["1", "--optional", "2"])
         self.assertEqual(result, ((1,), (2,), None, (42,)))
 
     def test_positional_and_optional_and_optional(self):
-        argv = ['1', '--optional', '2', '--another-optional', '3.14']
+        argv = ["1", "--optional", "2", "--another-optional", "3.14"]
         result = container_args.console_script(argv=argv)
         self.assertEqual(result, ((1,), (2,), [3.14], (42,)))
 
     def test_positional_and_optional_and_optional_and_optional(self):
         argv = [
-            '1',
-            '--optional', '2',
-            '--another-optional', '3.14',
-            '--third-optional', '13',
+            "1",
+            "--optional",
+            "2",
+            "--another-optional",
+            "3.14",
+            "--third-optional",
+            "13",
         ]
         result = container_args.console_script(argv=argv)
         self.assertEqual(result, ((1,), (2,), [3.14], (13,)))
 
 
 class TestRun(TestCase):
-
     def setUp(self):
         self.stderr = io.StringIO()
         self.stdout = io.StringIO()
@@ -120,7 +118,7 @@ class TestRun(TestCase):
         self._run()
 
     def test_run_local_command(self):
-        self._run(['local', 'ls', '-1', '--stdout', 'hide'])
+        self._run(["local", "ls", "-1", "--stdout", "hide"])
 
     def test_run_with_callback(self):
         callback = Callback()
@@ -138,71 +136,69 @@ class TestRun(TestCase):
             self.assertIs(cmd, local)
             self.assertTrue(len(result.stdout_lines))
             self.assertFalse(aborted)
-            print('local callback implementation')
+            print("local callback implementation")
 
         run_callback = Callback()
         run.add_callback(run_callback)
         local_callback = Callback(implementation=local_callback_implementation)
         local.add_callback(local_callback)
-        self._run(['local', 'ls', '-1', '--stdout', 'capture'])
+        self._run(["local", "ls", "-1", "--stdout", "capture"])
         self.assertTrue(local_callback.called)
         self.assertIs(local_callback.cmd, local)
         self.assertIsNotNone(local_callback.result)
         self.assertFalse(local_callback.aborted)
-        self.assertIn('local callback implementation', self.stdout.getvalue())
+        self.assertIn("local callback implementation", self.stdout.getvalue())
         run.callbacks = []
         local.callbacks = []
 
 
 class TestSubcommand(TestCase):
-
     def test_base_command_subcommand_choices(self):
-        arg = base.args['subcommand']
+        arg = base.args["subcommand"]
         self.assertIsNotNone(arg.choices)
-        self.assertEqual(arg.choices, ['sub', 'sub-abort'])
+        self.assertEqual(arg.choices, ["sub", "sub-abort"])
 
     def test_call_base_command(self):
         result = base.console_script(argv=[])
-        self.assertEqual(result, 'base None')
+        self.assertEqual(result, "base None")
 
     def test_call_subcommand(self):
-        result = base.console_script(argv=['sub'])
-        self.assertEqual(result, 'sub None None')
+        result = base.console_script(argv=["sub"])
+        self.assertEqual(result, "sub None None")
 
     def test_call_subcommand_with_optional(self):
-        result = base.console_script(argv=['sub', '--optional', 'b'])
-        self.assertEqual(result, 'sub None b')
+        result = base.console_script(argv=["sub", "--optional", "b"])
+        self.assertEqual(result, "sub None b")
 
     def test_call_subsubcommand(self):
-        result = base.console_script(argv=['sub', 'subsub', 'a'])
-        self.assertEqual(result, 'subsub a None')
+        result = base.console_script(argv=["sub", "subsub", "a"])
+        self.assertEqual(result, "subsub a None")
 
     def test_call_subsubcommand_with_optional(self):
-        result = base.console_script(argv=['sub', 'subsub', 'a', '--optional', 'b'])
-        self.assertEqual(result, 'subsub a b')
+        result = base.console_script(argv=["sub", "subsub", "a", "--optional", "b"])
+        self.assertEqual(result, "subsub a b")
 
     def test_call_subsubcommand_with_shared_args(self):
         @command
         def base1(cmd, a=None):
-            return MockResult('base1({cmd}, {a})'.format_map(locals()))
+            return MockResult(f"base1({cmd}, {a})")
 
         @subcommand(base1)
         def sub1(cmd: arg(default=None), a=None, flag=True):
-            return MockResult('sub1({cmd}, {a}, {flag})'.format_map(locals()))
+            return MockResult(f"sub1({cmd}, {a}, {flag})")
 
         @sub1.subcommand
         def subsub1(a=None, flag=True):
-            return MockResult('subsub1({a}, {flag})'.format_map(locals()))
+            return MockResult(f"subsub1({a}, {flag})")
 
-        result = base1.console_script(argv=['-a', 'A', 'sub1', '--no-flag'])
-        self.assertEqual(result, 'sub1(None, A, False)')
+        result = base1.console_script(argv=["-a", "A", "sub1", "--no-flag"])
+        self.assertEqual(result, "sub1(None, A, False)")
 
-        result = base1.console_script(argv=['-a', 'A', 'sub1', '--no-flag', 'subsub1'])
-        self.assertEqual(result, 'subsub1(A, False)')
+        result = base1.console_script(argv=["-a", "A", "sub1", "--no-flag", "subsub1"])
+        self.assertEqual(result, "subsub1(A, False)")
 
 
 class TestSubcommandCallbacks(TestCase):
-
     def tearDown(self):
         base.callbacks = []
         sub.callbacks = []
@@ -235,7 +231,7 @@ class TestSubcommandCallbacks(TestCase):
         base.add_callback(base_callback)
         sub_callback = Callback()
         sub.add_callback(sub_callback)
-        base.console_script(argv=['sub'])
+        base.console_script(argv=["sub"])
         self._check(base, base_callback)
         self._check(sub, sub_callback)
 
@@ -245,6 +241,6 @@ class TestSubcommandCallbacks(TestCase):
         sub_callback = Callback()
         sub_abort.add_callback(sub_callback)
         with redirect_stdout(io.StringIO()):
-            base.console_script(argv=['sub-abort'])
+            base.console_script(argv=["sub-abort"])
         self._check(base, base_callback, aborted=True)
         self._check(sub_abort, sub_callback, called=False, aborted=True)

@@ -5,17 +5,18 @@ import os
 from ..exc import RunAborted
 
 
-def abort(return_code=0, message='Aborted', color=True):
+def abort(return_code=0, message="Aborted", color=True):
     from .printer import printer
+
     if message:
         if color is True:
-            color = 'error' if return_code else 'warning'
+            color = "error" if return_code else "warning"
         if color:
             message = printer.colorize(message, color=color)
     raise RunAborted(return_code, message)
 
 
-def flatten_args(args: list, join=False, *, empty=(None, [], (), '')) -> list:
+def flatten_args(args: list, join=False, *, empty=(None, [], (), "")) -> list:
     """Flatten args and remove empty items.
 
     Args:
@@ -56,7 +57,7 @@ def flatten_args(args: list, join=False, *, empty=(None, [], (), '')) -> list:
         else:
             flat_args.append(str(arg))
     if join:
-        join = ' ' if join is True else join
+        join = " " if join is True else join
         flat_args = join.join(flat_args)
     return flat_args
 
@@ -100,15 +101,15 @@ def load_object(obj) -> object:
 
     """
     if isinstance(obj, str):
-        if ':' in obj:
-            module_name, obj_name = obj.split(':')
+        if ":" in obj:
+            module_name, obj_name = obj.split(":")
             if not module_name:
-                module_name = '.'
+                module_name = "."
         else:
             module_name = obj
         obj = importlib.import_module(module_name)
         if obj_name:
-            attrs = obj_name.split('.')
+            attrs = obj_name.split(".")
             for attr in attrs:
                 obj = getattr(obj, attr)
     return obj
@@ -128,9 +129,7 @@ def _merge_dicts(a, b):
     # Merge dict b into dict a
     a = a.copy()
     if not (isinstance(a, dict) and isinstance(b, dict)):
-        raise TypeError(
-            'Expected two dicts; got {a.__class__} and {b.__class__}'
-            .format_map(locals()))
+        raise TypeError(f"Expected two dicts; got {a.__class__} and {b.__class__}")
     for k, v in b.items():
         if k in a and isinstance(a[k], dict):
             v = merge_dicts(a[k], v)

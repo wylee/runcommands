@@ -22,7 +22,7 @@ class CommandRunner:
             count = len(show_help_for)
             for cmd in show_help_for:
                 if count > 1:
-                    printer.hr('Help for', cmd.name, end=os.linesep * 2)
+                    printer.hr("Help for", cmd.name, end=os.linesep * 2)
                 cmd.show_help()
             return ()
 
@@ -42,9 +42,9 @@ class CommandRunner:
                     raise
                 if debug:
                     if aborted:
-                        printer.debug('\nExiting command runner due to abort')
+                        printer.debug("\nExiting command runner due to abort")
                     else:
-                        printer.debug('Exiting command runner due to error')
+                        printer.debug("Exiting command runner due to error")
                 break
             else:
                 result, return_code = cmd.process_result(result)
@@ -74,7 +74,7 @@ class CommandRunner:
             num_consumed = len(command_argv) + 1
             argv = argv[num_consumed:]
             if debug:
-                printer.debug('Command to run:', command_to_run)
+                printer.debug("Command to run:", command_to_run)
         return commands_to_run
 
     def partition_args(self, collection, args):
@@ -83,7 +83,7 @@ class CommandRunner:
         try:
             command = collection[name]
         except KeyError:
-            raise RunnerError('Unknown command: {name}'.format(name=name))
+            raise RunnerError(f"Unknown command: {name}")
 
         args = args[1:]
         command_args = []
@@ -100,7 +100,7 @@ class CommandRunner:
                 option = command.option_map.get(prev_arg)
                 if option is None or not option.takes_value:
                     break
-            if arg and arg[0] == ':' and arg != ':' and arg[1:] in collection:
+            if arg and arg[0] == ":" and arg != ":" and arg[1:] in collection:
                 # Found an escaped command name. Unescape it.
                 arg = arg[1:]
             command_args.append(arg)
@@ -109,17 +109,17 @@ class CommandRunner:
 
     def print_usage(self):
         if not self.collection:
-            printer.warning('No commands available')
+            printer.warning("No commands available")
             return
-        print('\nAvailable commands:\n')
+        print("\nAvailable commands:\n")
         for name in sorted(self.collection):
-            print('    {name}'.format(name=name))
-        print('\nFor detailed help on a command: runcommands <command> --help')
+            print(f"    {name}")
+        print("\nFor detailed help on a command: runcommands <command> --help")
 
 
 class CommandToRun:
 
-    __slots__ = ('name', 'command', 'argv', 'callbacks', 'help_requested')
+    __slots__ = ("name", "command", "argv", "callbacks", "help_requested")
 
     def __init__(self, command, argv):
         argv = command.expand_short_options(argv)
@@ -132,13 +132,15 @@ class CommandToRun:
         # requested for a command because such args aren't command
         # options.
         try:
-            dash_dash_index = argv.index('--')
+            dash_dash_index = argv.index("--")
         except ValueError:
             help_requested_argv = argv
         else:
             help_requested_argv = argv[:dash_dash_index]
 
-        self.help_requested = '-h' in help_requested_argv or '--help' in help_requested_argv
+        self.help_requested = (
+            "-h" in help_requested_argv or "--help" in help_requested_argv
+        )
 
     def run(self):
         argv_dict = self.command.parse_args(self.argv, False)
@@ -151,4 +153,4 @@ class CommandToRun:
         print(self.command.help)
 
     def __repr__(self):
-        return 'Command(name={self.name}, argv={self.argv})'.format(self=self)
+        return f"Command(name={self.name}, argv={self.argv})"

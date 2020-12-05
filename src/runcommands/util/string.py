@@ -36,7 +36,7 @@ def camel_to_underscore(name):
         'request_'
 
     """
-    name = re.sub(r'(?<!\b)(?<!_)([A-Z][a-z])', r'_\1', name)
-    name = re.sub(r'(?<!\b)(?<!_)([a-z])([A-Z])', r'\1_\2', name)
+    name = re.sub(r"(?<!\b)(?<!_)([A-Z][a-z])", r"_\1", name)
+    name = re.sub(r"(?<!\b)(?<!_)([a-z])([A-Z])", r"\1_\2", name)
     name = name.lower()
     return name

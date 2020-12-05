@@ -4,8 +4,7 @@ class RunCommandsError(Exception):
 
 
 class RunAborted(RunCommandsError):
-
-    def __init__(self, return_code=0, message='Aborted', is_nested=False):
+    def __init__(self, return_code=0, message="Aborted", is_nested=False):
         self.message = message
         self.return_code = return_code
         self.is_nested = is_nested

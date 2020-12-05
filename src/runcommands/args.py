@@ -45,9 +45,8 @@ class Parameter:
     def is_positional(self):
         kind = self.parameter.kind
         default = self.parameter.default
-        return (
-            (kind is POSITIONAL_ONLY) or
-            (kind is POSITIONAL_OR_KEYWORD and default is EMPTY)
+        return (kind is POSITIONAL_ONLY) or (
+            kind is POSITIONAL_OR_KEYWORD and default is EMPTY
         )
 
     @cached_property
@@ -63,12 +62,8 @@ class Parameter:
         kind = self.parameter.kind
         default = self.parameter.default
         return (
-            (
-                (kind is POSITIONAL_OR_KEYWORD) or
-                (kind is KEYWORD_ONLY)
-            ) and
-            default is not EMPTY
-        )
+            (kind is POSITIONAL_OR_KEYWORD) or (kind is KEYWORD_ONLY)
+        ) and default is not EMPTY
 
     @cached_property
     def is_required_keyword_only(self):
@@ -126,36 +121,39 @@ class ArgConfig:
 
     """
 
-    short_option_regex = re.compile(r'-\w')
-    long_option_regex = re.compile(r'--\w+(-\w+)*')
+    short_option_regex = re.compile(r"-\w")
+    long_option_regex = re.compile(r"--\w+(-\w+)*")
 
-    def __init__(self, *,
-                 container=None,
-                 type=None,
-                 choices=None,
-                 help=None,
-                 inverse_help=None,
-                 short_option=None,
-                 long_option=None,
-                 no_inverse=False,
-                 inverse_short_option=None,
-                 inverse_long_option=None,
-                 inverse_option=None,  # XXX: Temporary alias for inverse_long_option
-                 action=None,
-                 nargs=None,
-                 mutual_exclusion_group=None,
-                 default=EMPTY):
+    def __init__(
+        self,
+        *,
+        container=None,
+        type=None,
+        choices=None,
+        help=None,
+        inverse_help=None,
+        short_option=None,
+        long_option=None,
+        no_inverse=False,
+        inverse_short_option=None,
+        inverse_long_option=None,
+        inverse_option=None,  # XXX: Temporary alias for inverse_long_option
+        action=None,
+        nargs=None,
+        mutual_exclusion_group=None,
+        default=EMPTY,
+    ):
         if short_option is not None:
             if not self.short_option_regex.fullmatch(short_option):
-                message = 'Expected short option with form -x, not "{short_option}"'
-                message = message.format_map(locals())
-                raise CommandError(message)
+                raise CommandError(
+                    f'Expected short option with form -x, not "{short_option}"'
+                )
 
         if long_option is not None:
             if not self.long_option_regex.fullmatch(long_option):
-                message = 'Expected long option with form --option, not "{long_option}"'
-                message = message.format_map(locals())
-                raise CommandError(message)
+                raise CommandError(
+                    f'Expected long option with form --option, not "{long_option}"'
+                )
 
         self.container = container
         self.type = type
@@ -173,7 +171,7 @@ class ArgConfig:
         self.default = default
 
     def __repr__(self):
-        type_name = self.type.__name__ if self.type is not None else 'None'
+        type_name = self.type.__name__ if self.type is not None else "None"
         options = (
             self.short_option,
             self.long_option,
@@ -181,8 +179,8 @@ class ArgConfig:
             self.inverse_long_option,
         )
         options = (option for option in options if option)
-        options = ', '.join(options)
-        return 'arg<{type_name}>({options})'.format_map(locals())
+        options = ", ".join(options)
+        return f"arg<{type_name}>({options})"
 
 
 arg = ArgConfig
@@ -231,25 +229,28 @@ class Arg:
 
     """
 
-    def __init__(self, *,
-                 command,
-                 parameter,
-                 name,
-                 container,
-                 type,
-                 positional,
-                 default,
-                 choices,
-                 help,
-                 inverse_help,
-                 short_option,
-                 long_option,
-                 no_inverse,
-                 inverse_short_option,
-                 inverse_long_option,
-                 action,
-                 nargs,
-                 mutual_exclusion_group):
+    def __init__(
+        self,
+        *,
+        command,
+        parameter,
+        name,
+        container,
+        type,
+        positional,
+        default,
+        choices,
+        help,
+        inverse_help,
+        short_option,
+        long_option,
+        no_inverse,
+        inverse_short_option,
+        inverse_long_option,
+        action,
+        nargs,
+        mutual_exclusion_group,
+    ):
 
         command = command
 
@@ -265,8 +266,8 @@ class Arg:
         if positional is not None:
             is_positional = positional
 
-        metavar = name.upper().replace('-', '_')
-        if container and len(name) > 1 and name.endswith('s'):
+        metavar = name.upper().replace("-", "_")
+        if container and len(name) > 1 and name.endswith("s"):
             metavar = metavar[:-1]
 
         if container is None:
@@ -318,30 +319,31 @@ class Arg:
             options = tuple(option for option in options if option is not None)
             if options:
                 raise CommandError(
-                    'Positional args cannot be specified with options: {options}'
-                    .format(options=', '.join(options)))
+                    f"Positional args cannot be specified with "
+                    f"options: {', '.join(options)}"
+                )
 
         if action is None:
             if container:
                 action = ContainerAction.from_container(container)
             elif is_bool:
-                action = 'store_true'
+                action = "store_true"
             elif is_bool_or:
                 action = BoolOrAction
 
         if nargs is None:
             if is_positional:
                 if container:
-                    nargs = '+'
+                    nargs = "+"
                 elif is_optional:
-                    nargs = '?'
+                    nargs = "?"
             elif is_var_positional:
-                nargs = '*'
+                nargs = "*"
             elif is_bool_or:
-                nargs = '?'
+                nargs = "?"
             elif is_optional:
                 if container:
-                    nargs = '*'
+                    nargs = "*"
 
         options = tuple(opt for opt in (short_option, long_option) if opt is not None)
         all_options = options
@@ -350,7 +352,9 @@ class Arg:
             inverse_options = ()
         else:
             inverse_options = tuple(
-                opt for opt in (inverse_short_option, inverse_long_option) if opt is not None
+                opt
+                for opt in (inverse_short_option, inverse_long_option)
+                if opt is not None
             )
             all_options += inverse_options
 
@@ -390,17 +394,17 @@ class Arg:
     def add_argument_args(self):
         args = self.options
         kwargs = {
-            'action': self.action,
-            'choices': self.choices,
-            'dest': self.dest,
-            'help': self.help,
-            'metavar': self.metavar,
-            'nargs': self.nargs,
-            'type': self.type,
+            "action": self.action,
+            "choices": self.choices,
+            "dest": self.dest,
+            "help": self.help,
+            "metavar": self.metavar,
+            "nargs": self.nargs,
+            "type": self.type,
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         if self.is_positional and self.is_optional:
-            kwargs['default'] = POSITIONAL_PLACEHOLDER
+            kwargs["default"] = POSITIONAL_PLACEHOLDER
         return args, kwargs
 
     @cached_property
@@ -414,53 +418,53 @@ class Arg:
         if self.inverse_help:
             inverse_help = self.inverse_help
         elif self.help:
-            help_ = kwargs['help']
-            if help_.startswith('Don\'t '):
+            help_ = kwargs["help"]
+            if help_.startswith("Don't "):
                 inverse_help = help_[6:].capitalize()
-            elif help_.startswith('Do not '):
+            elif help_.startswith("Do not "):
                 inverse_help = help_[7:].capitalize()
             else:
                 first_letter = help_[0].lower()
                 rest = help_[1:]
-                inverse_help = 'Don\'t {first_letter}{rest}'.format_map(locals())
+                inverse_help = f"Don't {first_letter}{rest}"
         else:
             inverse_help = self.help
 
         kwargs = kwargs.copy()
-        kwargs['action'] = 'store_false'
-        kwargs['help'] = inverse_help
+        kwargs["action"] = "store_false"
+        kwargs["help"] = inverse_help
 
         if self.is_bool_or:
-            kwargs.pop('metavar')
-            kwargs.pop('nargs')
-            kwargs.pop('type')
+            kwargs.pop("metavar")
+            kwargs.pop("nargs")
+            kwargs.pop("type")
 
         return args, kwargs
 
     def __str__(self):
-        string = '{kind} arg: {self.name}{default}: type={type}'
-        kind = 'Positional' if self.is_positional else 'Optional'
+        kind = "Positional" if self.is_positional else "Optional"
         has_default = self.default not in (EMPTY, None)
-        default = '[={self.default}]'.format_map(locals()) if has_default else ''
+        default = f"[={self.default}]" if has_default else ""
         if self.is_bool:
-            type = 'flag'
+            type = "flag"
         elif self.is_bool_or:
-            type = 'flag|{self.type.__name__}'.format_map(locals())
+            type = f"flag|{self.type.__name__}"
         elif self.type is None:
             type = None
         else:
             type = self.type.__name__
-        return string.format_map(locals())
+        return f"{kind} arg: {self.name}{default}: type={type}"
 
 
 class HelpArg(Arg):
-
     def __init__(self, *, command):
-        parameter = Parameter(BaseParameter('help', POSITIONAL_OR_KEYWORD, default=False))
+        parameter = Parameter(
+            BaseParameter("help", POSITIONAL_OR_KEYWORD, default=False),
+        )
         super().__init__(
             command=command,
             parameter=parameter,
-            name='help',
+            name="help",
             container=None,
             type=bool,
             positional=None,
@@ -468,8 +472,8 @@ class HelpArg(Arg):
             choices=None,
             help=None,
             inverse_help=None,
-            short_option='-h',
-            long_option='--help',
+            short_option="-h",
+            long_option="--help",
             no_inverse=True,
             inverse_short_option=None,
             inverse_long_option=None,
@@ -502,13 +506,12 @@ class bool_or:
 
     def __new__(cls, type, *, _type_cache={}):
         if type not in _type_cache:
-            name = 'BoolOr{name}'.format(name=type.__name__.title())
-            _type_cache[type] = builtins.type(name, (cls,), {'type': type})
+            name = f"BoolOr{type.__name__.title()}"
+            _type_cache[type] = builtins.type(name, (cls,), {"type": type})
         return _type_cache[type]
 
 
 class BoolOrAction(argparse.Action):
-
     def __call__(self, parser, namespace, value, option_string=None):
         if value is None:
             value = True
@@ -516,10 +519,9 @@ class BoolOrAction(argparse.Action):
 
 
 class ContainerAction(argparse.Action):
-
     @classmethod
     def from_container(cls, container_type):
-        return type('ContainerAction', (cls,), {'container_type': container_type})
+        return type("ContainerAction", (cls,), {"container_type": container_type})
 
     def __call__(self, parser, namespace, values, option_string=None):
         items_to_add = []
@@ -529,12 +531,12 @@ class ContainerAction(argparse.Action):
                 items_to_add.extend(items.items())
             for value in values:
                 try:
-                    name, value = value.split(':', 1)
+                    name, value = value.split(":", 1)
                 except ValueError:
-                    message = (
-                        'Bad format for {self.option_strings[0]}; '
-                        'expected name:<value> but got: {value}')
-                    raise CommandError(message.format_map(locals()))
+                    raise CommandError(
+                        "Bad format for {self.option_strings[0]}; "
+                        "expected name:<value> but got: {value}"
+                    )
                 value = self.type(value)
                 items_to_add.append((name, value))
             items = self.container_type(items_to_add)

@@ -12,7 +12,7 @@ from .result import Result
 from .util import cached_property, camel_to_underscore, get_hr, is_type, printer, Data
 
 
-__all__ = ['command', 'subcommand', 'Command']
+__all__ = ["command", "subcommand", "Command"]
 
 
 class Command:
@@ -123,14 +123,26 @@ class Command:
 
     """
 
-    def __init__(self, implementation=None, name=None, description=None, base_command=None,
-                 timed=False, data=None, callbacks=None, arg_config=None, default_args=None,
-                 debug=False):
+    def __init__(
+        self,
+        implementation=None,
+        name=None,
+        description=None,
+        base_command=None,
+        timed=False,
+        data=None,
+        callbacks=None,
+        arg_config=None,
+        default_args=None,
+        debug=False,
+    ):
         if implementation is None:
-            if not hasattr(self, 'implementation'):
+            if not hasattr(self, "implementation"):
                 raise CommandError(
-                    'Missing implementation; it must be passed in as a function or defined as a '
-                    'method on the command class')
+                    "Missing implementation; it must be passed in as a "
+                    "function or defined as a method on the command "
+                    "class"
+                )
             self.module = self.__class__.__module__
             self.qualname = self.__class__.__qualname__
             default_name = self.normalize_class_name(self.__class__.__name__)
@@ -140,15 +152,17 @@ class Command:
             self.qualname = implementation.__qualname__
             default_name = self.normalize_name(implementation.__name__)
 
-        name = name or getattr(self.__class__, 'name', None) or default_name
+        name = name or getattr(self.__class__, "name", None) or default_name
         base_name = name
 
         is_subcommand = base_command is not None
 
         if is_subcommand:
-            name = ':'.join((base_command.name, name))
+            name = ":".join((base_command.name, name))
 
-        description = description or self.get_description_from_docstring(self.implementation)
+        description = description or self.get_description_from_docstring(
+            self.implementation
+        )
         short_description = description.splitlines()[0] if description else None
 
         self.name = name
@@ -169,15 +183,32 @@ class Command:
         self.is_subcommand = is_subcommand
         self.subcommands = []
         self.first_arg = first_arg
-        self.first_arg_has_choices = False if first_arg is None else bool(first_arg.choices)
+        self.first_arg_has_choices = (
+            False if first_arg is None else bool(first_arg.choices)
+        )
 
         if is_subcommand:
             base_command.add_subcommand(self)
 
-    def subcommand(self, name=None, description=None, timed=False, data=None, callbacks=None):
+    def subcommand(
+        self,
+        name=None,
+        description=None,
+        timed=False,
+        data=None,
+        callbacks=None,
+    ):
         """Create a subcommand of the specified base command."""
         base_command = self
-        return command(name, description, base_command, timed, data, callbacks, cls=self.__class__)
+        return command(
+            name,
+            description,
+            base_command,
+            timed,
+            data,
+            callbacks,
+            cls=self.__class__,
+        )
 
     @property
     def is_base_command(self):
@@ -200,7 +231,7 @@ class Command:
     @cached_property
     def prog_name(self):
         if self.is_subcommand:
-            return ' '.join(self.name.split(':', self.subcommand_depth))
+            return " ".join(self.name.split(":", self.subcommand_depth))
         return self.base_name
 
     def add_subcommand(self, subcommand):
@@ -218,10 +249,10 @@ class Command:
         if description is not None:
             lines = description.splitlines()
             title = lines[0]
-            if title.endswith('.'):
+            if title.endswith("."):
                 title = title[:-1]
             lines = [title] + [line[4:] for line in lines[1:]]
-            description = '\n'.join(lines)
+            description = "\n".join(lines)
         return description
 
     def add_callback(self, callback):
@@ -277,7 +308,7 @@ class Command:
                     if debug:
                         from_arg_defaults[name] = value
                 else:
-                    raise AssertionError('This should never happen')
+                    raise AssertionError("This should never happen")
             elif debug:
                 args_passed.append((name, value))
             if debug:
@@ -292,17 +323,23 @@ class Command:
                     args_passed.append((var_args_name, var_args))
 
         if debug:
-            printer.debug('Command called via command line:', self.name)
-            printer.debug('    Parsed args:', parsed_args)
-            printer.debug('    Overrides:', overrides)
-            printer.debug('    Received positional args:', tuple(args_passed))
-            printer.debug('    Received optional args:', kwargs)
-            printer.debug('    Added positionals from default args:', ', '.join(from_default_args))
-            printer.debug('    Added positionals from arg defaults:', ', '.join(from_arg_defaults))
-            printer.debug('Running command via command line:', self.name)
-            printer.debug('    Positional args:', tuple(zip(arg_names, args)))
-            printer.debug('    Var args:', (var_args_name, var_args) if var_args else var_args)
-            printer.debug('    Optional args:', kwargs)
+            printer.debug("Command called via command line:", self.name)
+            printer.debug("    Parsed args:", parsed_args)
+            printer.debug("    Overrides:", overrides)
+            printer.debug("    Received positional args:", tuple(args_passed))
+            printer.debug("    Received optional args:", kwargs)
+            printer.debug(
+                "    Added positionals from default args:", ", ".join(from_default_args)
+            )
+            printer.debug(
+                "    Added positionals from arg defaults:", ", ".join(from_arg_defaults)
+            )
+            printer.debug("Running command via command line:", self.name)
+            printer.debug("    Positional args:", tuple(zip(arg_names, args)))
+            printer.debug(
+                "    Var args:", (var_args_name, var_args) if var_args else var_args
+            )
+            printer.debug("    Optional args:", kwargs)
 
         if var_args:
             args = tuple(args) + tuple(var_args)
@@ -319,7 +356,7 @@ class Command:
         argv = sys.argv[1:] if argv is None else argv
         is_base_command = self.is_base_command
 
-        if hasattr(self, 'sigint_handler'):
+        if hasattr(self, "sigint_handler"):
             signal.signal(signal.SIGINT, self.sigint_handler)
 
         if is_base_command:
@@ -340,7 +377,7 @@ class Command:
                 # run on abort (i.e., not for any other error). On
                 # abort, callbacks for the command that was aborted
                 # should *not* be run.
-                return_code = exc.return_code if hasattr(exc, 'return_code') else 1
+                return_code = exc.return_code if hasattr(exc, "return_code") else 1
                 result_str = str(exc)
                 if result_str:
                     if return_code:
@@ -351,9 +388,9 @@ class Command:
                         printer.print(result_str)
                 if debug:
                     if aborted:
-                        printer.debug('\nExiting console script due to abort')
+                        printer.debug("\nExiting console script due to abort")
                     else:
-                        printer.debug('Exiting console script due to error')
+                        printer.debug("Exiting console script due to error")
                 if isinstance(exc, RunAborted):
                     aborted = True
                     if exc.is_nested and cmd.callbacks:
@@ -381,7 +418,7 @@ class Command:
         if isinstance(result, int):
             return_code = result
             result = Result(argv, return_code, stdout, stderr)
-        elif hasattr(result, 'return_code'):
+        elif hasattr(result, "return_code"):
             # Assume Result or Result-like object.
             return_code = result.return_code
         else:
@@ -398,29 +435,31 @@ class Command:
         subcommand_map = {sub.name: sub for sub in self.subcommands}
 
         if debug:
-            printer.debug('Parsing command for subcommands:', self.name)
-            printer.debug('    argv:', argv)
+            printer.debug("Parsing command for subcommands:", self.name)
+            printer.debug("    argv:", argv)
 
         for i, arg in enumerate(argv):
-            if arg.startswith(':'):
+            if arg.startswith(":"):
                 base_argv.append(arg[1:])
             else:
                 base_argv.append(arg)
-                qualified_name = '{self.name}:{arg}'.format_map(locals())
+                qualified_name = f"{self.name}:{arg}"
 
                 if qualified_name in subcommand_map:
                     subcmd = subcommand_map[qualified_name]
-                    remaining_argv = argv[i + 1:]
+                    remaining_argv = argv[i + 1 :]
 
                     if debug:
-                        printer.debug('Found subcommand:', subcmd.name)
-                        printer.debug('    Base argv:', base_argv)
-                        printer.debug('    Remaining argv:', remaining_argv)
+                        printer.debug("Found subcommand:", subcmd.name)
+                        printer.debug("    Base argv:", base_argv)
+                        printer.debug("    Remaining argv:", remaining_argv)
 
                     base_args.update(self.parse_args(base_argv))
 
                     if subcmd.is_base_command:
-                        commands.extend(subcmd.partition_subcommands(remaining_argv, False))
+                        commands.extend(
+                            subcmd.partition_subcommands(remaining_argv, False)
+                        )
                     else:
                         subcmd_args = subcmd.parse_args(remaining_argv)
                         commands.append([subcmd, subcmd_args])
@@ -429,8 +468,8 @@ class Command:
         else:
             # No subcommand found
             if debug:
-                printer.debug('Found command with no subcommand:', self.name)
-                printer.debug('    argv:', base_argv)
+                printer.debug("Found command with no subcommand:", self.name)
+                printer.debug("    argv:", base_argv)
             base_args.update(self.parse_args(base_argv))
 
         if base:
@@ -442,19 +481,17 @@ class Command:
             base_cmd, base_args = commands[0]
             base_args = base_args.copy()
             subcmd_arg_names = set(subcmd_args)
-            empty = Parameter.empty
             for i, (subcmd, subcmd_args) in enumerate(commands[1:], 1):
                 for base_arg in base_cmd.args.values():
                     name = base_arg.parameter.name
                     sub_param = subcmd.find_parameter(name)
                     pass_down = (
-                        name not in subcmd_arg_names and
-                        base_arg.is_optional and
-                        not base_arg.is_positional and
-                        sub_param and
-                        (
-                            sub_param.is_optional or
-                            sub_param.is_required_keyword_only
+                        name not in subcmd_arg_names
+                        and base_arg.is_optional
+                        and not base_arg.is_positional
+                        and sub_param
+                        and (
+                            sub_param.is_optional or sub_param.is_required_keyword_only
                         )
                     )
                     if pass_down:
@@ -479,9 +516,9 @@ class Command:
                 base_cmd = subcmd
                 base_args.update(subcmd_args)
             if self.debug:
-                printer.debug('Subcommands:')
+                printer.debug("Subcommands:")
                 for cmd, cmd_argv in commands:
-                    printer.debug('   ', cmd.name, cmd_argv)
+                    printer.debug("   ", cmd.name, cmd_argv)
 
         return commands
 
@@ -519,7 +556,7 @@ class Command:
         # Use defaults for positionals that weren't passed. This is done
         # here instead of below with the optionals so they'll be passed
         # positionally.
-        for arg in positionals[len(args):]:
+        for arg in positionals[len(args) :]:
             name = arg.parameter.name
             if name in default_args:
                 value = default_args[name]
@@ -536,7 +573,7 @@ class Command:
         # positional args.
         if var_positional:
             var_args_name = var_positional.parameter.name
-            var_args = passed_args[len(args):]
+            var_args = passed_args[len(args) :]
             if var_args:
                 if debug:
                     args_passed.append((var_args_name, var_args))
@@ -548,7 +585,9 @@ class Command:
         # Otherwise, the remaining N passed positionals args correspond
         # to the first N optionals.
         elif num_passed_args > num_positionals:
-            for arg, value in zip(self.optionals.values(), passed_args[num_positionals:]):
+            for arg, value in zip(
+                self.optionals.values(), passed_args[num_positionals:]
+            ):
                 name = arg.name
                 args.append((name, value))
                 if debug:
@@ -567,15 +606,15 @@ class Command:
 
         if debug:
             var_args_display = (var_args_name, tuple(var_args)) if var_args else ()
-            printer.debug('Command called:', self.name)
-            printer.debug('    Received positional args:', args_passed)
-            printer.debug('    Received keyword args:', passed_kwargs)
-            printer.debug('    Added from default args:', from_default_args)
-            printer.debug('    Added from arg defaults:', from_arg_defaults)
-            printer.debug('Running command:', self.name)
-            printer.debug('    Positional args:', args)
-            printer.debug('    Var args:', var_args_display)
-            printer.debug('    Keyword args:', kwargs)
+            printer.debug("Command called:", self.name)
+            printer.debug("    Received positional args:", args_passed)
+            printer.debug("    Received keyword args:", passed_kwargs)
+            printer.debug("    Added from default args:", from_default_args)
+            printer.debug("    Added from arg defaults:", from_arg_defaults)
+            printer.debug("Running command:", self.name)
+            printer.debug("    Positional args:", args)
+            printer.debug("    Var args:", var_args_display)
+            printer.debug("    Keyword args:", kwargs)
 
         args = tuple(item[1] for item in args)
 
@@ -586,13 +625,13 @@ class Command:
 
     def parse_args(self, argv, expand_short_options=True):
         if self.debug:
-            printer.debug('Parsing args for command `{self.name}`: {argv}'.format_map(locals()))
+            printer.debug(f"Parsing args for command `{self.name}`: {argv}")
         if expand_short_options:
             argv = self.expand_short_options(argv)
         parsed_args = self.arg_parser.parse_args(argv)
         parsed_args = vars(parsed_args)
         for k, v in parsed_args.items():
-            if v == '':
+            if v == "":
                 parsed_args[k] = None
         return parsed_args
 
@@ -614,8 +653,8 @@ class Command:
         option_map = self.option_map
         if string in option_map:
             return string, option_map[string], None
-        if '=' in string:
-            name, value = string.split('=', 1)
+        if "=" in string:
+            name, value = string.split("=", 1)
             if name in option_map:
                 return name, option_map[name], value
         return None
@@ -638,12 +677,12 @@ class Command:
 
         """
         if self.debug:
-            printer.debug('Expanding short options for `{self.name}`: {argv}'.format_map(locals()))
+            printer.debug(f"Expanding short options for `{self.name}`: {argv}")
         has_multi_short_options = False
         parse_multi_short_option = self.parse_multi_short_option
         new_argv = []
         for i, arg in enumerate(argv):
-            if arg == '--':
+            if arg == "--":
                 new_argv.extend(argv[i:])
                 break
             short_options, value = parse_multi_short_option(arg)
@@ -655,7 +694,7 @@ class Command:
             else:
                 new_argv.append(arg)
         if self.debug and not has_multi_short_options:
-            printer.debug('No multi short options found')
+            printer.debug("No multi short options found")
         return new_argv if has_multi_short_options else argv
 
     def parse_multi_short_option(self, arg):
@@ -679,7 +718,7 @@ class Command:
                 including a value for the last option)
 
         """
-        if len(arg) < 3 or arg[0] != '-' or arg[1] == '-' or arg[2] == '=':
+        if len(arg) < 3 or arg[0] != "-" or arg[1] == "-" or arg[2] == "=":
             # Not a multi short option like '-abc'.
             return None, None
         # Appears to be a multi short option.
@@ -687,7 +726,7 @@ class Command:
         short_options = []
         value = None
         for i, char in enumerate(arg[1:], 1):
-            name = '-{char}'.format(char=char)
+            name = f"-{char}"
             short_options.append(name)
             option = option_map.get(name)
             if option is not None and option.takes_value:
@@ -696,7 +735,7 @@ class Command:
                     value = arg[j:]
                 break
         if self.debug and short_options:
-            printer.debug('Parsed multi short option:', arg, '=>', short_options)
+            printer.debug("Parsed multi short option:", arg, "=>", short_options)
         return short_options, value
 
     @staticmethod
@@ -704,16 +743,16 @@ class Command:
         # Chomp a single trailing underscore *if* the name ends with
         # just one trailing underscore. This accommodates the convention
         # of adding a trailing underscore to reserved/built-in names.
-        if name.endswith('_'):
-            if name[-2] != '_':
+        if name.endswith("_"):
+            if name[-2] != "_":
                 name = name[:-1]
-        name = name.replace('_', '-')
+        name = name.replace("_", "-")
         return name
 
     @staticmethod
     def normalize_class_name(name):
         name = camel_to_underscore(name)
-        name = name.replace('_', '-')
+        name = name.replace("_", "-")
         name = name.lower()
         return name
 
@@ -748,20 +787,20 @@ class Command:
         first_char = name[0]
         first_char_upper = first_char.upper()
 
-        if name == 'help':
+        if name == "help":
             candidates = (first_char,)
-        elif name.startswith('h'):
+        elif name.startswith("h"):
             candidates = (first_char_upper,)
         else:
             candidates = (first_char, first_char_upper)
 
         for char in candidates:
-            short_option = '-{char}'.format_map(locals())
+            short_option = f"-{char}"
             if short_option not in used:
                 return short_option
 
     def get_long_option_for_arg(self, name):
-        return '--{name}'.format_map(locals())
+        return f"--{name}"
 
     def get_inverse_short_option_for_arg(self, short_option, used):
         inverse_short_option = short_option.upper()
@@ -769,25 +808,25 @@ class Command:
             return inverse_short_option
 
     def get_inverse_long_option_for_arg(self, long_option):
-        if long_option == '--yes':
-            return '--no'
-        if long_option == '--no':
-            return '--yes'
-        if long_option.startswith('--no-'):
-            return long_option.replace('--no-', '--', 1)
-        if long_option.startswith('--is-'):
-            return long_option.replace('--is-', '--not-', 1)
-        if long_option.startswith('--with-'):
-            return long_option.replace('--with-', '--without-', 1)
-        return long_option.replace('--', '--no-', 1)
+        if long_option == "--yes":
+            return "--no"
+        if long_option == "--no":
+            return "--yes"
+        if long_option.startswith("--no-"):
+            return long_option.replace("--no-", "--", 1)
+        if long_option.startswith("--is-"):
+            return long_option.replace("--is-", "--not-", 1)
+        if long_option.startswith("--with-"):
+            return long_option.replace("--with-", "--without-", 1)
+        return long_option.replace("--", "--no-", 1)
 
     def print_elapsed_time(self, elapsed_time):
         m, s = divmod(elapsed_time, 60)
         m = int(m)
         hr = get_hr()
-        msg = '{hr}\nElapsed time for {self.name} command: {m:d}m {s:.3f}s\n{hr}'
-        msg = msg.format_map(locals())
-        printer.info(msg)
+        printer.info(
+            f"{hr}\nElapsed time for {self.name} command: " f"{m:d}m {s:.3f}s\n{hr}"
+        )
 
     @cached_property
     def parameters(self):
@@ -817,15 +856,15 @@ class Command:
         get_inverse_short_option = self.get_inverse_short_option_for_arg
         get_inverse_long_option = self.get_inverse_long_option_for_arg
 
-        params = OrderedDict((
-            (normalize_name(n), p)
-            for n, p in params.items()
-            if not (
-                n.startswith('_') or
-                p.is_required_keyword_only or
-                p.is_var_keyword
+        params = OrderedDict(
+            (
+                (normalize_name(n), p)
+                for n, p in params.items()
+                if not (
+                    n.startswith("_") or p.is_required_keyword_only or p.is_var_keyword
+                )
             )
-        ))
+        )
 
         used_short_options = set()
         for param in params.values():
@@ -859,12 +898,12 @@ class Command:
                 if is_positional or is_var_positional:
                     default = annotation.default
                 else:
-                    message = (
-                        'Got default for `{self.name}` command\'s optional arg `{name}` via '
-                        'arg annotation. Optional args must specify their defaults via keyword '
-                        'arg values.'
-                    ).format_map(locals())
-                    raise CommandError(message)
+                    raise CommandError(
+                        f"Got default for `{self.name}` command's "
+                        f"optional arg `{name}` via arg annotation. "
+                        f"Optional args must specify their defaults "
+                        f"via keyword arg values."
+                    )
 
             if not (is_positional or is_var_positional):
                 if not short_option:
@@ -903,8 +942,8 @@ class Command:
                 mutual_exclusion_group=mutual_exclusion_group,
             )
 
-        if 'help' not in args:
-            args['help'] = HelpArg(command=self)
+        if "help" not in args:
+            args["help"] = HelpArg(command=self)
 
         option_map = OrderedDict()
         for arg in args.values():
@@ -914,17 +953,18 @@ class Command:
 
         for option, option_args in option_map.items():
             if len(option_args) > 1:
-                names = ', '.join(a.parameter.name for a in option_args)
+                names = ", ".join(a.parameter.name for a in option_args)
                 message = (
-                    'Option {option} of command {self.name} maps to multiple parameters: {names}')
-                message = message.format_map(locals())
+                    f"Option {option} of command {self.name} maps to "
+                    f"multiple parameters: {names}"
+                )
                 raise CommandError(message)
 
         return args
 
     @cached_property
     def arg_parser(self):
-        use_default_help = isinstance(self.args['help'], HelpArg)
+        use_default_help = isinstance(self.args["help"], HelpArg)
 
         parser = argparse.ArgumentParser(
             prog=self.prog_name,
@@ -938,7 +978,7 @@ class Command:
         default_args = self.default_args
 
         for name, arg in self.args.items():
-            if name == 'help' and use_default_help:
+            if name == "help" and use_default_help:
                 continue
 
             param = arg.parameter
@@ -952,9 +992,12 @@ class Command:
             mutual_exclusion_group_name = arg.mutual_exclusion_group
             if mutual_exclusion_group_name:
                 if mutual_exclusion_group_name not in self.mutual_exclusion_groups:
-                    self.mutual_exclusion_groups[mutual_exclusion_group_name] = \
-                        parser.add_mutually_exclusive_group()
-                mutual_exclusion_group = self.mutual_exclusion_groups[mutual_exclusion_group_name]
+                    self.mutual_exclusion_groups[
+                        mutual_exclusion_group_name
+                    ] = parser.add_mutually_exclusive_group()
+                mutual_exclusion_group = self.mutual_exclusion_groups[
+                    mutual_exclusion_group_name
+                ]
                 mutual_exclusion_group.add_argument(*options, **kwargs)
             else:
                 parser.add_argument(*options, **kwargs)
@@ -996,14 +1039,14 @@ class Command:
     @property
     def help(self):
         help_ = self.arg_parser.format_help()
-        help_ = help_.split(': ', 1)[1]
+        help_ = help_.split(": ", 1)[1]
         help_ = help_.strip()
         return help_
 
     @property
     def usage(self):
         usage = self.arg_parser.format_usage()
-        usage = usage.split(': ', 1)[1]
+        usage = usage.split(": ", 1)[1]
         usage = usage.strip()
         return usage
 
@@ -1014,14 +1057,25 @@ class Command:
         return self.usage
 
     def __repr__(self):
-        return 'Command(name={self.name})'.format(self=self)
+        return f"Command(name={self.name})"
 
 
-def command(name=None, description=None, base_command=None, timed=False, data=None, callbacks=None,
-            cls=Command):
+def command(
+    name=None,
+    description=None,
+    base_command=None,
+    timed=False,
+    data=None,
+    callbacks=None,
+    cls=Command,
+):
     args = dict(
-        description=description, base_command=base_command, timed=timed, data=data,
-        callbacks=callbacks)
+        description=description,
+        base_command=base_command,
+        timed=timed,
+        data=data,
+        callbacks=callbacks,
+    )
 
     if isinstance(name, type):
         # Bare class decorator
@@ -1041,6 +1095,13 @@ def command(name=None, description=None, base_command=None, timed=False, data=No
     return wrapper
 
 
-def subcommand(base_command, name=None, description=None, timed=False, data=None, callbacks=None,
-               cls=Command):
+def subcommand(
+    base_command,
+    name=None,
+    description=None,
+    timed=False,
+    data=None,
+    callbacks=None,
+    cls=Command,
+):
     return command(name, description, base_command, timed, data, callbacks, cls)

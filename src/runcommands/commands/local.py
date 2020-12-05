@@ -9,19 +9,20 @@ from ..util import abs_path, flatten_args, printer, StreamOptions
 
 
 @command
-def local(args: arg(container=list),
-          background=False,
-          cd=None,
-          environ: arg(type=dict) = None,
-          replace_env=False,
-          paths=(),
-          shell: arg(type=bool) = None,
-          stdout: arg(type=StreamOptions) = None,
-          stderr: arg(type=StreamOptions) = None,
-          echo=False,
-          raise_on_error=True,
-          dry_run=False,
-          ) -> Result:
+def local(
+    args: arg(container=list),
+    background=False,
+    cd=None,
+    environ: arg(type=dict) = None,
+    replace_env=False,
+    paths=(),
+    shell: arg(type=bool) = None,
+    stdout: arg(type=StreamOptions) = None,
+    stderr: arg(type=StreamOptions) = None,
+    echo=False,
+    raise_on_error=True,
+    dry_run=False,
+) -> Result:
     """Run a local command via :func:`subprocess.run`.
 
     Args:
@@ -84,11 +85,11 @@ def local(args: arg(container=list),
     if paths:
         paths = [paths] if isinstance(paths, str) else paths
         paths = [abs_path(p) for p in paths]
-        current_path = subprocess_env.get('PATH')
+        current_path = subprocess_env.get("PATH")
         if current_path:
             paths.append(current_path)
-        path = ':'.join(paths)
-        subprocess_env['PATH'] = path
+        path = ":".join(paths)
+        subprocess_env["PATH"] = path
 
     if stdout:
         stdout = StreamOptions[stdout] if isinstance(stdout, str) else stdout
@@ -99,24 +100,24 @@ def local(args: arg(container=list),
         stderr = stderr.option
 
     kwargs = {
-        'cwd': cd,
-        'env': subprocess_env,
-        'shell': shell,
-        'stdout': stdout,
-        'stderr': stderr,
-        'universal_newlines': True,
+        "cwd": cd,
+        "env": subprocess_env,
+        "shell": shell,
+        "stdout": stdout,
+        "stderr": stderr,
+        "universal_newlines": True,
     }
 
-    display_str = args if shell else ' '.join(shlex.quote(a) for a in args)
+    display_str = args if shell else " ".join(shlex.quote(a) for a in args)
 
     if echo:
         if cd_passed:
-            printer.echo('{cd}>'.format_map(locals()), end=' ')
+            printer.echo(f"{cd}>", end=" ")
         if not dry_run:
             printer.echo(display_str)
 
     if dry_run:
-        printer.echo('[DRY RUN]', display_str)
+        printer.echo("[DRY RUN]", display_str)
         result = Result(args, 0, None, None)
     elif background:
         return subprocess.Popen(args, **kwargs)

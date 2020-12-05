@@ -16,7 +16,7 @@ def complete(
     command_line,
     current_token,
     position,
-    shell: arg(choices=('bash', 'fish')),
+    shell: arg(choices=("bash", "fish")),
 ):
     """Find completions for current command.
 
@@ -34,11 +34,11 @@ def complete(
     tokens = shlex.split(command_line[:position])
     all_argv, run_argv, command_argv = run.partition_argv(tokens[1:])
 
-    with open(os.devnull, 'w') as devnull_fp:
+    with open(os.devnull, "w") as devnull_fp:
         with redirect_stderr(devnull_fp):
             run_args = run.parse_args(run_argv)
 
-    module = run_args.get('commands_module')
+    module = run_args.get("commands_module")
     module = module or DEFAULT_COMMANDS_MODULE
     module = normalize_path(module)
 
@@ -56,7 +56,7 @@ def complete_base_command(
     command_line,
     current_token,
     position,
-    shell: arg(choices=('bash', 'fish')),
+    shell: arg(choices=("bash", "fish")),
 ):
     """Find completions for a base command and its subcommands.
 
@@ -71,11 +71,13 @@ def complete_base_command(
         shell: Name of shell
 
     """
-    module_name, base_command_name = base_command.rsplit('.', 1)
+    module_name, base_command_name = base_command.rsplit(".", 1)
     module = importlib.import_module(module_name)
     base_command = getattr(module, base_command_name)
     base_collection = {c.base_name: c for c in base_command.subcommands}
-    return _complete(base_command, base_collection, command_line, current_token, position, shell)
+    return _complete(
+        base_command, base_collection, command_line, current_token, position, shell
+    )
 
 
 def _complete(
@@ -105,18 +107,18 @@ def _complete(
 
     if current_token:
         # Completing either a command name, option name, or path.
-        if current_token.startswith('-'):
+        if current_token.startswith("-"):
             if current_token not in found_command.option_map:
                 print_command_options(found_command, current_token)
         else:
             print_commands(collection, shell)
             path = os.path.expanduser(current_token)
             path = os.path.expandvars(path)
-            paths = glob.glob('%s*' % path)
+            paths = glob.glob("%s*" % path)
             if paths:
                 for entry in paths:
                     if os.path.isdir(entry):
-                        print('%s/' % entry)
+                        print("%s/" % entry)
                     else:
                         print(entry)
     else:
@@ -132,7 +134,7 @@ def _complete(
             else:
                 for entry in os.listdir():
                     if os.path.isdir(entry):
-                        print('%s/' % entry)
+                        print("%s/" % entry)
                     else:
                         print(entry)
         else:
@@ -158,14 +160,14 @@ def find_command(collection, tokens):
 def print_commands(collection, shell):
     for name in collection:
         cmd = collection[name]
-        description = cmd.description.splitlines()[0].strip() if cmd.description else ''
-        if shell in ('sh', 'bash'):
+        description = cmd.description.splitlines()[0].strip() if cmd.description else ""
+        if shell in ("sh", "bash"):
             print(name)
-        elif shell == 'fish':
-            print('{name}\t{description}'.format_map(locals()))
+        elif shell == "fish":
+            print(f"{name}\t{description}")
 
 
-def print_command_options(cmd, prefix=''):
+def print_command_options(cmd, prefix=""):
     for name, cmd_arg in cmd.args.items():
         for option in cmd_arg.all_options:
             if option.startswith(prefix):

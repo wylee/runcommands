@@ -8,7 +8,6 @@ from .util import cached_property
 
 
 class Result(RunCommandsError):
-
     def __init__(self, args, return_code, stdout, stderr):
         args = shlex.split(args) if isinstance(args, str) else args
         self.args = args
@@ -31,11 +30,9 @@ class Result(RunCommandsError):
     def args_str(self):
         args = self.args
         if isinstance(args, Mapping):
-            return ' '.join(
-                '{0} => {1}'.format(item) for item in args.items()
-            )
+            return " ".join(f"{k} => {v}" for k, v in args.items())
         # XXX: Assume list, tuple, or some other kind of sequence
-        return ' '.join(str(a) for a in args)
+        return " ".join(str(a) for a in args)
 
     @cached_property
     def stdout_lines(self):
@@ -49,12 +46,11 @@ class Result(RunCommandsError):
         return self.succeeded
 
     def __str__(self):
-        output = (self.stderr if self.return_code else self.stdout) or '[NO OUTPUT]'
+        output = (self.stderr if self.return_code else self.stdout) or "[NO OUTPUT]"
         if output.endswith(os.linesep):
             output = output[:-1]
-        status = 'SUCCEEDED' if self.succeeded else 'FAILED'
-        string = '{status} ({self.return_code}): {self.args_str} -> {output}'
-        string = string.format_map(locals())
+        status = "SUCCEEDED" if self.succeeded else "FAILED"
+        string = f"{status} ({self.return_code}): {self.args_str} -> {output}"
         return string
 
     def __repr__(self):

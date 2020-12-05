@@ -13,16 +13,26 @@ from .string import camel_to_underscore
 
 
 __all__ = [
-    'get_commands_in_namespace',
-    'Data',
-    'cached_property',
-    'Color', 'StreamOptions',
-    'abort', 'flatten_args', 'format_if', 'isatty', 'load_object', 'merge_dicts',
-    'abs_path', 'asset_path', 'paths_to_str',
-    'get_hr', 'printer',
-    'confirm', 'prompt',
-    'camel_to_underscore',
-    'is_type',
+    "get_commands_in_namespace",
+    "Data",
+    "cached_property",
+    "Color",
+    "StreamOptions",
+    "abort",
+    "flatten_args",
+    "format_if",
+    "isatty",
+    "load_object",
+    "merge_dicts",
+    "abs_path",
+    "asset_path",
+    "paths_to_str",
+    "get_hr",
+    "printer",
+    "confirm",
+    "prompt",
+    "camel_to_underscore",
+    "is_type",
 ]
 
 
@@ -45,6 +55,7 @@ def get_commands_in_namespace(namespace=None, level=1):
 
     """
     from ..command import Command  # noqa: Avoid circular import
+
     commands = {}
     if namespace is None:
         frame = inspect.stack()[level][0]

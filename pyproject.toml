@@ -28,6 +28,7 @@ Jinja2 = "^2.10"
 PyYAML = "^5.1"
 
 [tool.poetry.dev-dependencies]
+black = {version = "*", allow-prereleases = true}
 coverage = "*"
 flake8 = "<3.8"
 Sphinx = "*"
@@ -40,6 +41,9 @@ runcommand = "runcommands.__main__:main"
 runcommands = "runcommands.__main__:main"
 runcommands-complete = "runcommands.completion:complete.console_script"
 runcommands-complete-base-command = "runcommands.completion:complete_base_command.console_script"
+
+[tool.black]
+target-version = ["py36"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

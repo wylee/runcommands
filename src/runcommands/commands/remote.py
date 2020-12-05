@@ -9,23 +9,24 @@ from .local import local
 
 
 @command
-def remote(cmd: arg(container=list),
-           host,
-           user=None,
-           port=None,
-           sudo=False,
-           run_as=None,
-           shell='/bin/sh',
-           cd=None,
-           environ: arg(container=dict) = None,
-           paths=(),
-           # Args passed through to local command:
-           stdout: arg(type=StreamOptions) = None,
-           stderr: arg(type=StreamOptions) = None,
-           echo=False,
-           raise_on_error=True,
-           dry_run=False,
-           ) -> Result:
+def remote(
+    cmd: arg(container=list),
+    host,
+    user=None,
+    port=None,
+    sudo=False,
+    run_as=None,
+    shell="/bin/sh",
+    cd=None,
+    environ: arg(container=dict) = None,
+    paths=(),
+    # Args passed through to local command:
+    stdout: arg(type=StreamOptions) = None,
+    stderr: arg(type=StreamOptions) = None,
+    echo=False,
+    raise_on_error=True,
+    dry_run=False,
+) -> Result:
     """Run a remote command via SSH.
 
     Runs a remote shell command using ``ssh`` in a subprocess like so::
@@ -64,43 +65,49 @@ def remote(cmd: arg(container=list),
     if not isinstance(cmd, str):
         cmd = flatten_args(cmd, join=True)
 
-    ssh_options = ['-q']
+    ssh_options = ["-q"]
     if isatty(sys.stdin):
-        ssh_options.append('-t')
+        ssh_options.append("-t")
     if port is not None:
-        ssh_options.extend(('-p', port))
+        ssh_options.extend(("-p", port))
 
-    ssh_connection_str = '{user}@{host}'.format_map(locals()) if user else host
+    ssh_connection_str = f"{user}@{host}" if user else host
 
     remote_cmd = []
 
     if sudo:
-        remote_cmd.extend(('sudo', '-H'))
+        remote_cmd.extend(("sudo", "-H"))
     elif run_as:
-        remote_cmd.extend(('sudo', '-H', '-u', run_as))
+        remote_cmd.extend(("sudo", "-H", "-u", run_as))
 
-    remote_cmd.extend((shell, '-c'))
+    remote_cmd.extend((shell, "-c"))
 
     inner_cmd = []
 
     if cd:
-        inner_cmd.append('cd {cd}'.format_map(locals()))
+        inner_cmd.append(f"cd {cd}")
 
     if environ:
-        inner_cmd.extend('export {k}="{v}"'.format_map(locals()) for k, v in environ.items())
+        inner_cmd.extend(f'export {k}="{v}"' for k, v in environ.items())
 
     if paths:
-        inner_cmd.append('export PATH="{path}:$PATH"'.format(path=':'.join(paths)))
+        paths_str = ":".join(paths)
+        inner_cmd.append(f'export PATH="{paths_str}:$PATH"')
 
     inner_cmd.append(cmd)
-    inner_cmd = ' &&\n    '.join(inner_cmd)
-    inner_cmd = '\n    {inner_cmd}\n'.format_map(locals())
+    inner_cmd = " &&\n    ".join(inner_cmd)
+    inner_cmd = f"\n    {inner_cmd}\n"
     inner_cmd = shlex.quote(inner_cmd)
 
     remote_cmd.append(inner_cmd)
-    remote_cmd = ' '.join(remote_cmd)
+    remote_cmd = " ".join(remote_cmd)
 
-    args = ('ssh', ssh_options, ssh_connection_str, remote_cmd)
+    args = ("ssh", ssh_options, ssh_connection_str, remote_cmd)
     return local(
-        args, stdout=stdout, stderr=stderr, echo=echo, raise_on_error=raise_on_error,
-        dry_run=dry_run)
+        args,
+        stdout=stdout,
+        stderr=stderr,
+        echo=echo,
+        raise_on_error=raise_on_error,
+        dry_run=dry_run,
+    )

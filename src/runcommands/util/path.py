@@ -48,7 +48,7 @@ def abs_path(path, format_kwargs={}, relative_to=None, keep_slash=False):
 
     if os.path.isabs(path):
         path = os.path.normpath(path)
-    elif ':' in path:
+    elif ":" in path:
         path = asset_path(path, keep_slash=False)
     else:
         path = os.path.expanduser(path)
@@ -58,7 +58,7 @@ def abs_path(path, format_kwargs={}, relative_to=None, keep_slash=False):
         path = os.path.normpath(path)
 
     if has_slash and keep_slash:
-        path = '{path}{slash}'.format(path=path, slash=os.sep)
+        path = f"{path}{os.sep}"
 
     return path
 
@@ -94,8 +94,8 @@ def asset_path(path, format_kwargs={}, keep_slash=False):
 
     has_slash = path.endswith(os.sep)
 
-    if ':' in path:
-        package_name, *rel_path = path.split(':', 1)
+    if ":" in path:
+        package_name, *rel_path = path.split(":", 1)
     else:
         package_name, rel_path = path, ()
 
@@ -103,10 +103,11 @@ def asset_path(path, format_kwargs={}, keep_slash=False):
         package = importlib.import_module(package_name)
     except ImportError:
         raise ValueError(
-            'Could not get asset path for {path}; could not import package: {package_name}'
-            .format_map(locals()))
+            f"Could not get asset path for {path}; could not import package: "
+            f"{package_name}"
+        )
 
-    if not hasattr(package, '__file__'):
+    if not hasattr(package, "__file__"):
         raise ValueError("Can't compute path relative to namespace package")
 
     package_path = os.path.dirname(package.__file__)
@@ -114,13 +115,18 @@ def asset_path(path, format_kwargs={}, keep_slash=False):
     path = os.path.normpath(path)
 
     if has_slash and keep_slash:
-        path = '{path}{slash}'.format(path=path, slash=os.sep)
+        path = f"{path}{os.sep}"
 
     return path
 
 
-def paths_to_str(paths, format_kwargs={}, delimiter=os.pathsep, asset_paths=False,
-                 check_paths=False):
+def paths_to_str(
+    paths,
+    format_kwargs={},
+    delimiter=os.pathsep,
+    asset_paths=False,
+    check_paths=False,
+):
     """Convert ``paths`` to a single string.
 
     Args:
@@ -136,7 +142,7 @@ def paths_to_str(paths, format_kwargs={}, delimiter=os.pathsep, asset_paths=Fals
 
     """
     if not paths:
-        return ''
+        return ""
     if isinstance(paths, str):
         paths = paths.split(delimiter)
     processed_paths = []
@@ -144,7 +150,7 @@ def paths_to_str(paths, format_kwargs={}, delimiter=os.pathsep, asset_paths=Fals
         original = path
         path = path.format_map(format_kwargs)
         if not os.path.isabs(path):
-            if asset_paths and ':' in path:
+            if asset_paths and ":" in path:
                 try:
                     path = asset_path(path)
                 except ValueError:
@@ -152,6 +158,5 @@ def paths_to_str(paths, format_kwargs={}, delimiter=os.pathsep, asset_paths=Fals
         if path is not None and os.path.isdir(path):
             processed_paths.append(path)
         elif check_paths:
-            f = locals()
-            printer.warning('Path does not exist: {path} (from {original})'.format_map(f))
+            printer.warning(f"Path does not exist: {path} (from {original})")
     return delimiter.join(processed_paths)

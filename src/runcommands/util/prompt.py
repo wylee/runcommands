@@ -2,8 +2,13 @@ from .misc import abort
 from .printer import printer
 
 
-def confirm(prompt='Really?', color='warning', yes_values=('y', 'yes'),
-            abort_on_unconfirmed=False, abort_options=None):
+def confirm(
+    prompt="Really?",
+    color="warning",
+    yes_values=("y", "yes"),
+    abort_on_unconfirmed=False,
+    abort_options=None,
+):
     """Prompt for confirmation.
 
     Confirmation can be aborted by typing in a no value instead of one
@@ -34,7 +39,7 @@ def confirm(prompt='Really?', color='warning', yes_values=('y', 'yes'),
     if isinstance(yes_values, str):
         yes_values = (yes_values,)
 
-    prompt = '{prompt} [{yes_value}/N] '.format(prompt=prompt, yes_value=yes_values[0])
+    prompt = f"{prompt} [{yes_values[0]}/N] "
 
     if color:
         prompt = printer.colorize(prompt, color=color)
@@ -54,8 +59,8 @@ def confirm(prompt='Really?', color='warning', yes_values=('y', 'yes'),
     do_abort_on_unconfirmed = not confirmed and (
         # True, non-zero return code, non-empty string, or any other
         # truthy value (in the manner of typical Python duck-typing)
-        bool(abort_on_unconfirmed) or
-
+        bool(abort_on_unconfirmed)
+        or
         # Zero return code (special case)
         (abort_on_unconfirmed == 0 and abort_on_unconfirmed is not False)
     )
@@ -65,13 +70,13 @@ def confirm(prompt='Really?', color='warning', yes_values=('y', 'yes'),
             abort_options = {}
 
         if abort_on_unconfirmed is True:
-            abort_options.setdefault('return_code', 0)
+            abort_options.setdefault("return_code", 0)
         elif isinstance(abort_on_unconfirmed, int):
-            abort_options.setdefault('return_code', abort_on_unconfirmed)
+            abort_options.setdefault("return_code", abort_on_unconfirmed)
         elif isinstance(abort_on_unconfirmed, str):
-            abort_options.setdefault('message', abort_on_unconfirmed)
+            abort_options.setdefault("message", abort_on_unconfirmed)
         else:
-            abort_options.setdefault('return_code', 0)
+            abort_options.setdefault("return_code", 0)
 
         abort(**abort_options)
 
@@ -82,10 +87,10 @@ def prompt(message, default=None, color=True):
     message = message.rstrip()
     if default is not None:
         default = default.rstrip()
-        message = '%s [%s]' % (message, default)
-    message = '%s ' % message
+        message = "%s [%s]" % (message, default)
+    message = "%s " % message
     if color is True:
-        color = 'warning'
+        color = "warning"
     if color:
         message = printer.colorize(message, color=color)
     try:
