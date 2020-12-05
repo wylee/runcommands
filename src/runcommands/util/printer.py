@@ -8,8 +8,9 @@ from .misc import isatty
 
 
 class ColorMap:
-    def __init__(self, color_map: Mapping[str, str]):
-        self.add_colors(color_map)
+    def __init__(self, *color_maps):
+        for color_map in color_maps:
+            self.add_colors(color_map)
 
     def __getitem__(self, name: str):
         return getattr(self, name)
@@ -18,7 +19,11 @@ class ColorMap:
         setattr(self, name, color)
 
     def add_colors(self, color_map: Mapping[str, str]):
-        for name, color in color_map.items():
+        if isinstance(color_map, type) and issubclass(color_map, enum.Enum):
+            items = ((color.name, color) for color in color_map)
+        else:
+            items = color_map.items()
+        for name, color in items:
             setattr(self, name, color)
 
 
@@ -43,8 +48,11 @@ class Printer:
         default_color=None,
     ):
         self.colors = colors
-        self.color_map = ColorMap({color.name: color for color in colors})
-        self.color_map.add_colors(self.__class__.color_map)
+        self.color_map = ColorMap()
+        if colors:
+            self.color_map.add_colors(colors)
+        if self.__class__.color_map:
+            self.color_map.add_colors(self.__class__.color_map)
         if color_map:
             self.color_map.add_colors(color_map)
         self.default_color = self.get_color(default_color)
