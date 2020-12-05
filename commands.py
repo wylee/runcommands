@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import getpass
-import importlib
+import glob
 import os
 import shutil
+import subprocess
 import sys
 import unittest
 
@@ -11,34 +12,43 @@ if os.path.abspath(sys.argv[0]) == os.path.abspath(__file__):
     # When running this module directly via `./commands.py` or
     # `python commands.py`:
     #
-    # - Ensure virtual env is activated and minimal
-    # - Ensure minimal set of dependencies are installed
-    # - Ensure runcommands project directory is first in sys.path
-
-    def check_dependency(name, dist_name=None, action=None):
-        if sys.version_info > (3, 5):
-            exc_type = ModuleNotFoundError  # noqa
-        else:
-            exc_type = ImportError
-        try:
-            importlib.import_module(name)
-        except exc_type:
-            if action:
-                action(name)
-            else:
-                dist_name = dist_name or name
-                sys.stderr.write('Run `pip install {dist_name}` first\n'.format_map(locals()))
-                sys.exit(2)
-
-    virtual_env = os.getenv('VIRTUAL_ENV')
-    if not virtual_env:
-        sys.stderr.write('No virtual env active\n')
-        sys.stderr.write('Run `python -m venv .venv` first, then activate the virtual env\n')
+    # - Ensure virtual env is created and dependencies are installed
+    # - Ensure virtual env is activated
+    # - Ensure virtual env site packages directory is first on sys.path
+    if shutil.which('poetry') is None:
+        sys.stderr.write('poetry not installed or not on $PATH\n')
         sys.exit(1)
 
-    check_dependency('jinja2')
-    check_dependency('yaml', 'pyyaml')
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    if not os.getenv('VIRTUAL_ENV'):
+        def activate_venv(root='./.venv'):
+            sys.stderr.write(f'Attempting to activate virtual env at {root} -> ')
+            venv_root = os.path.abspath(root)
+            venv_bin = os.path.join(venv_root, 'bin')
+            venv_python = os.path.join(venv_bin, 'python')
+            venv_site_packages = os.path.join(venv_root, 'lib/python*/site-packages')
+            if os.path.isfile(venv_python):
+                paths = os.environ['PATH'].split(os.pathsep)
+                for path in paths:
+                    if os.path.normpath(os.path.abspath(path)) == venv_bin:
+                        # Virtual env bin directory IS in $PATH
+                        break
+                else:
+                    # Virtual env bin directory is NOT in $PATH; prepend it
+                    os.environ['PATH'] = os.pathsep.join([venv_bin] + paths)
+                os.environ['VIRTUAL_ENV'] = os.path.abspath(venv_root)
+                for path in glob.glob(venv_site_packages):
+                    sys.path.insert(0, path)
+                sys.stderr.write(f'activated\n')
+                return True
+            sys.stderr.write(f'FAILED\n')
+            return False
+
+        if not activate_venv():
+            sys.stderr.write('Creating virtual env and installing dependencies\n')
+            if os.path.exists('poetry.lock'):
+                os.remove('poetry.lock')
+            subprocess.run(['poetry', 'install'])
+            activate_venv()
 
 
 from runcommands import command  # noqa: E402
@@ -50,37 +60,10 @@ from runcommands.util import abort, asset_path, confirm, printer  # noqa: E402
 
 
 @command
-def virtualenv(where='.venv', python='python', overwrite=False):
-    exists = os.path.exists(where)
-
-    def create():
-        local((python, '-m', 'venv', where))
-        printer.success(
-            'Virtualenv created; activate it by running `source {where}/bin/activate`'
-            .format_map(locals()))
-
-    if exists:
-        if overwrite:
-            printer.warning('Overwriting virtualenv', where, 'with', python)
-            shutil.rmtree(where)
-            create()
-        else:
-            printer.info('Virtualenv', where, 'exists; pass --overwrite to re-create it')
-    else:
-        printer.info('Creating virtualenv', where, 'with', python)
-        create()
-
-
-@command
-def install(where='.venv', python='python', upgrade=False, overwrite=False):
-    virtualenv(where=where, python=python, overwrite=overwrite)
-    pip = '{where}/bin/pip'.format(where=where)
-    local((
-        pip, 'install',
-        ('--upgrade', '--upgrade-strategy', 'eager') if upgrade else None,
-        '--editable', '.[dev]',
-        ('pip', 'setuptools') if upgrade else None,
-    ), echo=True)
+def install(update=False):
+    if update:
+        local("poetry update")
+    local("poetry install")
 
 
 @command
@@ -244,6 +227,8 @@ def clean(verbose=False, more=False):
 
         - ./.venv/
         - ./runcommands.egg-info/
+        - ./poetry.lock
+
     Skips hidden directories.
 
     """
@@ -272,6 +257,8 @@ def clean(verbose=False, more=False):
     if more:
         rmdir('.venv', verbose)
         rmdir('runcommands.egg-info', verbose)
+        rmfile('poetry.lock', verbose)
+
 
 @command
 def build_docs(source='docs', destination='docs/_build', builder='html', clean=False):
