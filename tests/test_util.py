@@ -4,14 +4,18 @@ from doctest import DocTestSuite
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from unittest import TestCase
 
+import runcommands.util.decorators
+import runcommands.util.misc
+import runcommands.util.path
+import runcommands.util.string
 from runcommands.commands import copy_file
 
 
 def load_tests(loader, tests, ignore):
-    tests.addTests(DocTestSuite("runcommands.util.decorators"))
-    tests.addTests(DocTestSuite("runcommands.util.misc"))
-    tests.addTests(DocTestSuite("runcommands.util.path"))
-    tests.addTests(DocTestSuite("runcommands.util.string"))
+    tests.addTests(DocTestSuite(runcommands.util.decorators))
+    tests.addTests(DocTestSuite(runcommands.util.misc))
+    tests.addTests(DocTestSuite(runcommands.util.path))
+    tests.addTests(DocTestSuite(runcommands.util.string))
     return tests
 
 
