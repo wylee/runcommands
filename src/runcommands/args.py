@@ -7,7 +7,7 @@ from inspect import Parameter as BaseParameter
 from typing import Mapping, Sequence
 
 from .exc import CommandError
-from .util import cached_property, is_type
+from .util import cached_property, invert_string, is_type
 
 
 EMPTY = BaseParameter.empty
@@ -418,15 +418,7 @@ class Arg:
         if self.inverse_help:
             inverse_help = self.inverse_help
         elif self.help:
-            help_ = kwargs["help"]
-            if help_.startswith("Don't "):
-                inverse_help = help_[6:].capitalize()
-            elif help_.startswith("Do not "):
-                inverse_help = help_[7:].capitalize()
-            else:
-                first_letter = help_[0].lower()
-                rest = help_[1:]
-                inverse_help = f"Don't {first_letter}{rest}"
+            inverse_help = invert_string(self.help)
         else:
             inverse_help = self.help
 

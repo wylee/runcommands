@@ -9,7 +9,7 @@ from .misc import abort, flatten_args, format_if, isatty, load_object, merge_dic
 from .path import abs_path, asset_path, paths_to_str
 from .printer import get_hr, printer
 from .prompt import confirm, prompt
-from .string import camel_to_underscore
+from .string import camel_to_underscore, invert_string
 
 
 __all__ = [
@@ -32,6 +32,7 @@ __all__ = [
     "confirm",
     "prompt",
     "camel_to_underscore",
+    "invert_string",
     "is_type",
 ]
 
