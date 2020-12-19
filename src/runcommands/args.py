@@ -3,6 +3,7 @@ import builtins
 import json
 import re
 from enum import Enum
+from functools import update_wrapper
 from inspect import Parameter as BaseParameter
 from typing import Mapping, Sequence
 
@@ -391,8 +392,16 @@ class Arg:
         self.mutual_exclusion_group = mutual_exclusion_group
 
     @cached_property
-    def add_argument_args(self):
+    def add_argument_args(self, *, _type_wrapper_cache={}):
         args = self.options
+        if self.is_optional and not self.is_bool:
+            if self.type not in _type_wrapper_cache:
+                type = lambda v: (None if v == "" else self.type(v))  # noqa: E731
+                type = update_wrapper(type, self.type)
+                _type_wrapper_cache[self.type] = type
+            type = _type_wrapper_cache[self.type]
+        else:
+            type = self.type
         kwargs = {
             "action": self.action,
             "choices": self.choices,
@@ -400,7 +409,7 @@ class Arg:
             "help": self.help,
             "metavar": self.metavar,
             "nargs": self.nargs,
-            "type": self.type,
+            "type": type,
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         if self.is_positional and self.is_optional:
