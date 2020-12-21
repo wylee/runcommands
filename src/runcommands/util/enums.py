@@ -3,12 +3,14 @@ import os
 import subprocess
 import sys
 
-from blessings import Terminal
+import blessings
 
 from .misc import isatty
 
 
-if not (isatty(sys.stdout) and os.getenv("TERM")):
+if isatty(sys.stdout) and os.getenv("TERM"):
+    Terminal = blessings.Terminal
+else:
 
     class Terminal:
         def __getattr__(self, name):
