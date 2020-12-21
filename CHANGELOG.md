@@ -1,5 +1,21 @@
 # RunCommands
 
+## 1.0a63 - 2020-12-20
+
+- Switched to poetry for package setup
+- Moved package into `src/`
+- Moved tests into `tests/`
+- Added `format-code` command; reformatted all code
+- Improved `release` command; in particular, it now looks for
+  `pyproject.toml` and updates the version there if found
+- Improved color printer utility
+- Disabled color printing on non-posix platforms (instead of printing
+  gibberish)
+- Improved "string meaning inversion" logic for automatically inverting
+  boolean option help strings
+- Wrapped arg type constructors so that when empty strings are passed
+  via the command they'll be converted to `None`
+
 ## 1.0a62 - 2020-11-22
 
 - Drop support for Python 3.5 since it's no longer supported.
