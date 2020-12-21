@@ -300,7 +300,9 @@ def build_docs(source="docs", destination="docs/_build", builder="html", clean=F
 
 @command
 def make_dist(
-    version: arg(help="Tag/version to release [latest tag]") = None, quiet=False
+    version: arg(help="Tag/version to release [latest tag]") = None,
+    formats=("sdist", "wheel"),
+    quiet=False,
 ):
     """Make a distribution for upload to PyPI.
 
@@ -333,8 +335,9 @@ def make_dist(
     printer.info("Removing dist directory")
     rmdir("dist", verbose=not quiet)
 
-    printer.info("Making sdist for", version)
-    local("python setup.py sdist", stdout=stdout)
+    printer.info("Making dists for", version)
+    for format_ in formats:
+        local(("poetry", "build", "--format", format_), stdout=stdout)
 
     if version != current_branch:
         printer.info("Switching back to", original_branch)
@@ -361,7 +364,7 @@ def upload_dists(
     """Upload distributions in ./dist using ``twine``."""
     if make:
         printer.header("Making and uploading distributions")
-        make_dist(quiet)
+        make_dist(quiet=quiet)
     else:
         printer.header("Uploading distributions")
 
