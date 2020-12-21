@@ -1,7 +1,18 @@
 import enum
+import os
 import subprocess
+import sys
 
 from blessings import Terminal
+
+from .misc import isatty
+
+
+if not (isatty(sys.stdout) and os.getenv("TERM")):
+
+    class Terminal:
+        def __getattr__(self, name):
+            return ""
 
 
 TERM = Terminal()
