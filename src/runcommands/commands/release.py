@@ -1,4 +1,5 @@
 import datetime
+import os
 import pathlib
 import re
 from collections import namedtuple
@@ -32,8 +33,10 @@ def release(
 
     Steps:
         - Prepare release:
-            - Update ``__version__`` in version file (typically
-              ``package/__init__.py`` or ``src/package/__init__.py``)
+            - Update ``version`` in ``pyproject.toml`` (if present)
+            - Update ``__version__`` in version file (if present;
+              typically ``package/__init__.py`` or
+              ``src/package/__init__.py``)
             - Update next version header in change log
             - Commit version file and change log with prepare message
         - Merge to target branch (master by default):
@@ -44,7 +47,10 @@ def release(
               when not merging, the tag will point at the prepare
               release commit on the current branch
         - Resume development:
-            - Update version in version file to next version
+            - Update version in pyproject.toml to next version (if
+              present)
+            - Update version in version file to next version (if
+              present)
             - Add in-progress section for next version to change log
             - Commit version file and change log with resume message
 
@@ -65,6 +71,8 @@ def release(
           upload the result with `twine upload` (or by some other means)
 
     """
+    cwd = pathlib.Path.cwd()
+
     current_branch = get_current_branch()
     if current_branch == target_branch:
         abort(1, f"Cannot release from {target_branch} branch")
@@ -75,20 +83,62 @@ def release(
     print_step("Resuming development?", resume)
     print_step("Testing?", test)
 
-    if not version_file:
-        version_file, version_line_number, current_version = find_version_file()
+    pyproject_file = pathlib.Path("pyproject.toml")
+    if pyproject_file.is_file():
+        pyproject_version_info = get_current_version(pyproject_file, "version")
+        (
+            pyproject_version_line_number,
+            pyproject_version_quote,
+            pyproject_current_version,
+        ) = pyproject_version_info
+        printer.info("Found pyproject.toml")
     else:
-        version_line_number, current_version = get_current_version(version_file)
+        pyproject_file = None
+        pyproject_version_line_number = None
+        pyproject_version_quote = None
+        pyproject_current_version = None
+
+    if version_file:
+        version_file = pathlib.Path(version_file)
+        version_info = get_current_version(version_file)
+        version_line_number, version_quote, current_version = version_info
+        printer.info(f"Version file: {version_file.relative_to(cwd)}")
+    else:
+        version_info = find_version_file()
+        if version_info is not None:
+            (
+                version_file,
+                version_line_number,
+                version_quote,
+                current_version,
+            ) = version_info
+            printer.info(f"Found version file: {version_file.relative_to(cwd)}")
+        else:
+            version_file = None
+            version_line_number = None
+            version_quote = None
+            current_version = pyproject_current_version
+
+    if (
+        current_version
+        and pyproject_current_version
+        and current_version != pyproject_current_version
+    ):
+        abort(
+            2,
+            f"Version in pyproject.toml and "
+            f"{version_file.relative_to(cwd)} don't match",
+        )
 
     if not version:
         if current_version:
             version = current_version
         else:
             message = (
-                "Current version not set in version file, so release version needs to be passed "
-                "explicitly"
+                "Current version not set in version file, so release "
+                "version needs to be passed explicitly"
             )
-            abort(2, message)
+            abort(3, message)
 
     if not tag_name:
         tag_name = version
@@ -104,8 +154,12 @@ def release(
     info = ReleaseInfo(
         current_branch,
         target_branch,
+        pyproject_file,
+        pyproject_version_line_number,
+        pyproject_version_quote,
         version_file,
         version_line_number,
+        version_quote,
         version,
         tag_name,
         date,
@@ -150,8 +204,12 @@ ReleaseInfo = namedtuple(
     (
         "current_branch",
         "target_branch",
+        "pyproject_file",
+        "pyproject_version_line_number",
+        "pyproject_version_quote",
         "version_file",
         "version_line_number",
+        "version_quote",
         "version",
         "tag_name",
         "date",
@@ -167,24 +225,43 @@ ReleaseInfo = namedtuple(
 
 
 def prepare_release(info):
-    print_step_header("Preparing release", info.version, "on", info.date)
+    version = info.version
+    print_step_header("Preparing release", version, "on", info.date)
 
-    updated_init_line = f"__version__ = '{info.version}'\n"
-    updated_change_log_line = f"## {info.version} - {info.date}\n"
+    if info.pyproject_file:
+        quote = info.pyproject_version_quote
+        update_line(
+            info.pyproject_file,
+            info.pyproject_version_line_number,
+            f"version = {quote}{version}{quote}",
+        )
 
-    update_line(info.version_file, info.version_line_number, updated_init_line)
-    update_line(info.change_log, info.change_log_line_number, updated_change_log_line)
+    if info.version_file:
+        quote = info.version_quote
+        update_line(
+            info.version_file,
+            info.version_line_number,
+            f"__version__ = {quote}{version}{quote}",
+        )
 
-    local(("git", "diff", info.version_file, info.change_log))
+    update_line(
+        info.change_log,
+        info.change_log_line_number,
+        f"## {version} - {info.date}",
+    )
+
+    commit_files = info.pyproject_file, info.version_file, info.change_log
+    commit_files = tuple(f for f in commit_files if f)
+    local(("git", "diff", *commit_files))
 
     if info.confirmation_required:
         confirm("Commit these changes?", abort_on_unconfirmed=True)
     else:
         printer.warning("Committing changes")
 
-    msg = f"Prepare release {info.version}"
+    msg = f"Prepare release {version}"
     msg = prompt("Commit message", default=msg)
-    local(("git", "commit", info.version_file, info.change_log, "-m", msg))
+    local(("git", "commit", commit_files, "-m", msg))
 
 
 def merge_to_target_branch(info):
@@ -259,38 +336,52 @@ def create_release_tag(info, merge):
 
 
 def resume_development(info):
-    print_step_header("Resuming development at", info.next_version)
+    next_version = info.next_version
+    dev_version = f"{next_version}.dev0"
+    print_step_header(f"Resuming development at {next_version} ({dev_version})")
 
-    updated_init_line = f"__version__ = '{info.next_version}.dev0'\n"
+    if info.pyproject_file:
+        quote = info.pyproject_version_quote
+        update_line(
+            info.pyproject_file,
+            info.pyproject_version_line_number,
+            f"version = {quote}{dev_version}{quote}",
+        )
+
+    if info.version_file:
+        quote = info.version_quote
+        update_line(
+            info.version_file,
+            info.version_line_number,
+            f"__version__ = {quote}{dev_version}{quote}",
+        )
+
     new_change_log_lines = [
-        f"## {info.next_version} - unreleased\n\n",
+        f"## {next_version} - unreleased\n\n",
         "In progress...\n\n",
     ]
-
-    update_line(info.version_file, info.version_line_number, updated_init_line)
-
     with info.change_log.open() as fp:
         lines = fp.readlines()
-
     lines = (
         lines[: info.change_log_line_number]
         + new_change_log_lines
         + lines[info.change_log_line_number :]
     )
-
     with info.change_log.open("w") as fp:
         fp.writelines(lines)
 
-    local(("git", "diff", info.version_file, info.change_log))
+    commit_files = info.pyproject_file, info.version_file, info.change_log
+    commit_files = tuple(f for f in commit_files if f)
+    local(("git", "diff", *commit_files))
 
     if info.confirmation_required:
         confirm("Commit these changes?", abort_on_unconfirmed=True)
     else:
         printer.warning("Committing changes")
 
-    msg = f"Resume development at {info.next_version}"
+    msg = f"Resume development at {next_version}"
     msg = prompt("Commit message", default=msg)
-    local(("git", "commit", info.version_file, info.change_log, "-m", msg))
+    local(("git", "commit", commit_files, "-m", msg))
 
 
 # Utilities
@@ -332,27 +423,32 @@ def find_version_file():
     candidates.extend(cwd.glob("src/*/__init__.py"))
     candidates.extend(cwd.glob("src/*/*/__init__.py"))
     for candidate in candidates:
-        result = get_current_version(candidate, False)
+        result = get_current_version(candidate, "__version__", False)
         if result is not None:
             return (candidate,) + result
     candidates = "\n    ".join(str(candidate) for candidate in candidates)
-    abort(3, f"Could not find file containing __version__; tried:\n    {candidates}")
+    printer.warning(
+        f"Could not find file containing __version__; tried:\n    {candidates}",
+    )
+    return None
 
 
-def get_current_version(version_file, abort_on_not_found=True):
+def get_current_version(file, name, abort_on_not_found=True):
     # Extract current version from __version__ in version file.
     #
     # E.g.: __version__ = '1.0.dev0'
     version_re = (
-        r"""^__version__ *= *(['"])((?P<version>.+?)(?P<dev_marker>\.dev\d+)?)?\1 *$"""
+        fr"""^{name}"""
+        r""" *= *"""
+        r"""(?P<quote>['"])((?P<version>.+?)(?P<dev_marker>\.dev\d+)?)?\1 *$"""
     )
-    with version_file.open() as fp:
+    with file.open() as fp:
         for line_number, line in enumerate(fp):
             match = re.search(version_re, line)
             if match:
-                return line_number, match.group("version")
+                return line_number, match.group("quote"), match.group("version")
     if abort_on_not_found:
-        abort(4, f"Could not find __version__ in {version_file}")
+        abort(4, f"Could not find {name} in {file}")
 
 
 def get_next_version(current_version):
@@ -435,9 +531,11 @@ def find_change_log_section(change_log, version):
     abort(8, "Could not find section in change log")
 
 
-def update_line(path, line_number, content):
+def update_line(path, line_number, content, append_newline=True):
     with path.open() as fp:
         lines = fp.readlines()
+    if append_newline:
+        content = content + os.linesep
     lines[line_number] = content
     with path.open("w") as fp:
         fp.writelines(lines)
