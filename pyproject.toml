@@ -1,8 +1,9 @@
 [tool.poetry]
 name = "runcommands"
-version = "1.0a63"
+version = "1.0a63.post1"
 license = "MIT"
 description = "A framework for writing console scripts and running commands"
+readme = "README.rst"
 authors = ["Wyatt Baldwin <self@wyattbaldwin.com>"]
 homepage = "https://runcommands.readthedocs.io"
 repository = "https://github.com/wylee/runcommands"
