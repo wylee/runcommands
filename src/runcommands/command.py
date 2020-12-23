@@ -6,10 +6,12 @@ import time
 from collections import OrderedDict
 from typing import Mapping
 
+from cached_property import cached_property
+
 from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg, Parameter
 from .exc import CommandError, RunAborted, RunCommandsError
 from .result import Result
-from .util import cached_property, camel_to_underscore, get_hr, is_type, printer, Data
+from .util import camel_to_underscore, get_hr, is_type, printer, Data
 
 
 __all__ = ["command", "subcommand", "Command"]

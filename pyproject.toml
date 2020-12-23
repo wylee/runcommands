@@ -28,6 +28,7 @@ python = "^3.6"
 blessings = "^1.7"
 Jinja2 = "^2.10"
 PyYAML = "^5.1"
+"com.wyattbaldwin.cached_property" = "^1.0"
 
 [tool.poetry.dev-dependencies]
 black = {version = "*", allow-prereleases = true}

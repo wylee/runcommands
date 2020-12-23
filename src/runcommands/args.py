@@ -7,8 +7,10 @@ from functools import update_wrapper
 from inspect import Parameter as BaseParameter
 from typing import Mapping, Sequence
 
+from cached_property import cached_property
+
 from .exc import CommandError
-from .util import cached_property, invert_string, is_type
+from .util import invert_string, is_type
 
 
 EMPTY = BaseParameter.empty
