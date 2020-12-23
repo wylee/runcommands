@@ -1,8 +1,10 @@
 # RunCommands
 
-## 1.0a64 - unreleased
+## 1.0a63.post1 - 2020-12-22
 
-In progress...
+Fixed project configuration with regard to README file. Poetry requires
+the README file to be specified as the `readme` or it won't render it as
+the long description in the package or on PyPI.
 
 ## 1.0a63 - 2020-12-20
 
