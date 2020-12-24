@@ -37,6 +37,7 @@ flake8 = "<3.8"
 Sphinx = "*"
 tox = "*"
 twine = "*"
+"com.wyattbaldwin.make_release" = { path = "../com.wyattbaldwin/make_release", develop = true }
 
 [tool.poetry.scripts]
 run = "runcommands.__main__:main"

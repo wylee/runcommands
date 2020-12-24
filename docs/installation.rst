@@ -55,13 +55,6 @@ non-truthy value:
 
     RUNCOMMANDS_INSTALL_COMPLETION_CONSOLE_SCRIPTS="no" pip install -e .[dev]
 
-There's also a standalone ``make-release`` script that's *not* installed by
-default. It can be installed like this:
-
-.. code-block:: shell
-
-    RUNCOMMANDS_INSTALL_RELEASE_CONSOLE_SCRIPT="yes" pip install -e .[dev]
-
 Shell Completion
 ================
 
