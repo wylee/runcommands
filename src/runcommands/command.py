@@ -354,6 +354,12 @@ class Command:
         return result
 
     def console_script(self, argv=None, **overrides):
+        """Run the command and then :func:`sys.exit`.
+
+        When exiting isn't desired (e.g. in tests), wrap the call to
+        this method in a try/except black that catches ``SystemExit``.
+
+        """
         debug = self.debug
         argv = sys.argv[1:] if argv is None else argv
         is_base_command = self.is_base_command
@@ -411,7 +417,10 @@ class Command:
             for callback in cmd.callbacks:
                 callback(cmd, result, aborted)
 
-        return return_code
+        if debug:
+            printer.debug("Exiting console script with return code:", return_code)
+
+        return sys.exit(return_code)
 
     def process_result(self, result, argv, stdout=None, stderr=None):
         """Process the result returned by a command."""

@@ -426,4 +426,4 @@ def rmdir(name, verbose=False):
 if __name__ == "__main__":
     from runcommands.__main__ import main
 
-    sys.exit(main())
+    main()
