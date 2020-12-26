@@ -4,9 +4,13 @@ import signal
 import sys
 import time
 from collections import OrderedDict
+from configparser import ConfigParser, ExtendedInterpolation
+from pathlib import Path
 from typing import Mapping
 
 from cached_property import cached_property
+
+import toml
 
 from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg, Parameter
 from .exc import CommandError, RunAborted, RunCommandsError
@@ -236,6 +240,88 @@ class Command:
             return " ".join(self.name.split(":", self.subcommand_depth))
         return self.base_name
 
+    @cached_property
+    def config_file_args(self):
+        """Get default args from config file.
+
+        This looks in pyproject.toml and setup.cfg for default args for
+        this command. The sections that will be searched are:
+
+        - runcommands.{self.name}.args
+        - {self.name}.args
+
+        Any args that are found will be converted using the arg's type
+        converter. Boolean args should use "1", "true", "0", or "false".
+
+        .. note:: TOML converts unquoted values, which may not be
+            desirable. To avoid this, quote values in pyproject.toml.
+
+        .. note:: This is intended for use with standalone console
+            scripts to provide an easy way for the end user to specify
+            default args without needing to know anything about
+            RunCommands. When creating a collection of commands to be
+            run via ``run``, default args can be specified in
+            ``commands.yaml`` instead.
+
+        """
+        cwd = Path.cwd()
+        args = None
+        config_file = None
+
+        pyproject_file = cwd / "pyproject.toml"
+        if not config_file and pyproject_file.is_file():
+            all_config = toml.load(pyproject_file)
+            tool_config = all_config.get("tool") or {}
+            candidates = [f"runcommands.{self.name}", self.name]
+            for candidate in candidates:
+                config = tool_config
+                path = candidate.split(".")
+                for segment in path:
+                    if segment in config:
+                        config = config[segment]
+                    else:
+                        break
+                else:
+                    config_file = pyproject_file
+                    args = config.get("args")
+                    break
+
+        setup_file = cwd / "setup.cfg"
+        if not config_file and setup_file.is_file():
+            parser = ConfigParser(interpolation=ExtendedInterpolation())
+            parser.read(setup_file)
+            sections = parser.sections()
+            candidates = [f"runcommands.{self.name}.args", f"{self.name}.args"]
+            for candidate in candidates:
+                if candidate in sections:
+                    config_file = setup_file
+                    args = sections[candidate]
+                    break
+
+        if not (config_file and args):
+            return {}
+
+        processed_args = {}
+
+        for name, value in args.items():
+            arg = self.find_arg(name)
+            if arg is None:
+                raise CommandError(
+                    f"Unknown arg for command {self.name} specified in "
+                    f"{config_file.name}: {name}"
+                )
+            try:
+                value = arg.convert_value(value)
+            except (ValueError, TypeError):
+                raise CommandError(
+                    f"Could not convert value for command {self.name} "
+                    f"specified in {config_file.name}: "
+                    f"{self.name} => {value!r}"
+                )
+            processed_args[arg.dest] = value
+
+        return processed_args
+
     def add_subcommand(self, subcommand):
         name = subcommand.base_name
         self.subcommands.append(subcommand)
@@ -268,9 +354,11 @@ class Command:
         debug = self.debug
         positionals = self.positionals
         var_positional = self.var_positional
+        config_args = self.config_file_args
         default_args = self.default_args
 
         parsed_args = {}
+        parsed_args.update(config_args)
 
         if isinstance(argv, Mapping):
             parsed_args.update(argv)
