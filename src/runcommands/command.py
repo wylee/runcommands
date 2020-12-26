@@ -230,7 +230,7 @@ class Command:
         # XXX: Read-only property
         return self.__data
 
-    @cached_property
+    @property
     def prog_name(self):
         if self.is_subcommand:
             return " ".join(self.name.split(":", self.subcommand_depth))
