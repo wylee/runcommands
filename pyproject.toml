@@ -50,6 +50,9 @@ runcommands-complete-base-command = "runcommands.completion:complete_base_comman
 [tool.black]
 target-version = ["py36"]
 
+[tool.make-release.args]
+test-command = "run test"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
