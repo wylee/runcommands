@@ -79,7 +79,6 @@ class Run(Command):
         all_argv=(),
         run_argv=(),
         command_argv=(),
-        cli_args=(),
     ):
         """Run one or more commands in succession.
 
@@ -235,16 +234,14 @@ class Run(Command):
         all_argv, run_argv, command_argv = self.partition_argv(argv)
         if "-d" in run_argv or "--debug" in run_argv:
             self.debug = True
-        cli_argv = self.parse_args(run_argv, False)
         kwargs.update(
             {
                 "all_argv": all_argv,
                 "run_argv": run_argv,
                 "command_argv": command_argv,
-                "cli_args": tuple(cli_argv),
             }
         )
-        return super().run(cli_argv, **kwargs)
+        return super().run(run_argv, **kwargs)
 
     def console_script(self, argv=None, **overrides):
         _argv = sys.argv[1:] if argv is None else argv
