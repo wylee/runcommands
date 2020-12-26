@@ -4,12 +4,18 @@ import signal
 import sys
 import time
 from collections import OrderedDict
+from configparser import ConfigParser, ExtendedInterpolation
+from pathlib import Path
 from typing import Mapping
+
+from cached_property import cached_property
+
+import toml
 
 from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg, Parameter
 from .exc import CommandError, RunAborted, RunCommandsError
 from .result import Result
-from .util import cached_property, camel_to_underscore, get_hr, is_type, printer, Data
+from .util import camel_to_underscore, get_hr, is_type, printer, Data
 
 
 __all__ = ["command", "subcommand", "Command"]
@@ -32,6 +38,11 @@ class Command:
             info message showing how long the command took to complete
             when ``True``. Defaults to ``False``.
         data (Mapping): Arbitrary data to attach to the command.
+        read_config (bool): Read args from config file (pyproject.toml
+            or setup.cfg). This is intended for use with standalone
+            console scripts as a way for the end user to specify default
+            args without having to know anything about RunCommands.
+            Defaults to ``False``.
         callbacks (list): A list of callables that will be called after
             the command completes. When multiple commands are run
             at once, their callbacks will be run in the opposite
@@ -131,6 +142,7 @@ class Command:
         base_command=None,
         timed=False,
         data=None,
+        read_config=False,
         callbacks=None,
         arg_config=None,
         default_args=None,
@@ -170,6 +182,7 @@ class Command:
         self.short_description = short_description
         self.timed = timed
         self.__data = Data(**(data or {}))
+        self.read_config = read_config
         self.callbacks = callbacks or []
         self.arg_config = arg_config or {}
         self.debug = debug
@@ -196,18 +209,24 @@ class Command:
         description=None,
         timed=False,
         data=None,
+        read_config=None,
         callbacks=None,
+        cls=None,
     ):
         """Create a subcommand of the specified base command."""
         base_command = self
+        cls = cls or base_command.__class__
+        if read_config is None:
+            read_config = base_command.read_config
         return command(
             name,
             description,
             base_command,
             timed,
             data,
+            read_config,
             callbacks,
-            cls=self.__class__,
+            cls,
         )
 
     @property
@@ -228,11 +247,111 @@ class Command:
         # XXX: Read-only property
         return self.__data
 
-    @cached_property
+    @property
     def prog_name(self):
         if self.is_subcommand:
             return " ".join(self.name.split(":", self.subcommand_depth))
         return self.base_name
+
+    @cached_property
+    def config_file_args(self, *, _cache={}):
+        """Get default args from config file.
+
+        This looks in pyproject.toml and setup.cfg for default args for
+        this command. The sections that will be searched are:
+
+        - runcommands.{self.name}.args
+        - {self.name}.args
+
+        Any args that are found will be converted using the arg's type
+        converter. Boolean args should use "1", "true", "0", or "false".
+
+        .. note:: TOML converts unquoted values, which may not be
+            desirable. To avoid this, quote values in pyproject.toml.
+
+        .. note:: This is intended for use with standalone console
+            scripts to provide an easy way for the end user to specify
+            default args without needing to know anything about
+            RunCommands. When creating a collection of commands to be
+            run via ``run``, default args can be specified in
+            ``commands.yaml`` instead.
+
+        .. note:: The first time a config file is loaded, its contents
+            are cached to reduce file reads.
+
+        """
+        cwd = Path.cwd()
+        pyproject_file = cwd / "pyproject.toml"
+        setup_file = cwd / "setup.cfg"
+
+        if pyproject_file not in _cache:
+            if pyproject_file.is_file():
+                all_config = toml.load(pyproject_file)
+            else:
+                all_config = None
+            _cache[pyproject_file] = all_config
+
+        all_config = _cache[pyproject_file]
+
+        if all_config is not None:
+            tool_config = all_config.get("tool") or {}
+            candidates = [f"runcommands.{self.name}", self.name]
+            for candidate in candidates:
+                config = tool_config
+                path = candidate.split(".")
+                for segment in path:
+                    if segment in config:
+                        config = config[segment]
+                    else:
+                        break
+                else:
+                    args = config.get("args")
+                    return self.convert_config_file_args(pyproject_file, args)
+
+        if setup_file not in _cache:
+            if setup_file.is_file():
+                parser = ConfigParser(interpolation=ExtendedInterpolation())
+                parser.read(setup_file)
+                sections = parser.sections()
+            else:
+                sections = None
+            _cache[setup_file] = sections
+
+        sections = _cache[setup_file]
+
+        if sections is not None:
+            candidates = [f"runcommands.{self.name}.args", f"{self.name}.args"]
+            for candidate in candidates:
+                if candidate in sections:
+                    args = sections[candidate]
+                    return self.convert_config_file_args(setup_file, args)
+
+        return {}
+
+    def convert_config_file_args(self, config_file, args):
+        if not args:
+            return {}
+
+        processed_args = {}
+
+        for name, value in args.items():
+            arg = self.find_arg(name)
+            if arg is None:
+                raise CommandError(
+                    f"Unknown arg for command {self.name} specified in "
+                    f"{config_file.name}: {name}"
+                )
+            try:
+                value = arg.convert_value(value)
+            except (ValueError, TypeError):
+                raise CommandError(
+                    f"Could not convert value for command {self.name} "
+                    f"specified in {config_file.name}: "
+                    f"{self.name} => {value!r}"
+                )
+            processed_args[arg.dest] = value
+
+        return processed_args
 
     def add_subcommand(self, subcommand):
         name = subcommand.base_name
@@ -258,7 +377,7 @@ class Command:
     def add_callback(self, callback):
         self.callbacks.append(callback)
 
-    def run(self, argv=None, **overrides):
+    def run(self, argv, _expand_short_options=True, **overrides):
         if self.timed:
             start_time = time.monotonic()
 
@@ -268,14 +387,22 @@ class Command:
         var_positional = self.var_positional
         default_args = self.default_args
 
-        if argv is None:
-            argv = sys.argv[1:]
+        parsed_args = {}
 
-        parsed_args = argv if isinstance(argv, dict) else self.parse_args(argv)
+        if self.read_config:
+            parsed_args.update(self.config_file_args)
+
+        if isinstance(argv, Mapping):
+            parsed_args.update(argv)
+        else:
+            parsed_args.update(
+                self.parse_args(argv, expand_short_options=_expand_short_options)
+            )
 
         args = []
         var_args = ()
-        kwargs = parsed_args.copy()
+        kwargs = {}
+        kwargs.update(parsed_args)
         kwargs.update(overrides)
 
         if debug:
@@ -352,6 +479,12 @@ class Command:
         return result
 
     def console_script(self, argv=None, **overrides):
+        """Run the command and then :func:`sys.exit`.
+
+        When exiting isn't desired (e.g. in tests), wrap the call to
+        this method in a try/except black that catches ``SystemExit``.
+
+        """
         debug = self.debug
         argv = sys.argv[1:] if argv is None else argv
         is_base_command = self.is_base_command
@@ -409,7 +542,10 @@ class Command:
             for callback in cmd.callbacks:
                 callback(cmd, result, aborted)
 
-        return return_code
+        if debug:
+            printer.debug("Exiting console script with return code:", return_code)
+
+        return sys.exit(return_code)
 
     def process_result(self, result, argv, stdout=None, stderr=None):
         """Process the result returned by a command."""
@@ -1066,6 +1202,7 @@ def command(
     base_command=None,
     timed=False,
     data=None,
+    read_config=False,
     callbacks=None,
     cls=Command,
 ):
@@ -1074,6 +1211,7 @@ def command(
         base_command=base_command,
         timed=timed,
         data=data,
+        read_config=read_config,
         callbacks=callbacks,
     )
 
@@ -1101,7 +1239,20 @@ def subcommand(
     description=None,
     timed=False,
     data=None,
+    read_config=None,
     callbacks=None,
-    cls=Command,
+    cls=None,
 ):
-    return command(name, description, base_command, timed, data, callbacks, cls)
+    cls = cls or base_command.__class__
+    if read_config is None:
+        read_config = base_command.read_config
+    return command(
+        name,
+        description,
+        base_command,
+        timed,
+        data,
+        read_config,
+        callbacks,
+        cls,
+    )

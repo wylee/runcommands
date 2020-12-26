@@ -3,8 +3,9 @@ import shlex
 from subprocess import CompletedProcess
 from typing import Mapping
 
+from cached_property import cached_property
+
 from .exc import RunCommandsError
-from .util import cached_property
 
 
 class Result(RunCommandsError):

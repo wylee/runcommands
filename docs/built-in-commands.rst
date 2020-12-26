@@ -7,7 +7,7 @@ them:
 .. code-block:: python
 
     # E.g., commands.py at the top level of your project
-    from runcommands.commands import local, release
+    from runcommands.commands import local, remote
 
 .. code-block:: bash
 
@@ -48,8 +48,3 @@ Run remote commands
 ===================
 
 .. automethod:: runcommands.commands.remote.implementation
-
-Create releases
-===============
-
-.. automethod:: runcommands.commands.release.implementation

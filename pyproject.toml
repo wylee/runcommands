@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "runcommands"
-version = "1.0a63.post1"
+version = "1.0a64"
 license = "MIT"
 description = "A framework for writing console scripts and running commands"
 readme = "README.rst"
@@ -28,14 +28,17 @@ python = "^3.6"
 blessings = "^1.7"
 Jinja2 = "^2.10"
 PyYAML = "^5.1"
+toml = "^0.10.2"
+"com.wyattbaldwin.cached_property" = "^1.0"
 
 [tool.poetry.dev-dependencies]
-black = {version = "*", allow-prereleases = true}
+black = { version = "*", allow-prereleases = true }
 coverage = "*"
 flake8 = "<3.8"
 Sphinx = "*"
 tox = "*"
 twine = "*"
+"com.wyattbaldwin.make_release" = { version = "*", allow-prereleases = true }
 
 [tool.poetry.scripts]
 run = "runcommands.__main__:main"
@@ -46,6 +49,9 @@ runcommands-complete-base-command = "runcommands.completion:complete_base_comman
 
 [tool.black]
 target-version = ["py36"]
+
+[tool.make-release.args]
+test-command = "run test"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

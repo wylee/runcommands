@@ -6,7 +6,7 @@ python:
   - "3.9"
 install:
   - pip install Jinja2 PyYAML
-  - pip install 'flake8<3.8' Sphinx
+  - pip install 'flake8<3.8' Sphinx com.wyattbaldwin.make_release
   - pip install .
 script:
   - python -m unittest discover

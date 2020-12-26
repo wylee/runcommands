@@ -1,5 +1,26 @@
 # RunCommands
 
+## 1.0a64 - 2020-12-25
+
+- Switched to `make_release` package for making releases (`make_release`
+  is based on the RunCommand `release` command)
+- Removed `release` command
+- Switched to `cached_property` package for `@cached_property`
+- Removed `@cached_property`
+- Fixed some things relating to poetry and new package layout
+- Made `argv` required when calling `Command.run()`
+- Added a mechanism for specifying default args in either
+  `pyproject.toml` or `setup.cfg`; this is mainly intended for use with
+  standalone console scripts, providing an easy way for end users to
+  configure such scripts without needing to know anything about
+  RunCommands
+- When creating subcommand's use the base command's class by default
+  rather than `Command`
+- BREAKING: `Command.console_script()` now `sys.exit()`s at the end
+  rather than returning the exit code so standalone console scripts will
+  exit with the correct return code; this can be "disabled" by wrapping
+  calls to `console_script` in a try/except that catches `SystemExit`
+
 ## 1.0a63.post1 - 2020-12-22
 
 Fixed project configuration with regard to README file. Poetry requires

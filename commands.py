@@ -55,14 +55,12 @@ if os.path.abspath(sys.argv[0]) == os.path.abspath(__file__):
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 
+from make_release.util import get_current_branch, get_latest_tag  # noqa: E402
+
 from runcommands import command  # noqa: E402
 from runcommands.args import arg  # noqa: E402
 from runcommands.commands import copy_file as _copy_file, local  # noqa: E402
-from runcommands.commands import git_version, release  # noqa: E402,F401
-from runcommands.commands.release import (
-    get_current_branch,
-    get_latest_tag,
-)  # noqa: E402
+from runcommands.commands import git_version  # noqa: E402,F401
 from runcommands.util import abort, asset_path, confirm, printer  # noqa: E402
 
 
@@ -428,4 +426,4 @@ def rmdir(name, verbose=False):
 if __name__ == "__main__":
     from runcommands.__main__ import main
 
-    sys.exit(main())
+    main()

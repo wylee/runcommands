@@ -1,5 +1,6 @@
 import io
 import os
+import sys
 from contextlib import redirect_stderr, redirect_stdout
 from unittest import TestCase
 
@@ -62,6 +63,20 @@ def container_args(
     return MockResult((positional, optional, another_optional, third_optional))
 
 
+class SysExitMixin:
+
+    """Make sys.exit() return its arg rather than actually exiting."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.original_sys_exit = sys.exit
+        sys.exit = lambda arg=0: arg
+
+    @classmethod
+    def tearDownClass(cls):
+        sys.exit = cls.original_sys_exit
+
+
 class TestLocalCommand(TestCase):
     def test_local_ls(self):
         result = local(["ls", "-1"], cd=os.path.dirname(__file__), stdout="capture")
@@ -69,7 +84,7 @@ class TestLocalCommand(TestCase):
         self.assertTrue(result)
 
 
-class TestCommandWithContainerArgs(TestCase):
+class TestCommandWithContainerArgs(SysExitMixin, TestCase):
     def test_positional(self):
         result = container_args.console_script(argv=["1"])
         self.assertEqual(result, ((1,), (), None, (42,)))
@@ -97,7 +112,7 @@ class TestCommandWithContainerArgs(TestCase):
         self.assertEqual(result, ((1,), (2,), [3.14], (13,)))
 
 
-class TestRun(TestCase):
+class TestRun(SysExitMixin, TestCase):
     def setUp(self):
         self.stderr = io.StringIO()
         self.stdout = io.StringIO()
@@ -152,7 +167,7 @@ class TestRun(TestCase):
         local.callbacks = []
 
 
-class TestSubcommand(TestCase):
+class TestSubcommand(SysExitMixin, TestCase):
     def test_base_command_subcommand_choices(self):
         arg = base.args["subcommand"]
         self.assertIsNotNone(arg.choices)
@@ -198,7 +213,7 @@ class TestSubcommand(TestCase):
         self.assertEqual(result, "subsub1(A, False)")
 
 
-class TestSubcommandCallbacks(TestCase):
+class TestSubcommandCallbacks(SysExitMixin, TestCase):
     def tearDown(self):
         base.callbacks = []
         sub.callbacks = []
