@@ -203,9 +203,11 @@ class Command:
         timed=False,
         data=None,
         callbacks=None,
+        cls=None,
     ):
         """Create a subcommand of the specified base command."""
         base_command = self
+        cls = cls or base_command.__class__
         return command(
             name,
             description,
@@ -213,7 +215,7 @@ class Command:
             timed,
             data,
             callbacks,
-            cls=self.__class__,
+            cls,
         )
 
     @property
@@ -1206,6 +1208,7 @@ def subcommand(
     timed=False,
     data=None,
     callbacks=None,
-    cls=Command,
+    cls=None,
 ):
+    cls = cls or base_command.__class__
     return command(name, description, base_command, timed, data, callbacks, cls)
