@@ -38,6 +38,11 @@ class Command:
             info message showing how long the command took to complete
             when ``True``. Defaults to ``False``.
         data (Mapping): Arbitrary data to attach to the command.
+        read_config (bool): Read args from config file (pyproject.toml
+            or setup.cfg). This is intended for use with standalone
+            console scripts as a way for the end user to specify default
+            args without having to know anything about RunCommands.
+            Defaults to ``False``.
         callbacks (list): A list of callables that will be called after
             the command completes. When multiple commands are run
             at once, their callbacks will be run in the opposite
@@ -137,6 +142,7 @@ class Command:
         base_command=None,
         timed=False,
         data=None,
+        read_config=False,
         callbacks=None,
         arg_config=None,
         default_args=None,
@@ -176,6 +182,7 @@ class Command:
         self.short_description = short_description
         self.timed = timed
         self.__data = Data(**(data or {}))
+        self.read_config = read_config
         self.callbacks = callbacks or []
         self.arg_config = arg_config or {}
         self.debug = debug
@@ -202,18 +209,22 @@ class Command:
         description=None,
         timed=False,
         data=None,
+        read_config=None,
         callbacks=None,
         cls=None,
     ):
         """Create a subcommand of the specified base command."""
         base_command = self
         cls = cls or base_command.__class__
+        if read_config is None:
+            read_config = base_command.read_config
         return command(
             name,
             description,
             base_command,
             timed,
             data,
+            read_config,
             callbacks,
             cls,
         )
@@ -243,7 +254,7 @@ class Command:
         return self.base_name
 
     @cached_property
-    def config_file_args(self):
+    def config_file_args(self, *, _cache={}):
         """Get default args from config file.
 
         This looks in pyproject.toml and setup.cfg for default args for
@@ -265,14 +276,24 @@ class Command:
             run via ``run``, default args can be specified in
             ``commands.yaml`` instead.
 
+        .. note:: The first time a config file is loaded, its contents
+            are cached to reduce file reads.
+
         """
         cwd = Path.cwd()
-        args = None
-        config_file = None
-
         pyproject_file = cwd / "pyproject.toml"
-        if not config_file and pyproject_file.is_file():
-            all_config = toml.load(pyproject_file)
+        setup_file = cwd / "setup.cfg"
+
+        if pyproject_file not in _cache:
+            if pyproject_file.is_file():
+                all_config = toml.load(pyproject_file)
+            else:
+                all_config = None
+            _cache[pyproject_file] = all_config
+
+        all_config = _cache[pyproject_file]
+
+        if all_config is not None:
             tool_config = all_config.get("tool") or {}
             candidates = [f"runcommands.{self.name}", self.name]
             for candidate in candidates:
@@ -284,23 +305,31 @@ class Command:
                     else:
                         break
                 else:
-                    config_file = pyproject_file
                     args = config.get("args")
-                    break
+                    return self.convert_config_file_args(pyproject_file, args)
 
-        setup_file = cwd / "setup.cfg"
-        if not config_file and setup_file.is_file():
-            parser = ConfigParser(interpolation=ExtendedInterpolation())
-            parser.read(setup_file)
-            sections = parser.sections()
+        if setup_file not in _cache:
+            if setup_file.is_file():
+                parser = ConfigParser(interpolation=ExtendedInterpolation())
+                parser.read(setup_file)
+                sections = parser.sections()
+            else:
+                sections = None
+            _cache[setup_file] = sections
+
+        sections = _cache[setup_file]
+
+        if sections is not None:
             candidates = [f"runcommands.{self.name}.args", f"{self.name}.args"]
             for candidate in candidates:
                 if candidate in sections:
-                    config_file = setup_file
                     args = sections[candidate]
-                    break
+                    return self.convert_config_file_args(setup_file, args)
 
-        if not (config_file and args):
+        return {}
+
+    def convert_config_file_args(self, config_file, args):
+        if not args:
             return {}
 
         processed_args = {}
@@ -356,11 +385,12 @@ class Command:
         debug = self.debug
         positionals = self.positionals
         var_positional = self.var_positional
-        config_args = self.config_file_args
         default_args = self.default_args
 
         parsed_args = {}
-        parsed_args.update(config_args)
+
+        if self.read_config:
+            parsed_args.update(self.config_file_args)
 
         if isinstance(argv, Mapping):
             parsed_args.update(argv)
@@ -1172,6 +1202,7 @@ def command(
     base_command=None,
     timed=False,
     data=None,
+    read_config=False,
     callbacks=None,
     cls=Command,
 ):
@@ -1180,6 +1211,7 @@ def command(
         base_command=base_command,
         timed=timed,
         data=data,
+        read_config=read_config,
         callbacks=callbacks,
     )
 
@@ -1207,8 +1239,20 @@ def subcommand(
     description=None,
     timed=False,
     data=None,
+    read_config=None,
     callbacks=None,
     cls=None,
 ):
     cls = cls or base_command.__class__
-    return command(name, description, base_command, timed, data, callbacks, cls)
+    if read_config is None:
+        read_config = base_command.read_config
+    return command(
+        name,
+        description,
+        base_command,
+        timed,
+        data,
+        read_config,
+        callbacks,
+        cls,
+    )
