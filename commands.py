@@ -307,13 +307,13 @@ def make_dist(
     Switches to the specified tag or branch, makes the distribution,
     then switches back to the original branch.
 
-    Intended to be run from the develop branch. If a tag is already
-    checked out, the develop branch will be checked out first and then
+    Intended to be run from the ``dev`` branch. If a tag is already
+    checked out, the ``dev`` branch will be checked out first and then
     switched back to after making the distribution.
 
     """
     current_branch = get_current_branch()
-    original_branch = "develop" if current_branch == "HEAD" else current_branch
+    original_branch = "dev" if current_branch == "HEAD" else current_branch
     version = version or get_latest_tag()
     stdout = "hide" if quiet else None
 
@@ -321,7 +321,7 @@ def make_dist(
 
     if version != current_branch:
         if current_branch == "HEAD":
-            printer.warning("Not on a branch; checking out develop first")
+            printer.warning("Not on a branch; checking out `dev` first")
         else:
             printer.info("Currently on branch", current_branch)
         printer.info("Checking out", version)
