@@ -260,7 +260,7 @@ class Command:
     def add_callback(self, callback):
         self.callbacks.append(callback)
 
-    def run(self, argv, **overrides):
+    def run(self, argv, _expand_short_options=True, **overrides):
         if self.timed:
             start_time = time.monotonic()
 
@@ -270,11 +270,19 @@ class Command:
         var_positional = self.var_positional
         default_args = self.default_args
 
-        parsed_args = argv if isinstance(argv, dict) else self.parse_args(argv)
+        parsed_args = {}
+
+        if isinstance(argv, Mapping):
+            parsed_args.update(argv)
+        else:
+            parsed_args.update(
+                self.parse_args(argv, expand_short_options=_expand_short_options)
+            )
 
         args = []
         var_args = ()
-        kwargs = parsed_args.copy()
+        kwargs = {}
+        kwargs.update(parsed_args)
         kwargs.update(overrides)
 
         if debug:

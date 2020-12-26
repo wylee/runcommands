@@ -143,8 +143,7 @@ class CommandToRun:
         )
 
     def run(self):
-        argv_dict = self.command.parse_args(self.argv, False)
-        return self.command.run(argv_dict)
+        return self.command.run(self.argv, _expand_short_options=False)
 
     def process_result(self, result, **kwargs):
         return self.command.process_result(result, self.argv, **kwargs)
