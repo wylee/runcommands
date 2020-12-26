@@ -444,6 +444,21 @@ class Arg:
 
         return args, kwargs
 
+    def convert_value(self, value: str):
+        """Convert string value to this arg's type."""
+        if not isinstance(value, str):
+            return value
+        if self.is_bool or self.is_bool_or:
+            if value in ("1", "true"):
+                return True
+            elif value in ("0", "false"):
+                return False
+            if self.is_bool:
+                raise ValueError(f"Bool value must be one of 1, true, 0, or false")
+        converter = self.add_argument_args[1]["type"]
+        value = converter(value)
+        return value
+
     def __str__(self):
         kind = "Positional" if self.is_positional else "Optional"
         has_default = self.default not in (EMPTY, None)
