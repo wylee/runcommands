@@ -1,8 +1,8 @@
 # RunCommands
 
-## 1.0a65 - unreleased
+## 1.0a65 - 2020-12-29
 
-In progress...
+- Fixed color setup for printer utility when `TERM` isn't set.
 
 ## 1.0a64 - 2020-12-25
 
