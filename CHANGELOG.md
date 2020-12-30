@@ -1,5 +1,9 @@
 # RunCommands
 
+## 1.0a65 - 2020-12-29
+
+- Fixed color setup for printer utility when `TERM` isn't set.
+
 ## 1.0a64 - 2020-12-25
 
 - Switched to `make_release` package for making releases (`make_release`
