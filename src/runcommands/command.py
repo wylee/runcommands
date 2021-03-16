@@ -43,6 +43,13 @@ class Command:
             console scripts as a way for the end user to specify default
             args without having to know anything about RunCommands.
             Defaults to ``False``.
+        sources (str|str[]): Source path or paths that the command
+            uses to create output paths. If this is specified, then
+            ``creates`` must be specified too.
+        creates (str|str[]): Output path or paths that the command
+            creates. This can be specified without ``sources``; in this
+            case, the output path(s) will be created only when they
+            don't already exist.
         callbacks (list): A list of callables that will be called after
             the command completes. When multiple commands are run
             at once, their callbacks will be run in the opposite
@@ -143,6 +150,8 @@ class Command:
         timed=False,
         data=None,
         read_config=False,
+        creates=None,
+        sources=None,
         callbacks=None,
         arg_config=None,
         default_args=None,
@@ -177,6 +186,13 @@ class Command:
         )
         short_description = description.splitlines()[0] if description else None
 
+        if sources and not creates:
+            raise ValueError(
+                f"{name} command has source pattern but no output "
+                f"paths (this is an error because it's not clear "
+                f"what the intent is)"
+            )
+
         self.name = name
         self.description = description
         self.short_description = short_description
@@ -185,6 +201,8 @@ class Command:
         self.read_config = read_config
         self.callbacks = callbacks or []
         self.arg_config = arg_config or {}
+        self.creates = creates
+        self.sources = sources
         self.debug = debug
         self.default_args = default_args or {}
         self.mutual_exclusion_groups = {}
@@ -210,6 +228,8 @@ class Command:
         timed=False,
         data=None,
         read_config=None,
+        creates=None,
+        sources=None,
         callbacks=None,
         cls=None,
     ):
@@ -225,6 +245,8 @@ class Command:
             timed,
             data,
             read_config,
+            creates,
+            sources,
             callbacks,
             cls,
         )
@@ -353,6 +375,35 @@ class Command:
 
         return processed_args
 
+    @cached_property
+    def output_paths(self):
+        output_paths = self.creates
+        if output_paths:
+            if isinstance(output_paths, (str, Path)):
+                output_paths = (output_paths,)
+            return tuple(Path(path).resolve() for path in output_paths)
+        return None
+
+    @cached_property
+    def source_paths(self):
+        source_patterns = self.sources
+        if source_patterns:
+            source_paths = []
+            cwd = Path.cwd()
+            if isinstance(source_patterns, (str, Path)):
+                source_patterns = (source_patterns,)
+            for pattern in source_patterns:
+                pattern_sources = tuple(path.resolve() for path in cwd.glob(pattern))
+                if pattern_sources:
+                    source_paths.extend(pattern_sources)
+                else:
+                    raise CommandError(
+                        f"No paths found matching source pattern for "
+                        f"{self.name} command: {pattern}"
+                    )
+            return source_paths
+        return None
+
     def add_subcommand(self, subcommand):
         name = subcommand.base_name
         self.subcommands.append(subcommand)
@@ -377,9 +428,67 @@ class Command:
     def add_callback(self, callback):
         self.callbacks.append(callback)
 
+    def should_create(self):
+        """Determine whether output paths should be created.
+
+        Returns ``True`` when any* output path doesn't already exist or
+        when *any* source path was modified more recently than *any*
+        output path.
+
+        Returns ``False`` in all other cases.
+
+        .. note:: This should only be called when ``self.creates`` is
+            specified.
+
+        .. note:: When a command creates paths but no source paths are
+            specified, the output paths will be created when at least
+            one output path doesn't already exist.
+
+        """
+        source_paths = self.source_paths
+        output_paths = self.output_paths
+
+        # When any output path doesn't exist, create all paths.
+        for output_path in output_paths:
+            if not output_path.exists():
+                return True
+
+        if not source_paths:
+            # All output paths exist, so there's nothing to do (since
+            # there are no source paths to compare against).
+            return False
+
+        # XXX: Cache stat calls
+        source_mtimes = [None] * len(source_paths)
+        output_mtimes = [None] * len(output_paths)
+
+        # For each output path, see if any source path was modified more
+        # recently.
+        for i, output_path in enumerate(output_paths):
+            if output_mtimes[i] is None:
+                output_mtimes[i] = output_path.stat().st_mtime_ns
+            output_mtime = output_mtimes[i]
+            for j, source_path in enumerate(source_paths):
+                if source_mtimes[j] is None:
+                    source_mtimes[j] = source_path.stat().st_mtime_ns
+                source_mtime = source_mtimes[j]
+                if source_mtime > output_mtime:
+                    return True
+
+        return False
+
     def run(self, argv, _expand_short_options=True, **overrides):
         if self.timed:
             start_time = time.monotonic()
+
+        creates = self.output_paths
+        if creates:
+            should_create = self.should_create()
+            if not should_create:
+                printer.warning(f"Output paths are up to date for {self.name} command")
+                if self.timed:
+                    self.print_elapsed_time(time.monotonic() - start_time)
+                return None
 
         empty = Parameter.empty
         debug = self.debug
@@ -472,6 +581,11 @@ class Command:
             args = tuple(args) + tuple(var_args)
 
         result = self(*args, **kwargs)
+
+        if creates and should_create:
+            for path in creates:
+                if not path.exists():
+                    printer.warning(f"Path not created by command {self.name}: {path}")
 
         if self.timed:
             self.print_elapsed_time(time.monotonic() - start_time)
@@ -1203,6 +1317,8 @@ def command(
     timed=False,
     data=None,
     read_config=False,
+    creates=None,
+    sources=None,
     callbacks=None,
     cls=Command,
 ):
@@ -1212,6 +1328,8 @@ def command(
         timed=timed,
         data=data,
         read_config=read_config,
+        creates=creates,
+        sources=sources,
         callbacks=callbacks,
     )
 
@@ -1240,6 +1358,8 @@ def subcommand(
     timed=False,
     data=None,
     read_config=None,
+    creates=None,
+    sources=None,
     callbacks=None,
     cls=None,
 ):
@@ -1253,6 +1373,8 @@ def subcommand(
         timed,
         data,
         read_config,
+        creates,
+        sources,
         callbacks,
         cls,
     )
