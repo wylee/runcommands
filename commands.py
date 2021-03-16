@@ -168,6 +168,7 @@ def test(
         coverage.start()
 
     if tests:
+        sys.path.insert(0, ".")
         runner.run(loader.loadTestsFromNames(tests))
     else:
         tests = loader.discover("./tests", top_level_dir=".")
