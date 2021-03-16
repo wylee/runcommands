@@ -141,7 +141,13 @@ def install_completion(
 
 
 @command
-def test(*tests, fail_fast=False, verbosity=1, with_coverage=True, with_lint=True):
+def test(
+    *tests,
+    fail_fast=False,
+    verbosity=1,
+    with_coverage: arg(short_option="-c") = True,
+    with_lint: arg(short_option="-l") = True,
+):
     original_working_directory = os.getcwd()
 
     if tests:
