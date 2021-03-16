@@ -2,6 +2,7 @@
 import getpass
 import glob
 import os
+import pathlib
 import shutil
 import subprocess
 import sys
@@ -64,11 +65,18 @@ from runcommands.commands import git_version  # noqa: E402,F401
 from runcommands.util import abort, asset_path, confirm, printer  # noqa: E402
 
 
-@command
-def install(update=False):
-    if update:
-        local("poetry update")
+@command(creates=(".venv", "poetry.lock"), sources="pyproject.toml")
+def install():
+    """Create virtualenv & install dependencies by running `poetry install`."""
     local("poetry install")
+    pathlib.Path(".venv").touch()
+    pathlib.Path("poetry.lock").touch()
+
+
+@command
+def update():
+    """Update dependencies by running `poetry update`."""
+    local("poetry update")
 
 
 @command
