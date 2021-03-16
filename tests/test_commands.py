@@ -277,19 +277,29 @@ class TestSubcommandCallbacks(SysExitMixin, TestCase):
 
 
 class TestSourcesAndCreates(SysExitMixin, TestCase):
+    def setUp(self):
+        self.stderr = io.StringIO()
+        self.stdout = io.StringIO()
+
     def tearDown(self):
-        Path("tests/created.temp").unlink(missing_ok=True)
+        self.stderr = None
+        self.stdout = None
+        path = Path("tests/created.temp")
+        if path.exists():
+            path.unlink(missing_ok=True)
 
     def test_run(self):
         result = create_from_sources.run([])
         self.assertEqual(result.return_code, "Created tests/created.temp")
-        result = create_from_sources.run([])
+        with redirect_stderr(self.stderr):
+            result = create_from_sources.run([])
         self.assertEqual(result, None)
 
     def test_console_script(self):
         result = create_from_sources.console_script([])
         self.assertEqual(result, "Created tests/created.temp")
-        result = create_from_sources.console_script([])
+        with redirect_stderr(self.stderr):
+            result = create_from_sources.console_script([])
         self.assertEqual(result, 0)
 
     def test_sources_without_creates(self):
@@ -303,5 +313,6 @@ class TestSourcesAndCreates(SysExitMixin, TestCase):
     def test_create_without_sources(self):
         result = create_without_sources.run([])
         self.assertEqual(result.return_code, "Created tests/created.temp")
-        result = create_without_sources.run([])
+        with redirect_stderr(self.stderr):
+            result = create_without_sources.run([])
         self.assertEqual(result, None)

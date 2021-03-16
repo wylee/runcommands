@@ -375,7 +375,7 @@ class Command:
 
         return processed_args
 
-    @cached_property
+    @property
     def output_paths(self):
         output_paths = self.creates
         if output_paths:
@@ -384,7 +384,7 @@ class Command:
             return tuple(Path(path).resolve() for path in output_paths)
         return None
 
-    @cached_property
+    @property
     def source_paths(self):
         source_patterns = self.sources
         if source_patterns:
