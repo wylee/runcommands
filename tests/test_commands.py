@@ -286,7 +286,7 @@ class TestSourcesAndCreates(SysExitMixin, TestCase):
         self.stdout = None
         path = Path("tests/created.temp")
         if path.exists():
-            path.unlink(missing_ok=True)
+            path.unlink()
 
     def test_run(self):
         result = create_from_sources.run([])
