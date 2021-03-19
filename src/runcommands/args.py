@@ -502,8 +502,14 @@ class bool_or:
     Use like this::
 
         @command
-            "Run the specified command, possibly hiding its output."
         def local(config, cmd, hide: {'type': bool_or} = False):
+            "Run the specified command, possibly hiding its output.
+
+            If ``hide=True``, *all* output will be hidden. It can also
+            be set to one of "stdout" or "stderr" to hide just the
+            specified output stream.
+
+            "
 
     .. note:: The default inner type for ``bool_or`` is ``str``.
         ``bool_or(str)`` is equivalent to ``bool_or``.
