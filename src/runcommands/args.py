@@ -322,7 +322,12 @@ class Arg:
 
         if action is None:
             if container:
-                action = ContainerAction.from_container(container)
+                if is_bool_or:
+                    action = BoolOrContainerAction.make(container, type)
+                    # XXX: Type conversion handled in action
+                    type = str
+                else:
+                    action = ContainerAction.make(container)
             elif is_bool:
                 action = "store_true"
             elif is_bool_or:
@@ -337,7 +342,10 @@ class Arg:
             elif is_var_positional:
                 nargs = "*"
             elif is_bool_or:
-                nargs = "?"
+                if container:
+                    nargs = "*"
+                else:
+                    nargs = "?"
             elif is_optional:
                 if container:
                     nargs = "*"
@@ -521,6 +529,26 @@ class bool_or:
         run local --hide stdout  # Hide stdout only
         run local --no-hide      # Don't hide anything
 
+    This can also be combined with the ``container`` option like so::
+
+        @command
+        def fetch(fields: {'container': dict, type: bool_or(int)}):
+            "Get data from somewhere and show the specified fields.
+
+            If ``fields=True``, all fields will be shown with their
+            original names. If fields are specified, only those fields
+            will be shown, with their names mapped. For example,
+            ``fields`` could be::
+
+                {'givenName': 'first_name', 'sn': 'last_name'}
+
+            "
+
+    .. note:: When combined with ``container``, the type passed to
+        ``bool_or`` is applied to the *values* in the container rather
+        than being applied to the literal strings passed on the command
+        line.
+
     """
 
     type = str
@@ -532,6 +560,38 @@ class bool_or:
         return _type_cache[type]
 
 
+def add_items_to_container(
+    container_type,
+    item_type,
+    existing_items,
+    new_items,
+    option_string,
+):
+    """Return a new container with existing plus new items."""
+    items = []
+    if is_mapping(existing_items):
+        if existing_items is not None:
+            items.extend(existing_items.items())
+        for value in new_items:
+            try:
+                name, value = value.split(":", 1)
+            except ValueError:
+                raise CommandError(
+                    f"Bad format for {option_string}; "
+                    f"expected `name:<value>` but got `{value}`"
+                )
+            value = item_type(value)
+            items.append((name, value))
+        return container_type(items)
+    elif is_sequence(existing_items):
+        if existing_items is not None:
+            items.extend(existing_items)
+        items.extend(item_type(value) for value in new_items)
+    else:
+        raise ValueError(f"Not a mapping or sequence: {existing_items!r}")
+    return container_type(items)
+
+
 class BoolOrAction(argparse.Action):
     def __call__(self, parser, namespace, value, option_string=None):
         if value is None:
@@ -539,33 +599,49 @@ class BoolOrAction(argparse.Action):
         setattr(namespace, self.dest, value)
 
 
+class BoolOrContainerAction(argparse.Action):
+    @classmethod
+    def make(cls, container_type, item_type):
+        return type(
+            "BoolOrContainerAction",
+            (cls,),
+            {
+                "container_type": container_type,
+                "item_type": item_type,
+            },
+        )
+
+    def __call__(self, parser, namespace, value, option_string=None):
+        if value == []:
+            setattr(namespace, self.dest, True)
+        else:
+            existing_items = getattr(namespace, self.dest)
+            if isinstance(existing_items, bool):
+                # XXX: The default value is False
+                existing_items = self.container_type()
+            items = add_items_to_container(
+                self.container_type,
+                self.item_type,
+                existing_items,
+                value,
+                option_string,
+            )
+            setattr(namespace, self.dest, items)
+
+
 class ContainerAction(argparse.Action):
     @classmethod
-    def from_container(cls, container_type):
+    def make(cls, container_type):
         return type("ContainerAction", (cls,), {"container_type": container_type})
 
     def __call__(self, parser, namespace, values, option_string=None):
-        items_to_add = []
-        items = getattr(namespace, self.dest, self.container_type())
-        if is_mapping(items):
-            if items is not None:
-                items_to_add.extend(items.items())
-            for value in values:
-                try:
-                    name, value = value.split(":", 1)
-                except ValueError:
-                    raise CommandError(
-                        "Bad format for {self.option_strings[0]}; "
-                        "expected name:<value> but got: {value}"
-                    )
-                value = self.type(value)
-                items_to_add.append((name, value))
-            items = self.container_type(items_to_add)
-        else:  # Sequence
-            if items is not None:
-                items_to_add.extend(items)
-            items_to_add.extend(self.type(value) for value in values)
-            items = self.container_type(items_to_add)
+        items = add_items_to_container(
+            self.container_type,
+            self.type,
+            getattr(namespace, self.dest, self.container_type()),
+            values,
+            option_string,
+        )
         setattr(namespace, self.dest, items)
 
 
