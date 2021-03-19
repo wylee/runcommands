@@ -1,15 +1,24 @@
 import os
 import sys
 import toml
+from importlib import import_module
+from pathlib import Path
 
 from . import __version__
 from .args import arg, json_value
 from .command import Command
 from .collection import Collection
-from .const import DEFAULT_COMMANDS_MODULE
 from .exc import RunAborted, RunnerError
 from .runner import CommandRunner
-from .util import abs_path, is_mapping, is_sequence, merge_dicts, printer
+from .util import (
+    abs_path,
+    is_mapping,
+    is_project_root,
+    is_sequence,
+    merge_dicts,
+    module_from_path,
+    printer,
+)
 
 
 class Run(Command):
@@ -27,7 +36,7 @@ class Run(Command):
         self,
         commands_module: arg(
             short_option="-m",
-        ) = DEFAULT_COMMANDS_MODULE,
+        ) = None,
         config_file: arg(
             short_option="-f",
         ) = None,
@@ -95,8 +104,13 @@ class Run(Command):
         a value and not a command name.
 
         """
-        collection = Collection.load_from_module(commands_module)
+        commands_module = self.find_commands_module(commands_module)
+
+        if commands_module is None:
+            raise RunnerError("Could not find commands module")
+
         config_file = self.find_config_file(config_file)
+        collection = Collection.load_from_module(commands_module)
         cli_globals = globals_ or {}
 
         if env:
@@ -330,16 +344,56 @@ class Run(Command):
         command_argv = argv[i:]
         return argv, run_argv, command_argv
 
+    def find_commands_module(self, commands_module, start_dir="."):
+        if commands_module:
+            if commands_module.endswith(".py"):
+                commands_module = abs_path(commands_module)
+                if not os.path.isfile(commands_module):
+                    raise RunnerError(
+                        f"Commands file does not exist: {commands_module}"
+                    )
+                else:
+                    return module_from_path("commands", commands_module)
+            else:
+                try:
+                    return import_module(commands_module)
+                except ImportError:
+                    raise RunnerError(
+                        f"Commands module could not be imported: {commands_module}"
+                    )
+        current_dir = Path(start_dir).resolve()
+        candidates = ("runcommands.py", "commands.py")
+        for candidate in candidates:
+            candidate = current_dir / candidate
+            if candidate.is_file():
+                return module_from_path("commands", candidate)
+        if is_project_root(current_dir):
+            return None
+        root = current_dir.root
+        start_dir = current_dir.parent
+        if current_dir == root and start_dir == root:
+            return None
+        return self.find_commands_module(commands_module, start_dir)
+
     def find_config_file(self, config_file, start_dir="."):
         if config_file:
             config_file = abs_path(config_file)
-        elif os.path.exists("runcommands.toml"):
-            config_file = abs_path("runcommands.toml")
-        elif os.path.exists("commands.toml"):
-            config_file = abs_path("commands.toml")
-        elif os.path.exists("pyproject.toml"):
-            config_file = abs_path("pyproject.toml")
-        return config_file
+            if not os.path.exists(config_file):
+                raise RunnerError(f"Config file does not exists: {config_file}")
+            return config_file
+        current_dir = Path(start_dir).resolve()
+        candidates = ("runcommands.toml", "commands.toml", "pyproject.toml")
+        for candidate in candidates:
+            candidate = current_dir / candidate
+            if candidate.is_file():
+                return candidate
+        if is_project_root(current_dir):
+            return None
+        root = current_dir.root
+        start_dir = current_dir.parent
+        if current_dir == root and start_dir == root:
+            return None
+        return self.find_config_file(config_file, start_dir)
 
     def read_config_file(self, config_file, collection):
         return self._read_config_file(config_file, collection)

@@ -1,11 +1,6 @@
-import os
-from importlib import import_module
-from importlib.util import module_from_spec, spec_from_file_location
 from typing import MutableMapping
 
 from .command import Command
-from .exc import RunnerError
-from .util import abs_path
 
 
 class Collection(MutableMapping):
@@ -17,44 +12,12 @@ class Collection(MutableMapping):
 
     @classmethod
     def load_from_module(cls, module):
-        module = cls.get_module(module)
-
         commands = {
             obj.name: obj
             for name, obj in vars(module).items()
             if isinstance(obj, Command) and not name.startswith("_")
         }
-
         return cls(commands)
-
-    @classmethod
-    def get_module(cls, path):
-        raise_does_not_exist = False
-
-        if path.endswith(".py"):
-            commands_module = abs_path(path)
-            if not os.path.isfile(commands_module):
-                raise_does_not_exist = True
-                does_not_exist_message = (
-                    f"Commands file does not exist: {commands_module}"
-                )
-            else:
-                spec = spec_from_file_location("commands", commands_module)
-                module = module_from_spec(spec)
-                spec.loader.exec_module(module)
-        else:
-            try:
-                module = import_module(path)
-            except ImportError:
-                raise_does_not_exist = True
-                does_not_exist_message = (
-                    f"Commands module could not be imported: {path}"
-                )
-
-        if raise_does_not_exist:
-            raise RunnerError(does_not_exist_message)
-
-        return module
 
     def set_attrs(self, **attrs):
         """Set the given attributes on *all* commands in collection."""

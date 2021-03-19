@@ -7,7 +7,6 @@ from contextlib import redirect_stderr
 from ..args import arg
 from ..collection import Collection
 from ..command import command
-from ..const import DEFAULT_COMMANDS_MODULE
 from ..run import run
 
 
@@ -38,11 +37,8 @@ def complete(
         with redirect_stderr(devnull_fp):
             run_args = run.parse_args(run_argv)
 
-    module = run_args.get("commands_module")
-    module = module or DEFAULT_COMMANDS_MODULE
-    module = normalize_path(module)
-
     try:
+        module = run.find_commands_module(run_args.get("commands_module"))
         base_collection = Collection.load_from_module(module)
     except Exception:
         base_collection = {}
@@ -140,15 +136,6 @@ def _complete(
         else:
             print_command_options(found_command)
             print_commands(collection, shell)
-
-
-def normalize_path(path):
-    if not path:
-        return path
-    path = os.path.expanduser(path)
-    path = os.path.expandvars(path)
-    path = os.path.abspath(path)
-    return path
 
 
 def find_command(collection, tokens):

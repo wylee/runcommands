@@ -14,7 +14,14 @@ from .misc import (
     load_object,
     merge_dicts,
 )
-from .path import abs_path, asset_path, paths_to_str
+from .path import (
+    abs_path,
+    asset_path,
+    find_project_root,
+    is_project_root,
+    module_from_path,
+    paths_to_str,
+)
 from .printer import get_hr, printer
 from .prompt import confirm, prompt
 from .string import camel_to_underscore, invert_string
@@ -36,6 +43,9 @@ __all__ = [
     "merge_dicts",
     "abs_path",
     "asset_path",
+    "find_project_root",
+    "is_project_root",
+    "module_from_path",
     "paths_to_str",
     "get_hr",
     "printer",
