@@ -1,3 +1,4 @@
+import builtins
 import functools
 import importlib
 import os
@@ -67,6 +68,18 @@ def format_if(value, format_kwargs):
     if not value:
         return value
     return value.format_map(format_kwargs)
+
+
+def is_type(obj, type):
+    """Is the object a subclass of the specified type?
+
+    This is similar to the builtin ``issubclass`` but also ensures the
+    object is a type first.
+
+    """
+    if not isinstance(obj, builtins.type):
+        return False
+    return issubclass(obj, type)
 
 
 def isatty(stream):

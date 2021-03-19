@@ -1,10 +1,17 @@
-import builtins
 import inspect
 from collections import OrderedDict
 
 from .data import Data
 from .enums import Color, StreamOptions
-from .misc import abort, flatten_args, format_if, isatty, load_object, merge_dicts
+from .misc import (
+    abort,
+    flatten_args,
+    format_if,
+    is_type,
+    isatty,
+    load_object,
+    merge_dicts,
+)
 from .path import abs_path, asset_path, paths_to_str
 from .printer import get_hr, printer
 from .prompt import confirm, prompt
@@ -20,6 +27,7 @@ __all__ = [
     "flatten_args",
     "format_if",
     "isatty",
+    "is_type",
     "load_object",
     "merge_dicts",
     "abs_path",
@@ -31,7 +39,6 @@ __all__ = [
     "prompt",
     "camel_to_underscore",
     "invert_string",
-    "is_type",
 ]
 
 
@@ -66,10 +73,3 @@ def get_commands_in_namespace(namespace=None, level=1):
         if isinstance(obj, Command):
             commands[name] = obj
     return OrderedDict((name, commands[name]) for name in sorted(commands))
-
-
-def is_type(obj, type):
-    """Is the object a type object of the specified type?"""
-    if not isinstance(obj, builtins.type):
-        return False
-    return issubclass(obj, type)
