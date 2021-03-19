@@ -5,13 +5,11 @@ import re
 from enum import Enum
 from functools import update_wrapper
 from inspect import Parameter as BaseParameter
-from typing import Mapping, Sequence
 
 from cached_property import cached_property
 
 from .exc import CommandError
-from .util import invert_string, is_type
-
+from .util import invert_string, is_mapping, is_sequence, is_type
 
 EMPTY = BaseParameter.empty
 KEYWORD_ONLY = BaseParameter.KEYWORD_ONLY
@@ -274,9 +272,7 @@ class Arg:
             metavar = metavar[:-1]
 
         if container is None:
-            is_mapping = isinstance(default, Mapping)
-            is_sequence = isinstance(default, Sequence) and not isinstance(default, str)
-            if is_mapping or is_sequence:
+            if is_mapping(default) or is_sequence(default):
                 container = default.__class__
             elif is_var_positional:
                 container = tuple
@@ -544,7 +540,7 @@ class ContainerAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         items_to_add = []
         items = getattr(namespace, self.dest, self.container_type())
-        if isinstance(items, Mapping):
+        if is_mapping(items):
             if items is not None:
                 items_to_add.extend(items.items())
             for value in values:

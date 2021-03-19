@@ -2,6 +2,7 @@ import builtins
 import functools
 import importlib
 import os
+from typing import Mapping, Sequence
 
 from ..exc import RunAborted
 
@@ -68,6 +69,25 @@ def format_if(value, format_kwargs):
     if not value:
         return value
     return value.format_map(format_kwargs)
+
+
+def is_mapping(obj):
+    """Is the object a mapping?
+
+    This mirrors :func:`is_sequence`.
+
+    """
+    return isinstance(obj, Mapping)
+
+
+def is_sequence(obj):
+    """Is the object a *non-str* sequence?
+
+    Checking whether an object is a *non-string* sequence is a bit
+    unwieldy. This makes it simple.
+
+    """
+    return isinstance(obj, Sequence) and not isinstance(obj, str)
 
 
 def is_type(obj, type):
