@@ -9,7 +9,6 @@ Automatically-generated API documentation.
     command
     collection
     args
-    const
     result
     run
     runner
