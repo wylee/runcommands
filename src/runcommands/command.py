@@ -296,7 +296,7 @@ class Command:
             default args without needing to know anything about
             RunCommands. When creating a collection of commands to be
             run via ``run``, default args can be specified in
-            ``commands.yaml`` instead.
+            ``commands.toml`` instead.
 
         .. note:: The first time a config file is loaded, its contents
             are cached to reduce file reads.
