@@ -502,8 +502,11 @@ class bool_or:
     Use like this::
 
         @command
-        def local(config, cmd, hide: {'type': bool_or(str)} = False):
             "Run the specified command, possibly hiding its output."
+        def local(config, cmd, hide: {'type': bool_or} = False):
+
+    .. note:: The default inner type for ``bool_or`` is ``str``.
+        ``bool_or(str)`` is equivalent to ``bool_or``.
 
     Allows for this::
 
@@ -514,7 +517,7 @@ class bool_or:
 
     """
 
-    type = None
+    type = str
 
     def __new__(cls, type, *, _type_cache={}):
         if type not in _type_cache:
