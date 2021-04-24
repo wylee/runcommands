@@ -2,6 +2,7 @@
 import getpass
 import glob
 import os
+import pathlib
 import shutil
 import subprocess
 import sys
@@ -61,14 +62,27 @@ from runcommands import command  # noqa: E402
 from runcommands.args import arg  # noqa: E402
 from runcommands.commands import copy_file as _copy_file, local  # noqa: E402
 from runcommands.commands import git_version  # noqa: E402,F401
-from runcommands.util import abort, asset_path, confirm, printer  # noqa: E402
+from runcommands.util import (
+    abort,
+    asset_path,
+    confirm,
+    find_project_root,
+    printer,
+)  # noqa: E402
+
+
+@command(creates=(".venv", "poetry.lock"), sources="pyproject.toml")
+def install():
+    """Create virtualenv & install dependencies by running `poetry install`."""
+    local("poetry install")
+    pathlib.Path(".venv").touch()
+    pathlib.Path("poetry.lock").touch()
 
 
 @command
-def install(update=False):
-    if update:
-        local("poetry update")
-    local("poetry install")
+def update():
+    """Update dependencies by running `poetry update`."""
+    local("poetry update")
 
 
 @command
@@ -141,8 +155,15 @@ def install_completion(
 
 
 @command
-def test(*tests, fail_fast=False, verbosity=1, with_coverage=True, with_lint=True):
-    original_working_directory = os.getcwd()
+def test(
+    *tests,
+    fail_fast=False,
+    verbosity=1,
+    with_coverage: arg(short_option="-c") = True,
+    with_lint: arg(short_option="-l") = True,
+):
+    top_level_dir = find_project_root(pathlib.Path.cwd())
+    os.chdir(top_level_dir)
 
     if tests:
         num_tests = len(tests)
@@ -158,13 +179,17 @@ def test(*tests, fail_fast=False, verbosity=1, with_coverage=True, with_lint=Tru
     if with_coverage:
         from coverage import Coverage
 
-        coverage = Coverage(source=["src/runcommands"])
+        source_dir = str(top_level_dir / "src/runcommands")
+        coverage = Coverage(source=[source_dir])
         coverage.start()
 
     if tests:
+        sys.path.insert(0, str(top_level_dir))
         runner.run(loader.loadTestsFromNames(tests))
     else:
-        tests = loader.discover("./tests", top_level_dir=".")
+        tests_dir = str(top_level_dir / "tests")
+        top_level_dir = str(top_level_dir)
+        tests = loader.discover(tests_dir, top_level_dir=top_level_dir)
         result = runner.run(tests)
         if not result.errors:
             if with_coverage:
@@ -172,7 +197,7 @@ def test(*tests, fail_fast=False, verbosity=1, with_coverage=True, with_lint=Tru
                 coverage.report()
             if with_lint:
                 # XXX: The test runner apparently changes CWD.
-                os.chdir(original_working_directory)
+                os.chdir(top_level_dir)
                 format_code(check=True)
                 lint()
 

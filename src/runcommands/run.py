@@ -1,18 +1,24 @@
-import ast
 import os
 import sys
-import yaml
-
-from jinja2 import Environment as TemplateEnvironment, TemplateRuntimeError
+import toml
+from importlib import import_module
+from pathlib import Path
 
 from . import __version__
 from .args import arg, json_value
 from .command import Command
 from .collection import Collection
-from .const import DEFAULT_COMMANDS_MODULE
 from .exc import RunAborted, RunnerError
 from .runner import CommandRunner
-from .util import abs_path, merge_dicts, printer
+from .util import (
+    abs_path,
+    is_mapping,
+    is_project_root,
+    is_sequence,
+    merge_dicts,
+    module_from_path,
+    printer,
+)
 
 
 class Run(Command):
@@ -30,7 +36,7 @@ class Run(Command):
         self,
         commands_module: arg(
             short_option="-m",
-        ) = DEFAULT_COMMANDS_MODULE,
+        ) = None,
         config_file: arg(
             short_option="-f",
         ) = None,
@@ -98,8 +104,13 @@ class Run(Command):
         a value and not a command name.
 
         """
-        collection = Collection.load_from_module(commands_module)
+        commands_module = self.find_commands_module(commands_module)
+
+        if commands_module is None:
+            raise RunnerError("Could not find commands module")
+
         config_file = self.find_config_file(config_file)
+        collection = Collection.load_from_module(commands_module)
         cli_globals = globals_ or {}
 
         if env:
@@ -333,19 +344,67 @@ class Run(Command):
         command_argv = argv[i:]
         return argv, run_argv, command_argv
 
-    def find_config_file(self, config_file):
+    def find_commands_module(self, commands_module, start_dir="."):
+        if commands_module:
+            if commands_module.endswith(".py"):
+                commands_module = abs_path(commands_module)
+                if not os.path.isfile(commands_module):
+                    raise RunnerError(
+                        f"Commands file does not exist: {commands_module}"
+                    )
+                else:
+                    return module_from_path("commands", commands_module)
+            else:
+                try:
+                    return import_module(commands_module)
+                except ImportError:
+                    raise RunnerError(
+                        f"Commands module could not be imported: {commands_module}"
+                    )
+        current_dir = Path(start_dir).resolve()
+        candidates = ("runcommands.py", "commands.py")
+        for candidate in candidates:
+            candidate = current_dir / candidate
+            if candidate.is_file():
+                return module_from_path("commands", candidate)
+        if is_project_root(current_dir):
+            return None
+        root = current_dir.root
+        start_dir = current_dir.parent
+        if current_dir == root and start_dir == root:
+            return None
+        return self.find_commands_module(commands_module, start_dir)
+
+    def find_config_file(self, config_file, start_dir="."):
         if config_file:
             config_file = abs_path(config_file)
-        elif os.path.exists("commands.yaml"):
-            config_file = abs_path("commands.yaml")
-        return config_file
+            if not os.path.exists(config_file):
+                raise RunnerError(f"Config file does not exists: {config_file}")
+            return config_file
+        current_dir = Path(start_dir).resolve()
+        candidates = ("runcommands.toml", "commands.toml", "pyproject.toml")
+        for candidate in candidates:
+            candidate = current_dir / candidate
+            if candidate.is_file():
+                return candidate
+        if is_project_root(current_dir):
+            return None
+        root = current_dir.root
+        start_dir = current_dir.parent
+        if current_dir == root and start_dir == root:
+            return None
+        return self.find_config_file(config_file, start_dir)
 
     def read_config_file(self, config_file, collection):
         return self._read_config_file(config_file, collection)
 
     def _read_config_file(self, config_file, collection):
         with open(config_file) as fp:
-            args = yaml.load(fp, Loader=yaml.FullLoader) or {}
+            args = toml.load(fp)
+
+        if os.path.basename(config_file) == "pyproject.toml":
+            tool = args.get("tool") or {}
+            args = tool.get("runcommands") or {}
 
         for name in self.allowed_config_file_args:
             # Not present or present but not set
@@ -400,49 +459,68 @@ class Run(Command):
                     command_default_args[param.name] = command_default_args.pop(name)
 
     def interpolate(self, globals_, default_args, environ):
-        environment = TemplateEnvironment()
-
         if globals_:
-            globals_ = self._interpolate(environment, globals_, globals_)
+            globals_ = self._interpolate(globals_, globals_)
 
         if default_args:
             context = merge_dicts(globals_, default_args)
-            default_args = self._interpolate(environment, default_args, context)
+            default_args = self._interpolate(default_args, context)
 
         if environ:
-            environ = self._interpolate(environment, environ, globals_)
+            environ = self._interpolate(environ, globals_)
 
         return globals_, default_args, environ
 
-    def _interpolate(self, environment, obj, context):
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                obj[k] = self._interpolate(environment, v, context)
-        elif isinstance(obj, list):
-            for i, v in enumerate(obj):
-                obj[i] = self._interpolate(environment, v, context)
-        elif isinstance(obj, tuple):
-            obj = tuple(self._interpolate(environment, v, context) for v in obj)
-        elif isinstance(obj, str):
-            while True:
-                if "{{" not in obj:
-                    break
-                original_obj = obj
-                template = environment.from_string(obj)
-                try:
-                    obj = template.render(context)
-                except TemplateRuntimeError as exc:
-                    raise RunnerError(
-                        f"Could not render template {obj!r} with "
-                        f"context {context!r}: {exc}"
-                    )
-                if obj == original_obj:
-                    break
-            try:
-                obj = ast.literal_eval(obj)
-            except (SyntaxError, ValueError):
-                pass
+    def _interpolate(self, obj, context):
+        if is_mapping(obj):
+            items = ((k, self._interpolate(v, context)) for k, v in obj.items())
+            obj = obj.__class__(items)
+        elif is_sequence(obj):
+            items = (self._interpolate(v, context) for v in obj)
+            obj = obj.__class__(items)
+        else:
+            obj = self._inject(obj, context)
         return obj
+
+    def _inject(self, value, context, start=0):
+        if not isinstance(value, str):
+            return value
+        i = value.find("{{", start)
+        if i == -1:
+            return value
+        h = i - 1
+        if h >= 0 and value[h] == "\\":
+            return self._inject(value, context, h + 2)
+        j = value.rfind("}}", i + 2)
+        if j == -1:
+            # String looks like "{{ abc"
+            # XXX: Error?
+            if self.debug:
+                printer.warning(f'Unclosed interpolation group in value: "{value}"')
+            return value
+        k = j + 2
+        key = value[i + 2 : j].strip()
+        if not key:
+            # String looks like "{{}} xyz"
+            # XXX: Error?
+            if self.debug:
+                printer.warning(f'Empty interpolation group in value: "{value}"')
+            return value
+        context_value = self._find_in_context(context, key)
+        context_value = self._inject(context_value, context)
+        if i == 0 and k == len(value):
+            value = context_value
+        else:
+            value = f"{value[:i]}{context_value}{value[k:]}"
+            value = self._inject(value, context)
+        return value
+
+    def _find_in_context(self, context, key):
+        value = context
+        parts = key.split(".")
+        for segment in parts:
+            value = value[segment]
+        return value
 
     def sigint_handler(self, _sig_num, _frame):
         raise RunAborted(0, message="\nAborted by Ctrl-C (SIGINT)")

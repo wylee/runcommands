@@ -1,0 +1,15 @@
+[globals]
+env = "test"
+a = "{{ b }}"
+b = "b"
+d = "d"
+
+[envs]
+test = {}
+
+[args]
+test = {a = "{{ a }}", b = "{{ b }}", d = "x"}
+
+[environ]
+XXX = "{{ a }}"
+XYZ = "{{ b }}"

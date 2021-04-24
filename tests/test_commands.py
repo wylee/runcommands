@@ -2,6 +2,7 @@ import io
 import os
 import sys
 from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 from unittest import TestCase
 
 from runcommands import arg, command, subcommand
@@ -61,6 +62,20 @@ def container_args(
     third_optional=(42,),
 ):
     return MockResult((positional, optional, another_optional, third_optional))
+
+
+@command(creates="tests/created.temp", sources="tests/**/*.py")
+def create_from_sources():
+    path = Path("tests/created.temp")
+    path.touch()
+    return MockResult(f"Created {path}")
+
+
+@command(creates="tests/created.temp")
+def create_without_sources():
+    path = Path("tests/created.temp")
+    path.touch()
+    return MockResult(f"Created {path}")
 
 
 class SysExitMixin:
@@ -259,3 +274,45 @@ class TestSubcommandCallbacks(SysExitMixin, TestCase):
             base.console_script(argv=["sub-abort"])
         self._check(base, base_callback, aborted=True)
         self._check(sub_abort, sub_callback, called=False, aborted=True)
+
+
+class TestSourcesAndCreates(SysExitMixin, TestCase):
+    def setUp(self):
+        self.stderr = io.StringIO()
+        self.stdout = io.StringIO()
+
+    def tearDown(self):
+        self.stderr = None
+        self.stdout = None
+        path = Path("tests/created.temp")
+        if path.exists():
+            path.unlink()
+
+    def test_run(self):
+        result = create_from_sources.run([])
+        self.assertEqual(result.return_code, "Created tests/created.temp")
+        with redirect_stderr(self.stderr):
+            result = create_from_sources.run([])
+        self.assertEqual(result, None)
+
+    def test_console_script(self):
+        result = create_from_sources.console_script([])
+        self.assertEqual(result, "Created tests/created.temp")
+        with redirect_stderr(self.stderr):
+            result = create_from_sources.console_script([])
+        self.assertEqual(result, 0)
+
+    def test_sources_without_creates(self):
+        def make_command():
+            @command(sources="tests/**/*.py")
+            def sources_without_creates():
+                raise NotImplementedError("This should never run")
+
+        self.assertRaises(ValueError, make_command)
+
+    def test_create_without_sources(self):
+        result = create_without_sources.run([])
+        self.assertEqual(result.return_code, "Created tests/created.temp")
+        with redirect_stderr(self.stderr):
+            result = create_without_sources.run([])
+        self.assertEqual(result, None)

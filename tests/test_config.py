@@ -7,7 +7,7 @@ from runcommands.run import run
 from runcommands.runner import CommandRunner
 
 
-CONFIG_FILE = os.path.join(os.path.dirname(__file__), "commands.yaml")
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), "commands.toml")
 
 
 @command

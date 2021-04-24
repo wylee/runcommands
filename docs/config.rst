@@ -1,8 +1,34 @@
 Configuration
 +++++++++++++
 
-RunCommands can be configured via a YAML file. The options that can be
-specified are:
+RunCommands can be configured using TOML. The following config files can be
+used (in order of precedence):
+
+- ./runcommands.toml
+- ./commands.toml
+- ./pyproject.toml
+
+For the first two of these, the option keys (see below) should be specified
+like so::
+
+    [globals]
+    x = 1
+
+    [envs]
+    test = {}
+    prod = {}
+
+When using `pyproject.toml`, the option keys (see below) need to be prefixed
+with `tool.runcommands` like so::
+
+    [tool.runcommands.globals]
+    x = 1
+
+    [tool.runcommands.envs]
+    test = {}
+    prod = {}
+
+The options that can be specified are:
 
 - `globals` -> A dictionary containing global variables that are also
   used as default args for *all* commands.
@@ -47,7 +73,20 @@ Lowest to highest:
 Interpolation
 =============
 
-- Globals are injected into other global args, default args, and environment
-  variables (after env-specific args are merged in).
+*String* values may contain interpolation groups using dotted notation to refer
+to other configuration values like so::
 
-- Default args are injected into other default args.
+    [globals]
+    x = "{{ y }}"
+    y = 1
+    z = "z {{ y }} z"
+
+When a value contains a *single* interpolation group and nothing else, it will
+be replaced with the exact value that it refers to, so in the example above,
+`x` will be equal to the integer `1` and `z` will be equal to the string
+`"z 1 z"`.
+
+Globals are injected into other global args, default args, and environment
+variables (after env-specific args are merged in).
+
+Default args are injected into other default args.

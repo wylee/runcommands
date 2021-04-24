@@ -1,5 +1,7 @@
-import importlib
 import os
+from importlib import import_module
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
 
 from .printer import printer
 
@@ -100,7 +102,7 @@ def asset_path(path, format_kwargs={}, keep_slash=False):
         package_name, rel_path = path, ()
 
     try:
-        package = importlib.import_module(package_name)
+        package = import_module(package_name)
     except ImportError:
         raise ValueError(
             f"Could not get asset path for {path}; could not import package: "
@@ -160,3 +162,52 @@ def paths_to_str(
         elif check_paths:
             printer.warning(f"Path does not exist: {path} (from {original})")
     return delimiter.join(processed_paths)
+
+
+def find_project_root(start_dir="."):
+    """Find the project root.
+
+    See func:`is_project_root` for details on which directories are
+    considered project roots.
+
+    This starts in the current directory and then goes up until the file
+    system root is reached. If a project root isn't found,
+    a ``ValueError`` will be raised.
+
+    """
+    current_dir = Path(start_dir)
+    root = current_dir.root
+    while not is_project_root(current_dir):
+        parent = current_dir.parent
+        if current_dir == root and parent == root:
+            raise ValueError(f"Could not find project root starting from: {start_dir}")
+        current_dir = parent
+    return current_dir
+
+
+def is_project_root(path):
+    """Is the path a project root?
+
+    A project root is a directory that contains a source control
+    subdirectory (git, hg, and svn).
+
+    todo:: Be more inclusive.
+
+    """
+    candidates = (".git", ".hg", ".svn")
+    for candidate in candidates:
+        if (path / candidate).is_dir():
+            return True
+    return False
+
+
+def module_from_path(name, path):
+    """Import a file system path as a Python module.
+
+    The module will be named ``name``.
+
+    """
+    spec = spec_from_file_location(name, path)
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module

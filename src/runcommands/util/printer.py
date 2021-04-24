@@ -5,7 +5,7 @@ import sys
 from typing import Mapping
 
 from .enums import Color
-from .misc import isatty
+from .misc import is_type, isatty
 
 
 class ColorMap:
@@ -20,7 +20,7 @@ class ColorMap:
         setattr(self, name, color)
 
     def add_colors(self, color_map: Mapping[str, str]):
-        if isinstance(color_map, type) and issubclass(color_map, enum.Enum):
+        if is_type(color_map, enum.Enum):
             items = ((color.name, color) for color in color_map)
         else:
             items = color_map.items()

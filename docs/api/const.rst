@@ -1,4 +1,0 @@
-const
-+++++
-
-.. automodule:: runcommands.const

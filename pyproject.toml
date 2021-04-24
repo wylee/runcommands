@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "runcommands"
-version = "1.0a65"
+version = "1.0a66"
 license = "MIT"
 description = "A framework for writing console scripts and running commands"
 readme = "README.rst"
@@ -18,7 +18,7 @@ include = [
     "LICENSE",
     "README.rst",
     "commands.py",
-    "commands.yaml",
+    "commands.toml",
     "runcommands/completion/bash/*.fish",
     "runcommands/completion/bash/*.rc",
 ]
@@ -26,8 +26,6 @@ include = [
 [tool.poetry.dependencies]
 python = "^3.6"
 blessings = "^1.7"
-Jinja2 = "^2.10"
-PyYAML = "^5.1"
 toml = "^0.10.2"
 "com.wyattbaldwin.cached_property" = "^1.0"
 
@@ -52,6 +50,10 @@ target-version = ["py36"]
 
 [tool.make-release.args]
 test-command = "run test"
+
+[tool.runcommands.globals]
+package = "runcommands"
+distribution = "{{ package }}"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
