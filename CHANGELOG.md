@@ -1,8 +1,32 @@
 # RunCommands
 
-## 1.0a66 - unreleased
+## 1.0a66 - 2021-04-23
 
-In progress...
+NOTE: This release contains a breaking change. See below for details.
+
+- Added simplistic make-like functionality. Commands can now specify
+  `sources` (as glob patterns) and `creates`. Commands that specify the
+  latter will only be run if all the targets are newer than all the
+  sources.
+- Improved `bool_or` so it can be used without specifying a type. This
+  supports the common case of `bool_or(str)` with less typing.
+- Added support for using `bool_or` with container args.
+- BREAKING: Switched to TOML for config. TOML is nicer than YAML. This
+  also allows config to be specified in `pyproject.toml` without having
+  to use a different config language.
+- Added option to specify config in `pyproject.toml`. This should be the
+  preferred location for RunCommands config IMO. `commands.toml` or
+  `runcommands.toml` can also be used for projects that don't use
+  `pyproject.toml`.
+- Added the option to define commands in `runcommands.py` instead of
+  `commands.py`.
+- Improved discovery of commands module and config, primarily so that
+  commands can be run from project subdirectories. Discovery starts in
+  the current directory and precedes upward until a project root or the
+  file system root is reached. Care has to be taken in commands to
+  ensure they're operating in/on the correct path, especially commands
+  that assume they're being run from the project root.
+- Made a handful of internal improvements.
 
 ## 1.0a65 - 2020-12-29
 
