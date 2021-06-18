@@ -15,7 +15,7 @@ import toml
 from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg, Parameter
 from .exc import CommandError, RunAborted, RunCommandsError
 from .result import Result
-from .util import camel_to_underscore, get_hr, is_type, printer, Data
+from .util import camel_to_underscore, is_type, printer, Data
 
 
 __all__ = ["command", "subcommand", "Command"]
@@ -1073,10 +1073,12 @@ class Command:
     def print_elapsed_time(self, elapsed_time):
         m, s = divmod(elapsed_time, 60)
         m = int(m)
-        hr = get_hr()
+        printer.hr(color="info")
         printer.info(
-            f"{hr}\nElapsed time for {self.name} command: " f"{m:d}m {s:.3f}s\n{hr}"
+            f"Elapsed time for {self.name} command: " f"{m:d}m {s:.3f}s",
+            highlight=False,
         )
+        printer.hr(color="info")
 
     @cached_property
     def parameters(self):

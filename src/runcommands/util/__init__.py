@@ -22,7 +22,7 @@ from .path import (
     module_from_path,
     paths_to_str,
 )
-from .printer import get_hr, printer
+from .printer import printer
 from .prompt import confirm, prompt
 from .string import camel_to_underscore, invert_string
 
@@ -47,7 +47,6 @@ __all__ = [
     "is_project_root",
     "module_from_path",
     "paths_to_str",
-    "get_hr",
     "printer",
     "confirm",
     "prompt",

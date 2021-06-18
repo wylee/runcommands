@@ -1,11 +1,25 @@
+from rich.prompt import Confirm, Prompt, InvalidResponse
+
 from .misc import abort
 from .printer import printer
+
+
+def prompt(message, password=False, choices=None, default=None, color=True):
+    if color is True:
+        color = "warning"
+    if color:
+        message = printer.colorize(message, color=color)
+    try:
+        return Prompt.ask(message, password=password, choices=choices, default=default)
+    except KeyboardInterrupt:
+        print()
+        abort()
 
 
 def confirm(
     prompt="Really?",
     color="warning",
-    yes_values=("y", "yes"),
+    yes_value="y",
     abort_on_unconfirmed=False,
     abort_options=None,
 ):
@@ -18,8 +32,9 @@ def confirm(
         prompt (str): Prompt to present user ["Really?"]
         color (string|Color|bool) Color to print prompt string; can be
             ``False`` or ``None`` to print without color ["yellow"]
-        yes_values (list[str]): Values user must type in to confirm
-            [("y", "yes")]
+        yes_value (str): Value user must type in to confirm; note that
+            this will be case sensitive *if* it contains any upper case
+            letters ["y"]
         abort_on_unconfirmed (bool|int|str): When user does *not*
             confirm:
 
@@ -36,22 +51,16 @@ def confirm(
             ``abort_on_unconfirmed``)
 
     """
-    if isinstance(yes_values, str):
-        yes_values = (yes_values,)
-
-    prompt = f"{prompt} [{yes_values[0]}/N] "
-
     if color:
         prompt = printer.colorize(prompt, color=color)
 
+    choices = [yes_value, "n"]
+
     try:
-        answer = input(prompt)
+        confirmed = Confirm.ask(prompt, choices=choices, default=False)
     except KeyboardInterrupt:
         print()
         confirmed = False
-    else:
-        answer = answer.strip().lower()
-        confirmed = answer in yes_values
 
     # NOTE: The abort-on-unconfirmed logic is somewhat convoluted
     #       because of the special case for return code 0.
@@ -83,22 +92,34 @@ def confirm(
     return confirmed
 
 
-def prompt(message, default=None, color=True):
-    message = message.rstrip()
-    if default is not None:
-        default = default.rstrip()
-        message = "%s [%s]" % (message, default)
-    message = "%s " % message
-    if color is True:
-        color = "warning"
-    if color:
-        message = printer.colorize(message, color=color)
-    try:
-        value = input(message)
-    except KeyboardInterrupt:
-        print()
-        abort()
-    value = value.strip()
-    if not value and default is not None:
-        return default
-    return value
+class Confirm(Confirm):
+    @property
+    def validate_error_message(self):
+        yes, no = self.choices
+        return f"[prompt.invalid]Please enter {yes} or {no}"
+
+    def render_default(self, default):
+        """Default is *always* no."""
+        return "(n)"
+
+    def process_response(self, value):
+        value = value.strip()
+        # Hitting enter without a value -> "n" -> unconfirmed
+        if not value:
+            return False
+        yes, no = self.choices
+        # If yes value contains *any* upper case characters, do case-
+        # sensitive yes value comparison
+        all_lower = all(c.islower() for c in yes)
+        if all_lower:
+            value = value.lower()
+        if value == yes:
+            return True
+        value = value.lower()
+        # Allow "yes" when yes value is lower case "y"
+        if yes == "y" and value == "yes":
+            return True
+        # Always allow "no"
+        if value in ("n", "no"):
+            return False
+        raise InvalidResponse(self.validate_error_message)
