@@ -168,10 +168,10 @@ def test(
     if tests:
         num_tests = len(tests)
         s = "" if num_tests == 1 else "s"
-        printer.header(f"Running {num_tests} test{s}...")
+        printer.hr(f"Running {num_tests} test{s}")
     else:
         coverage_message = " with coverage" if with_coverage else ""
-        printer.header(f"Running tests{coverage_message}...")
+        printer.hr(f"Running tests{coverage_message}")
 
     runner = unittest.TextTestRunner(failfast=fail_fast, verbosity=verbosity)
     loader = unittest.TestLoader()
@@ -198,7 +198,9 @@ def test(
             if with_lint:
                 # XXX: The test runner apparently changes CWD.
                 os.chdir(top_level_dir)
+                printer.hr("Checking code formatting")
                 format_code(check=True)
+                printer.hr("Checking for lint")
                 lint()
 
 
@@ -222,11 +224,9 @@ def tox(
 @command
 def format_code(check=False, where="./"):
     if check:
-        printer.header("Checking code formatting...")
         check_arg = "--check"
         raise_on_error = False
     else:
-        printer.header("Formatting code...")
         check_arg = None
         raise_on_error = True
     result = local(("black", check_arg, where), raise_on_error=raise_on_error)
@@ -239,7 +239,6 @@ def lint(
     disable_ignore: arg(no_inverse=True, help="Don't ignore any errors") = False,
     disable_noqa: arg(no_inverse=True, help="Ignore noqa directives") = False,
 ):
-    printer.header("Checking for lint...")
     result = local(
         (
             "flake8",

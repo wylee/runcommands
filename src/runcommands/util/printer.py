@@ -1,11 +1,12 @@
 import enum
 import os
-import shutil
-import sys
+from functools import partial
 from typing import Mapping
 
+from rich.console import Console
+
 from .enums import Color
-from .misc import is_type, isatty
+from .misc import is_type
 
 
 class ColorMap:
@@ -58,15 +59,18 @@ class Printer:
         if color_map:
             self.color_map.add_colors(color_map)
         self.default_color = self.get_color(default_color)
+        self.console = Console()
 
     def __call__(self, *args, **kwargs):
         self.print(*args, **kwargs)
 
+    def __getattr__(self, color):
+        # self.red("...")
+        return partial(self.console.print, style=str(color))
+
     def get_color(self, color):
-        if not self.is_posix:
-            return self.color_map.none
         if color is None:
-            return self.color_map.none
+            return None
         if isinstance(color, self.colors):
             return color
         try:
@@ -74,9 +78,10 @@ class Printer:
         except KeyError:
             raise ValueError(f"Unknown color: {color}") from None
 
-    def colorize(self, *args, color=None, sep=" ", end="reset"):
-        color = self.get_color(color)
-        args = (color,) + args
+    def colorize(self, *args, color=None, sep=" "):
+        if color is not None:
+            color = self.get_color(color)
+            args = (color,) + args
         string = []
         for arg in args[:-1]:
             string.append(str(arg))
@@ -84,26 +89,13 @@ class Printer:
                 string.append(sep)
         string.append(str(args[-1]))
         string = "".join(string)
-        if end:
-            end = self.get_color(end)
-            string = f"{string}{end}"
         return string
 
-    def print(self, *args, color=None, end=None, file=None, flush=None, **kwargs):
-        if color is None:
-            color = self.default_color
-        if file is None:
-            file = sys.stdout
-        if isatty(file):
-            if flush is None:
-                flush = True
-            string = self.colorize(*args, color=color, **kwargs)
-            print(string, end=end, file=file, flush=flush, **kwargs)
-        else:
-            if flush is None:
-                flush = False
-            args = [a for a in args if not isinstance(a, self.colors)]
-            print(*args, end=end, file=file, flush=flush, **kwargs)
+    def print(self, *args, color=None, sep=" ", **kwargs):
+        string = self.colorize(*args, color=color, sep=sep)
+        if "flush" in kwargs:
+            del kwargs["flush"]
+        self.console.print(string, sep=sep, **kwargs)
 
     def header(self, *args, color=None, **kwargs):
         if color is None:
@@ -125,52 +117,39 @@ class Printer:
             color = self.color_map.echo
         self.print(*args, color=color, **kwargs)
 
-    def warning(self, *args, color=None, file=None, **kwargs):
+    def warning(self, *args, color=None, **kwargs):
         if color is None:
             color = self.color_map.warning
-        if file is None:
-            file = sys.stderr
-        self.print(*args, color=color, file=file, **kwargs)
+        self.print(*args, color=color, **kwargs)
 
-    def error(self, *args, color=None, file=None, **kwargs):
+    def error(self, *args, color=None, **kwargs):
         if color is None:
             color = self.color_map.error
-        if file is None:
-            file = sys.stderr
-        self.print(*args, color=color, file=file, **kwargs)
+        self.print(*args, color=color, **kwargs)
 
-    def danger(self, *args, color=None, file=None, **kwargs):
+    def danger(self, *args, color=None, **kwargs):
         if color is None:
             color = self.color_map.danger
-        if file is None:
-            file = sys.stderr
-        self.print(*args, color=color, file=file, **kwargs)
+        self.print(*args, color=color, **kwargs)
 
-    def debug(self, *args, color=None, file=None, **kwargs):
+    def debug(self, *args, color=None, **kwargs):
         if color is None:
             color = self.color_map.debug
-        if file is None:
-            file = sys.stderr
-        self.print(*args, color=color, file=file, **kwargs)
+        self.print(*args, color=color, **kwargs)
 
-    def hr(self, *args, color=None, fill_char="=", **kwargs):
-        if color is None:
-            color = self.color_map.header
-        hr = get_hr(fill_char)
+    def hr(self, *args, color=None, fill_char="─", align="center", **kwargs):
+        """Print a horizontal with optional title"""
+        kwargs["characters"] = fill_char
+        kwargs["align"] = align
+        if "end" in kwargs:
+            end = kwargs.pop("end")
+            args = args + (end,)
         if args:
             sep = kwargs.get("sep") or " "
-            hr = hr[len(sep.join(args)) + len(sep) :]
-            prefix_kwargs = kwargs.copy()
-            prefix_kwargs["sep"] = sep
-            prefix_kwargs["end"] = sep
-            self.print(*args, color=color, **prefix_kwargs)
-        self.print(hr, color=color, **kwargs)
+            kwargs["title"] = sep.join(args)
+        if color:
+            kwargs["style"] = self.get_color(color).value
+        self.console.rule(**kwargs)
 
 
 printer = Printer()
-
-
-def get_hr(fill_char="="):
-    term_size = shutil.get_terminal_size((80, 25))
-    hr = fill_char * term_size.columns
-    return hr

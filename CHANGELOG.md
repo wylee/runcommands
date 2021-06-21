@@ -1,5 +1,11 @@
 # RunCommands
 
+## 1.0a67 - 2021-06-20
+
+- Use [Rich](https://pypi.org/project/rich/) for color printing and
+  other terminal formatting. Rich is cross platform and opens up some
+  new options for better formatting.
+
 ## 1.0a66 - 2021-04-23
 
 NOTE: This release contains a breaking change. See below for details.
