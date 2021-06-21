@@ -93,6 +93,8 @@ class Printer:
 
     def print(self, *args, color=None, sep=" ", **kwargs):
         string = self.colorize(*args, color=color, sep=sep)
+        if "flush" in kwargs:
+            del kwargs["flush"]
         self.console.print(string, sep=sep, **kwargs)
 
     def header(self, *args, color=None, **kwargs):
