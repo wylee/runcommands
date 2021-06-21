@@ -141,6 +141,9 @@ class Printer:
         """Print a horizontal with optional title"""
         kwargs["characters"] = fill_char
         kwargs["align"] = align
+        if "end" in kwargs:
+            end = kwargs.pop("end")
+            args = args + (end,)
         if args:
             sep = kwargs.get("sep") or " "
             kwargs["title"] = sep.join(args)
