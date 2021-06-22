@@ -1,8 +1,8 @@
 # RunCommands
 
-## 1.0a68 - unreleased
+## 1.0a68 - 2021-06-21
 
-In progress...
+- Fix a couple small issues with the switch to Rich in 1.0a67.
 
 ## 1.0a67 - 2021-06-20
 
