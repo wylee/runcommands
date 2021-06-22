@@ -33,6 +33,7 @@ class Printer:
 
     # Symbolic name => color
     color_map = {
+        "none": Color.default,
         "header": Color.magenta,
         "info": Color.blue,
         "success": Color.green,
@@ -91,11 +92,11 @@ class Printer:
         string = "".join(string)
         return string
 
-    def print(self, *args, color=None, sep=" ", **kwargs):
+    def print(self, *args, color=None, sep=" ", highlight=False, **kwargs):
         string = self.colorize(*args, color=color, sep=sep)
         if "flush" in kwargs:
             del kwargs["flush"]
-        self.console.print(string, sep=sep, **kwargs)
+        self.console.print(string, sep=sep, highlight=highlight, **kwargs)
 
     def header(self, *args, color=None, **kwargs):
         if color is None:

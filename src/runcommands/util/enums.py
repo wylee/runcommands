@@ -4,6 +4,7 @@ import subprocess
 
 class Color(enum.Enum):
 
+    default = "default"
     black = "black"
     red = "red"
     green = "green"

@@ -1,5 +1,9 @@
 # RunCommands
 
+## 1.0a68 - 2021-06-21
+
+- Fix a couple small issues with the switch to Rich in 1.0a67.
+
 ## 1.0a67 - 2021-06-20
 
 - Use [Rich](https://pypi.org/project/rich/) for color printing and
