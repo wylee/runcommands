@@ -162,7 +162,7 @@ def test(
     with_coverage: arg(short_option="-c") = True,
     with_lint: arg(short_option="-l") = True,
 ):
-    top_level_dir = find_project_root(pathlib.Path.cwd())
+    top_level_dir = find_project_root()
     os.chdir(top_level_dir)
 
     if tests:

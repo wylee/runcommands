@@ -175,13 +175,16 @@ def find_project_root(start_dir="."):
     a ``ValueError`` will be raised.
 
     """
-    current_dir = Path(start_dir)
-    root = current_dir.root
+    current_dir = Path(start_dir).resolve()
+    file_system_root = Path(current_dir.root)
+    checked_file_system_root = False
     while not is_project_root(current_dir):
-        parent = current_dir.parent
-        if current_dir == root and parent == root:
-            raise ValueError(f"Could not find project root starting from: {start_dir}")
-        current_dir = parent
+        if current_dir == file_system_root:
+            if checked_file_system_root:
+                message = f"Could not find project root starting from: {start_dir}"
+                raise ValueError(message)
+            checked_file_system_root = True
+        current_dir = current_dir.parent
     return current_dir
 
 
