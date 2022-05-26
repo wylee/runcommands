@@ -412,6 +412,14 @@ def upload_dists(
         result = local(password_command, stdout="capture")
         password = result.stdout.strip()
         environ["TWINE_PASSWORD"] = password
+    elif "TWINE_PASSWORD" in environ:
+        password = environ["TWINE_PASSWORD"]
+    else:
+        abort(
+            1,
+            "TWINE_PASSWORD environment variable must be set when no "
+            "password command is specified",
+        )
 
     printer.warning("TWINE_USERNAME:", username)
     if password:
