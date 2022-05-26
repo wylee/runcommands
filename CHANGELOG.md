@@ -1,8 +1,13 @@
 # RunCommands
 
-## 1.0a69 - unreleased
+## 1.0a69 - 2022-05-26
 
-In progress...
+- Make some printer methods print to stderr by default: `debug`,
+  `error`, `warning`. In the switch to Rich in 1.0a67, these methods
+  were changed inadvertently to print to stdout.
+- Fixed potential infinite loop when finding project root.
+- Fixed infinite recursion when attempting to find a commands module in
+  a directory that didn't contain one (or any of its parents).
 
 ## 1.0a68 - 2021-06-21
 
