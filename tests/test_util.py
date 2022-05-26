@@ -1,13 +1,13 @@
-import os
-from contextlib import contextmanager
+from contextlib import redirect_stderr, redirect_stdout
 from doctest import DocTestSuite
-from tempfile import NamedTemporaryFile, TemporaryDirectory
+from io import StringIO
 from unittest import TestCase
 
 import runcommands.util.misc
 import runcommands.util.path
 import runcommands.util.string
-from runcommands.commands import copy_file
+
+from runcommands.util.printer import printer
 
 
 def load_tests(loader, tests, ignore):
@@ -17,61 +17,27 @@ def load_tests(loader, tests, ignore):
     return tests
 
 
-@contextmanager
-def copy(contents, destination_dir=False, **kwargs):
-    with NamedTemporaryFile("w", delete=False) as tp:
-        tp.write(contents)
+class TestPrinter(TestCase):
+    def test_prints_to_stdout(self):
+        stdout = StringIO()
+        stderr = StringIO()
+        for attr in ("print", "header", "info", "success", "echo"):
+            with self.subTest(printer=attr):
+                with redirect_stdout(stdout):
+                    with redirect_stderr(stderr):
+                        attr = getattr(printer, attr)
+                        attr("stdout")
+            self.assertIn("stdout", stdout.getvalue())
+            self.assertEqual(stderr.getvalue(), "")
 
-    source = tp.name
-
-    if destination_dir:
-        with TemporaryDirectory() as destination:
-            path = copy_file(source, destination, **kwargs)
-            yield source, destination, path
-            os.remove(source)
-    else:
-        destination = source + ".copy"
-        path = copy_file(source, destination, **kwargs)
-        yield source, destination, path
-        os.remove(source)
-        os.remove(path)
-
-
-class TestCopyFileCommand(TestCase):
-    def assertDestination(self, source, destination, path, expected_contents):
-        self.assertExists(path)
-        self.assertNotEqual(source, destination)
-        self.assertNotEqual(source, path)
-        self.assertContentsEqual(path, expected_contents)
-        if not os.path.isdir(destination):
-            self.assertTrue(path.endswith(".copy"))
-
-    def assertExists(self, path):
-        self.assertTrue(os.path.isfile(path))
-
-    def assertContentsEqual(self, path, expected_contents):
-        with open(path) as fp:
-            read_contents = fp.read()
-        self.assertEqual(read_contents, expected_contents)
-
-    def test_copy(self):
-        with copy("xyz") as (source, destination, path):
-            self.assertDestination(source, destination, path, "xyz")
-
-    def test_copy_template_format(self):
-        with copy("{xyz} ${{xyz}}", template=True, context={"xyz": 123}) as paths:
-            source, destination, path = paths
-            self.assertDestination(source, destination, path, "123 ${xyz}")
-
-    def test_copy_template_string(self):
-        with copy("${xyz} $${xyz}", template="string", context={"xyz": 123}) as paths:
-            source, destination, path = paths
-            self.assertDestination(source, destination, path, "123 ${xyz}")
-
-    def test_copy_to_directory(self):
-        with copy("xyz", destination_dir=True) as paths:
-            source, destination, path = paths
-            self.assertDestination(source, destination, path, "xyz")
-            self.assertEqual(os.path.dirname(path), destination)
-            self.assertNotEqual(os.path.dirname(source), os.path.dirname(path))
-            self.assertEqual(os.path.basename(source), os.path.basename(path))
+    def test_prints_to_stderr(self):
+        stdout = StringIO()
+        stderr = StringIO()
+        for attr in ("warning", "error", "danger", "debug"):
+            with self.subTest(printer=attr):
+                with redirect_stdout(stdout):
+                    with redirect_stderr(stderr):
+                        attr = getattr(printer, attr)
+                        attr("stderr")
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertIn("stderr", stderr.getvalue())

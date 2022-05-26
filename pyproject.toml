@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "runcommands"
-version = "1.0a68"
+version = "1.0a69"
 license = "MIT"
 description = "A framework for writing console scripts and running commands"
 readme = "README.rst"

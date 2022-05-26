@@ -362,18 +362,20 @@ class Run(Command):
                         f"Commands module could not be imported: {commands_module}"
                     )
         current_dir = Path(start_dir).resolve()
+        file_system_root = Path(current_dir.root)
+        checked_file_system_root = False
         candidates = ("runcommands.py", "commands.py")
-        for candidate in candidates:
-            candidate = current_dir / candidate
-            if candidate.is_file():
-                return module_from_path("commands", candidate)
-        if is_project_root(current_dir):
-            return None
-        root = current_dir.root
-        start_dir = current_dir.parent
-        if current_dir == root and start_dir == root:
-            return None
-        return self.find_commands_module(commands_module, start_dir)
+        while not checked_file_system_root:
+            for candidate in candidates:
+                candidate = current_dir / candidate
+                if candidate.is_file():
+                    return module_from_path("commands", candidate)
+            if current_dir == file_system_root:
+                checked_file_system_root = True
+            if is_project_root(current_dir):
+                break
+            current_dir = current_dir.parent
+        return None
 
     def find_config_file(self, config_file, start_dir="."):
         if config_file:
@@ -382,18 +384,20 @@ class Run(Command):
                 raise RunnerError(f"Config file does not exists: {config_file}")
             return config_file
         current_dir = Path(start_dir).resolve()
+        file_system_root = Path(current_dir.root)
+        checked_file_system_root = False
         candidates = ("runcommands.toml", "commands.toml", "pyproject.toml")
-        for candidate in candidates:
-            candidate = current_dir / candidate
-            if candidate.is_file():
-                return candidate
-        if is_project_root(current_dir):
-            return None
-        root = current_dir.root
-        start_dir = current_dir.parent
-        if current_dir == root and start_dir == root:
-            return None
-        return self.find_config_file(config_file, start_dir)
+        while not checked_file_system_root:
+            for candidate in candidates:
+                candidate = current_dir / candidate
+                if candidate.is_file():
+                    return candidate
+            if current_dir == file_system_root:
+                checked_file_system_root = True
+            if is_project_root(current_dir):
+                break
+            current_dir = current_dir.parent
+        return None
 
     def read_config_file(self, config_file, collection):
         return self._read_config_file(config_file, collection)

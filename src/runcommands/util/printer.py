@@ -60,14 +60,15 @@ class Printer:
         if color_map:
             self.color_map.add_colors(color_map)
         self.default_color = self.get_color(default_color)
-        self.console = Console()
+        self.stdout_console = Console()
+        self.stderr_console = Console(stderr=True)
 
     def __call__(self, *args, **kwargs):
         self.print(*args, **kwargs)
 
     def __getattr__(self, color):
         # self.red("...")
-        return partial(self.console.print, style=str(color))
+        return partial(self.stdout_console.print, style=str(color))
 
     def get_color(self, color):
         if color is None:
@@ -92,11 +93,20 @@ class Printer:
         string = "".join(string)
         return string
 
-    def print(self, *args, color=None, sep=" ", highlight=False, **kwargs):
+    def print(
+        self,
+        *args,
+        color=None,
+        sep=" ",
+        highlight=False,
+        stderr=False,
+        **kwargs,
+    ):
         string = self.colorize(*args, color=color, sep=sep)
         if "flush" in kwargs:
             del kwargs["flush"]
-        self.console.print(string, sep=sep, highlight=highlight, **kwargs)
+        console = self.stderr_console if stderr else self.stdout_console
+        console.print(string, sep=sep, highlight=highlight, **kwargs)
 
     def header(self, *args, color=None, **kwargs):
         if color is None:
@@ -118,25 +128,25 @@ class Printer:
             color = self.color_map.echo
         self.print(*args, color=color, **kwargs)
 
-    def warning(self, *args, color=None, **kwargs):
+    def warning(self, *args, color=None, stderr=True, **kwargs):
         if color is None:
             color = self.color_map.warning
-        self.print(*args, color=color, **kwargs)
+        self.print(*args, color=color, stderr=stderr, **kwargs)
 
-    def error(self, *args, color=None, **kwargs):
+    def error(self, *args, color=None, stderr=True, **kwargs):
         if color is None:
             color = self.color_map.error
-        self.print(*args, color=color, **kwargs)
+        self.print(*args, color=color, stderr=stderr, **kwargs)
 
-    def danger(self, *args, color=None, **kwargs):
+    def danger(self, *args, color=None, stderr=True, **kwargs):
         if color is None:
             color = self.color_map.danger
-        self.print(*args, color=color, **kwargs)
+        self.print(*args, color=color, stderr=stderr, **kwargs)
 
-    def debug(self, *args, color=None, **kwargs):
+    def debug(self, *args, color=None, stderr=True, **kwargs):
         if color is None:
             color = self.color_map.debug
-        self.print(*args, color=color, **kwargs)
+        self.print(*args, color=color, stderr=stderr, **kwargs)
 
     def hr(self, *args, color=None, fill_char="─", align="center", **kwargs):
         """Print a horizontal with optional title"""
@@ -150,7 +160,7 @@ class Printer:
             kwargs["title"] = sep.join(args)
         if color:
             kwargs["style"] = self.get_color(color).value
-        self.console.rule(**kwargs)
+        self.stdout_console.rule(**kwargs)
 
 
 printer = Printer()
