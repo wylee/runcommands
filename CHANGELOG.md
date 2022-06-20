@@ -1,6 +1,6 @@
 # RunCommands
 
-## 1.0a70 - unreleased
+## 1.0a70 - 2022-06-19
 
 - Allow default arg values to be specified via environment variables
   like so: `some_arg: arg(envvar="SOME_ENV_VAR") = None`. If no value is
