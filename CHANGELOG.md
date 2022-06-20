@@ -2,7 +2,16 @@
 
 ## 1.0a70 - unreleased
 
-In progress...
+- Allow default arg values to be specified via environment variables
+  like so: `some_arg: arg(envvar="SOME_ENV_VAR") = None`. If no value is
+  passed for `some_arg` on the command line, the value of `SOME_ENV_VAR`
+  will be used, if it's defined.
+
+  This is an alternative to using a config file to define default arg
+  values. It's probably more useful for standalone console scripts
+  versus collections of commands. Both types of defaults can be used at
+  the same time, although this isn't recommended (env var defaults take
+  precedence over config file defaults).
 
 ## 1.0a69 - 2022-05-26
 
