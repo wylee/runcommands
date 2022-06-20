@@ -386,7 +386,7 @@ def upload_dists(
     """Upload distributions in ./dist using ``twine``."""
     if make:
         printer.header("Making and uploading distributions")
-        make_dist(quiet=quiet)
+        make_dist(version=version, quiet=quiet)
     else:
         printer.header("Uploading distributions")
 
