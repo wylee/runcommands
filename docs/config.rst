@@ -67,8 +67,9 @@ Lowest to highest:
 4. Env-specific global args from config file
 5. Env-specific default args from config file
 6. Default args from config file
-7. Command line args
-8. Direct call args
+7. Default args read from environment variables
+8. Command line args
+9. Direct call args
 
 Interpolation
 =============

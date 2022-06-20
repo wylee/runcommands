@@ -114,6 +114,8 @@ class ArgConfig:
         nargs (int|str): Number of command line args to consume.
         mutual_exclusion_group (str): Name of mutual exclusion group to
             add this arg to.
+        envvar(str): Environment variable containing a default value to
+            use when the arg isn't specified on the command line.
         default: Default value for positional args.
 
     .. note:: For convenience, regular dicts can be used to annotate
@@ -142,6 +144,7 @@ class ArgConfig:
         action=None,
         nargs=None,
         mutual_exclusion_group=None,
+        envvar=None,
         default=EMPTY,
     ):
         if short_option is not None:
@@ -169,6 +172,7 @@ class ArgConfig:
         self.action = action
         self.nargs = nargs
         self.mutual_exclusion_group = mutual_exclusion_group
+        self.envvar = envvar
         self.default = default
 
     def __repr__(self):
@@ -227,6 +231,8 @@ class Arg:
         nargs (int|str): Number of command line args to consume.
         mutual_exclusion_group (str): Name of mutual exclusion group to
             add this arg to.
+        envvar(str): Environment variable containing a default value to
+            use when the arg isn't specified on the command line.
 
     """
 
@@ -251,6 +257,7 @@ class Arg:
         action,
         nargs,
         mutual_exclusion_group,
+        envvar,
     ):
         is_keyword_only = parameter.kind is KEYWORD_ONLY and default is EMPTY
         is_var_positional = parameter.kind is VAR_POSITIONAL
@@ -394,6 +401,7 @@ class Arg:
         self.action = action
         self.nargs = nargs
         self.mutual_exclusion_group = mutual_exclusion_group
+        self.envvar = envvar
 
     @cached_property
     def add_argument_args(self, *, _type_wrapper_cache={}):
@@ -500,6 +508,7 @@ class HelpArg(Arg):
             action=None,
             nargs=None,
             mutual_exclusion_group=None,
+            envvar=None,
         )
 
 

@@ -1,5 +1,6 @@
 import argparse
 import inspect
+import os
 import signal
 import sys
 import time
@@ -276,6 +277,31 @@ class Command:
         return self.base_name
 
     @cached_property
+    def environ_args(self):
+        """Get default args from environment variables.
+
+        These take precedence over defaults read from a config file for
+        both collections and standalone console scripts.
+
+        Any args that are found will be converted using the arg's type
+        converter. Boolean args should use "1", "true", "0", or "false".
+
+        .. note:: This is probably more useful with standalone console
+            scripts versus collections of commands. The latter tend to
+            have more complex configuration that might be better defined
+            in a config file.
+
+        """
+        environ_args = {}
+        for arg in self.args.values():
+            envvar = arg.envvar
+            if envvar is not None and envvar in os.environ:
+                value = os.environ[envvar]
+                value = arg.convert_value(value)
+                environ_args[arg.parameter.name] = value
+        return environ_args
+
+    @cached_property
     def config_file_args(self, *, _cache={}):
         """Get default args from config file.
 
@@ -494,6 +520,7 @@ class Command:
         debug = self.debug
         positionals = self.positionals
         var_positional = self.var_positional
+        environ_args = self.environ_args
         default_args = self.default_args
 
         parsed_args = {}
@@ -521,6 +548,8 @@ class Command:
             args_passed = []
             # Name of the var args arg.
             var_args_name = None
+            # Positional args added from command's environ args.
+            from_environ = {}
             # Positional args added from command's default args.
             from_default_args = {}
             # Positional args added from arg defaults.
@@ -535,7 +564,11 @@ class Command:
             name = arg.parameter.name
             value = kwargs.pop(name, POSITIONAL_PLACEHOLDER)
             if value is POSITIONAL_PLACEHOLDER:
-                if name in default_args:
+                if name in environ_args:
+                    value = environ_args[name]
+                    if debug:
+                        from_environ[name] = value
+                elif name in default_args:
                     value = default_args[name]
                     if debug:
                         from_default_args[name] = value
@@ -564,6 +597,9 @@ class Command:
             printer.debug("    Overrides:", overrides)
             printer.debug("    Received positional args:", tuple(args_passed))
             printer.debug("    Received optional args:", kwargs)
+            printer.debug(
+                "    Added positionals from environ args:", ", ".join(from_environ)
+            )
             printer.debug(
                 "    Added positionals from default args:", ", ".join(from_default_args)
             )
@@ -778,6 +814,7 @@ class Command:
         positionals = tuple(self.positionals.values())
         num_positionals = len(positionals)
         var_positional = self.var_positional
+        environ_args = self.environ_args
         default_args = self.default_args
 
         num_passed_args = len(passed_args)
@@ -790,6 +827,8 @@ class Command:
             args_passed = []
             # Name of the var args arg.
             var_args_name = None
+            # Args added from environ.
+            from_environ = {}
             # Args added from command's default args.
             from_default_args = {}
             # Args added from arg defaults.
@@ -808,7 +847,12 @@ class Command:
         # positionally.
         for arg in positionals[len(args) :]:
             name = arg.parameter.name
-            if name in default_args:
+            if name in environ_args:
+                value = environ_args[name]
+                args.append((name, value))
+                if debug:
+                    from_environ[name] = value
+            elif name in default_args:
                 value = default_args[name]
                 args.append((name, value))
                 if debug:
@@ -843,11 +887,24 @@ class Command:
                 if debug:
                     args_passed.append((name, value))
 
+        arg_names = tuple(item[0] for item in args)
+
+        # Use env var defaults for any optionals that weren't passed
+        # that have an env var default. Positionals that weren't passed
+        # have already had their defaults set above.
+        get_from_environ = set(environ_args).difference(arg_names, passed_kwargs)
+        for name in get_from_environ:
+            value = environ_args[name]
+            kwargs[name] = value
+            if debug:
+                from_environ[name] = value
+
         # Use defaults for any optionals that weren't passed that have a
         # default. Positionals that weren't passed have already had
         # their defaults set above.
-        arg_names = tuple(item[0] for item in args)
-        get_from_default_args = set(default_args).difference(arg_names, passed_kwargs)
+        get_from_default_args = set(default_args).difference(
+            arg_names, environ_args, passed_kwargs
+        )
         for name in get_from_default_args:
             value = default_args[name]
             kwargs[name] = value
@@ -859,6 +916,7 @@ class Command:
             printer.debug("Command called:", self.name)
             printer.debug("    Received positional args:", args_passed)
             printer.debug("    Received keyword args:", passed_kwargs)
+            printer.debug("    Added from environ:", from_environ)
             printer.debug("    Added from default args:", from_default_args)
             printer.debug("    Added from arg defaults:", from_arg_defaults)
             printer.debug("Running command:", self.name)
@@ -1140,6 +1198,7 @@ class Command:
             action = annotation.action
             nargs = annotation.nargs
             mutual_exclusion_group = annotation.mutual_exclusion_group
+            envvar = annotation.envvar
 
             default = param.default
             is_var_positional = param.is_var_positional
@@ -1192,6 +1251,7 @@ class Command:
                 action=action,
                 nargs=nargs,
                 mutual_exclusion_group=mutual_exclusion_group,
+                envvar=envvar,
             )
 
         if "help" not in args:
