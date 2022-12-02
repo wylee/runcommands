@@ -81,6 +81,8 @@ class Printer:
             raise ValueError(f"Unknown color: {color}") from None
 
     def colorize(self, *args, color=None, sep=" "):
+        if not args:
+            return ""
         if color is not None:
             color = self.get_color(color)
             args = (color,) + args
