@@ -1,8 +1,20 @@
 # RunCommands
 
-## 1.0a71 - unreleased
+## 1.0a71 - 2022-12-02
 
-In progress...
+- Added support for Python 3.10 and 3.11. Initially, this just means
+  testing against these versions when creating a new release.
+- Dropped _official_ support for Python 3.6 since it has been
+  end-of-life for about a year now. Note that RunCommands can still be
+  installed on 3.6, but 3.6 is no longer tested against when creating
+  a new release.
+- Relaxed dependency constraints to `>=x` rather `>=x.y,<x+1`. This
+  allows compatibility with more projects.
+- Fixed a bug in the printer utility that would throw an exception if
+  _no_ args were passed to any of the print functions (e.g., using
+  `printer.print()` to print a blank line).
+- Updated the styling of headers printed via `printer.header()` in order
+  to make headers more visually prominent.
 
 ## 1.0a70 - 2022-06-19
 
