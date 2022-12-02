@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import getpass
 import glob
 import os
 import pathlib
@@ -223,6 +222,7 @@ def tox(
 
 @command
 def format_code(check=False, where="./"):
+    printer.header("Formatting code...")
     if check:
         check_arg = "--check"
         raise_on_error = False
@@ -376,17 +376,21 @@ def upload_dists(
     make: arg(help="Make dist first? [yes]") = True,
     version: arg(help="Version/tag to release [latest tag]") = None,
     quiet: arg(help="Make dist quietly? [no]") = False,
-    username: arg(help="Twine username [$USER]") = None,
-    password_command: arg(
-        help="Command to retrieve twine password "
-        "(e.g. `password-manager show-password PyPI`) "
-        "[twine prompt]"
-    ) = None,
 ):
-    """Upload distributions in ./dist using ``twine``."""
+    """Upload distributions in ./dist using ``twine``.
+
+    This requires a project token on PyPI, which must be saved in the
+    runcommands section of ~/.pypirc::
+
+        [runcommands]
+        repository = https://upload.pypi.org/legacy/
+        username = __token__
+        password = <project token copied from PyPI>
+
+    """
     if make:
         printer.header("Making and uploading distributions")
-        make_dist(quiet=quiet)
+        make_dist(version=version, quiet=quiet)
     else:
         printer.header("Uploading distributions")
 
@@ -403,31 +407,9 @@ def upload_dists(
     if not confirm("Continue?"):
         abort()
 
-    if not username:
-        username = getpass.getuser()
-    environ = {"TWINE_USERNAME": username}
-
-    if password_command:
-        printer.info(f"Retrieving password via `{password_command}`...")
-        result = local(password_command, stdout="capture")
-        password = result.stdout.strip()
-        environ["TWINE_PASSWORD"] = password
-    elif "TWINE_PASSWORD" in environ:
-        password = environ["TWINE_PASSWORD"]
-    else:
-        abort(
-            1,
-            "TWINE_PASSWORD environment variable must be set when no "
-            "password command is specified",
-        )
-
-    printer.warning("TWINE_USERNAME:", username)
-    if password:
-        printer.warning("TWINE_PASSWORD:", "*" * len(password))
-
     for path in paths:
         if confirm(f"Upload dist?: {path}"):
-            local(("twine", "upload", path), environ=environ)
+            local(("twine", "upload", "--repository", "runcommands", path))
         else:
             printer.warning("Skipped dist:", path)
 

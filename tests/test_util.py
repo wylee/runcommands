@@ -41,3 +41,9 @@ class TestPrinter(TestCase):
                         attr("stderr")
             self.assertEqual(stdout.getvalue(), "")
             self.assertIn("stderr", stderr.getvalue())
+
+    def test_print_no_args(self):
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            printer.print()
+        self.assertEqual(stdout.getvalue(), "\n")

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "runcommands"
-version = "1.0a70"
+version = "1.0a71"
 license = "MIT"
 description = "A framework for writing console scripts and running commands"
 readme = "README.rst"
@@ -25,8 +25,8 @@ include = [
 
 [tool.poetry.dependencies]
 python = "^3.6"
-rich = "^10.3.0"
-toml = "^0.10.2"
+rich = ">=10"
+toml = ">=0.10"
 "com.wyattbaldwin.cached_property" = "^1.0"
 
 [tool.poetry.dev-dependencies]

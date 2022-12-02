@@ -34,7 +34,7 @@ class Printer:
     # Symbolic name => color
     color_map = {
         "none": Color.default,
-        "header": Color.magenta,
+        "header": Color.white,
         "info": Color.blue,
         "success": Color.green,
         "echo": Color.cyan,
@@ -81,6 +81,8 @@ class Printer:
             raise ValueError(f"Unknown color: {color}") from None
 
     def colorize(self, *args, color=None, sep=" "):
+        if not args:
+            return ""
         if color is not None:
             color = self.get_color(color)
             args = (color,) + args
@@ -108,10 +110,12 @@ class Printer:
         console = self.stderr_console if stderr else self.stdout_console
         console.print(string, sep=sep, highlight=highlight, **kwargs)
 
-    def header(self, *args, color=None, **kwargs):
+    def header(self, *args, color=None, style="bold", **kwargs):
         if color is None:
             color = self.color_map.header
-        self.print(*args, color=color, **kwargs)
+        self.hr()
+        self.print(*args, color=color, style=style, **kwargs)
+        self.print()
 
     def info(self, *args, color=None, **kwargs):
         if color is None:

@@ -1,7 +1,7 @@
 RunCommands Documentation
 +++++++++++++++++++++++++
 
-|project| is a simple, Python 3.6+ command runner that automatically
+|project| is a simple, Python 3.7+ command runner that automatically
 generates `argparse`-style console scripts from functions.
 
 A basic run looks like this::

@@ -6,12 +6,12 @@ class Color(enum.Enum):
 
     default = "default"
     black = "black"
-    red = "red"
-    green = "green"
-    yellow = "yellow"
-    blue = "blue"
-    magenta = "magenta"
-    cyan = "cyan"
+    red = "bright_red"
+    green = "bright_green"
+    yellow = "bright_yellow"
+    blue = "bright_blue"
+    magenta = "bright_magenta"
+    cyan = "bright_cyan"
     white = "white"
 
     def __str__(self):
