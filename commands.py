@@ -222,6 +222,7 @@ def tox(
 
 @command
 def format_code(check=False, where="./"):
+    printer.header("Formatting code...")
     if check:
         check_arg = "--check"
         raise_on_error = False
