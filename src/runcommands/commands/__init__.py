@@ -1,4 +1,4 @@
-# flake8: noqa: F401
+# ruff: noqa: F401
 from .copy_file import copy_file
 from .git_version import git_version
 from .local import local

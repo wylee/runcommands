@@ -464,7 +464,7 @@ class Arg:
             elif value in ("0", "false"):
                 return False
             if self.is_bool:
-                raise ValueError(f"Bool value must be one of 1, true, 0, or false")
+                raise ValueError("Bool value must be one of 1, true, 0, or false")
         converter = self.add_argument_args[1]["type"]
         value = converter(value)
         return value

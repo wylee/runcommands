@@ -40,9 +40,9 @@ if os.path.abspath(sys.argv[0]) == os.path.abspath(__file__):
                 os.environ["VIRTUAL_ENV"] = os.path.abspath(venv_root)
                 for path in glob.glob(venv_site_packages):
                     sys.path.insert(0, path)
-                sys.stderr.write(f"activated\n")
+                sys.stderr.write("activated\n")
                 return True
-            sys.stderr.write(f"FAILED\n")
+            sys.stderr.write("FAILED\n")
             return False
 
         if not activate_venv():
@@ -147,7 +147,7 @@ def install_completion(
         if overwrite:
             printer.info(f"Overwriting:\n    {destination}")
         else:
-            confirm(f"File exists. Overwrite?", abort_on_unconfirmed=True)
+            confirm("File exists. Overwrite?", abort_on_unconfirmed=True)
 
     _copy_file(source, destination, template=template_type, context=template_context)
     printer.info(f"Installed; remember to:\n    source {destination}")
@@ -241,7 +241,7 @@ def lint(
 ):
     result = local(
         (
-            "flake8",
+            "ruff",
             ".",
             "--ignore=" if disable_ignore else None,
             "--disable-noqa" if disable_noqa else None,

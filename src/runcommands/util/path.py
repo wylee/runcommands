@@ -83,7 +83,10 @@ def asset_path(path, format_kwargs={}, keep_slash=False):
     True
     >>> asset_path('runcommands.util:path.py') == file_path
     True
-    >>> asset_path('runcommands.util:{name}.py', format_kwargs={'name': 'path'}) == file_path
+    >>> asset_path(
+    ...     'runcommands.util:{name}.py',
+    ...     format_kwargs={'name': 'path'}
+    ... ) == file_path
     True
     >>> asset_path('runcommands.util:dir/') == (dir_name + '/dir')
     True

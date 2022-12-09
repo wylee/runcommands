@@ -29,10 +29,10 @@ rich = ">=10"
 toml = ">=0.10"
 "com.wyattbaldwin.cached_property" = "^1.0"
 
-[tool.poetry.dev-dependencies]
-black = { version = "*", allow-prereleases = true }
+[tool.poetry.group.dev.dependencies]
+black = "*"
 coverage = "*"
-flake8 = "<3.8"
+ruff = "*"
 Sphinx = "*"
 tox = "*"
 twine = "*"
@@ -50,6 +50,9 @@ target-version = ["py36"]
 
 [tool.make-release.args]
 test-command = "run test"
+
+[tool.ruff]
+ignore = [ "F722", "F821" ]
 
 [tool.runcommands.globals]
 package = "runcommands"
