@@ -24,7 +24,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.7"
 rich = ">=10"
 toml = ">=0.10"
 "com.wyattbaldwin.cached_property" = "^1.0"
