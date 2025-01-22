@@ -756,7 +756,7 @@ wheels = [
 
 [[package]]
 name = "runcommands"
-version = "1.0a72.dev0"
+version = "1.0a73.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "com-wyattbaldwin-cached-property" },
