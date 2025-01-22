@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "runcommands"
-version = "1.0a72.dev0"
+version = "1.0a72"
 license = { text = "MIT" }
 description = "A framework for writing console scripts and running commands"
 readme = "README.rst"
