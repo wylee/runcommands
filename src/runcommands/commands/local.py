@@ -17,12 +17,13 @@ def local(
     replace_env=False,
     paths=(),
     shell: arg(type=bool) = None,
+    input=None,
     stdout: arg(type=StreamOptions) = None,
     stderr: arg(type=StreamOptions) = None,
     echo=False,
     raise_on_error=True,
     dry_run=False,
-) -> Result:
+) -> Result | subprocess.Popen:
     """Run a local command via :func:`subprocess.run`.
 
     Args:
@@ -43,6 +44,8 @@ def local(
         shell (bool): Run as a shell command? The default is to run in
             shell mode if ``args`` is a string. This flag can be used to
             force a list of args to be run as a shell command too.
+        input (str): If provided, this will be passed to the subprocess'
+            stdin.
         stdout (StreamOptions): What to do with stdout (capture, hide,
             or show).
         stderr (StreamOptions): Same as ``stdout``.
@@ -91,6 +94,8 @@ def local(
         path = ":".join(paths)
         subprocess_env["PATH"] = path
 
+    stdin = subprocess.PIPE if background and input else None
+
     if stdout:
         stdout = StreamOptions[stdout] if isinstance(stdout, str) else stdout
         stdout = stdout.option
@@ -103,6 +108,7 @@ def local(
         "cwd": cd,
         "env": subprocess_env,
         "shell": shell,
+        "stdin": stdin,
         "stdout": stdout,
         "stderr": stderr,
         "universal_newlines": True,
@@ -120,8 +126,12 @@ def local(
         printer.echo("[DRY RUN]", display_str)
         result = Result(args, 0, None, None)
     elif background:
-        return subprocess.Popen(args, **kwargs)
+        result = subprocess.Popen(args, **kwargs)
+        if input:
+            result.stdin.write(input)
+        return result
     else:
+        kwargs["input"] = input
         result = subprocess.run(args, **kwargs)
         result = Result.from_subprocess_result(result)
 

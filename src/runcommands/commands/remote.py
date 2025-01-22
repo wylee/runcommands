@@ -1,10 +1,12 @@
 import shlex
 import sys
 
+import rich.markup
+
 from ..args import arg
 from ..command import command
 from ..result import Result
-from ..util import flatten_args, isatty, StreamOptions
+from ..util import flatten_args, isatty, prompt, StreamOptions
 from .local import local
 
 
@@ -16,6 +18,7 @@ def remote(
     port=None,
     sudo=False,
     run_as=None,
+    sudo_prompt=False,
     shell="/bin/sh",
     cd=None,
     environ: arg(container=dict) = None,
@@ -48,6 +51,10 @@ def remote(
         sudo (bool): Run the remote command as root using ``sudo``.
         run_as (str): Run the remote command as a different user using
             ``sudo -u <run_as>``.
+        sudo_prompt (bool): When set, a prompt for the sudo password
+            will be shown on the *local* machine. The main use case for
+            this is when the ``user`` requires a password to use sudo on
+            the remote host. For passwordless sudo, this isn't needed.
         shell (str): The remote user's default shell will be used to run
             the remote command unless this is set to a different shell.
         cd (str): Where to run the command on the remote host.
@@ -74,10 +81,9 @@ def remote(
     ssh_connection_str = f"{user}@{host}" if user else host
 
     using_sudo = sudo or run_as
-    hide_sudo_prompt = using_sudo and stdout in (
-        StreamOptions.capture,
-        StreamOptions.capture.value,
-    )
+
+    if stdout:
+        stdout = StreamOptions[stdout] if isinstance(stdout, str) else stdout
 
     remote_cmd = []
 
@@ -86,8 +92,8 @@ def remote(
     elif run_as:
         remote_cmd.extend(("sudo", "-H", "-u", run_as))
 
-    if hide_sudo_prompt:
-        remote_cmd.append("--prompt=")
+    if using_sudo and sudo_prompt:
+        remote_cmd.extend(("--prompt=", "--stdin"))
 
     remote_cmd.extend((shell, "-c"))
 
@@ -113,11 +119,15 @@ def remote(
 
     args = ("ssh", ssh_options, ssh_connection_str, remote_cmd)
 
-    if hide_sudo_prompt:
-        print("[sudo] password: ")
+    if using_sudo and sudo_prompt:
+        sudo_prompt_message = rich.markup.escape("[sudo] password")
+        sudo_password = prompt(sudo_prompt_message, password=True)
+    else:
+        sudo_password = None
 
     return local(
         args,
+        input=sudo_password,
         stdout=stdout,
         stderr=stderr,
         echo=echo,
