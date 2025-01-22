@@ -4,7 +4,6 @@ from .command import Command
 
 
 class Collection(MutableMapping):
-
     """A collection of commands."""
 
     def __init__(self, commands):

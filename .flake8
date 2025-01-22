@@ -1,4 +1,0 @@
-[flake8]
-exclude = .venv,.tox
-ignore = E203,E252,F722,W503,W504
-max-line-length = 99

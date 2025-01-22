@@ -23,7 +23,6 @@ __all__ = ["command", "subcommand", "Command"]
 
 
 class Command:
-
     """Wraps a callable and provides a command line argument parser.
 
     Args:
@@ -632,7 +631,7 @@ class Command:
         """Run the command and then :func:`sys.exit`.
 
         When exiting isn't desired (e.g. in tests), wrap the call to
-        this method in a try/except black that catches ``SystemExit``.
+        this method in a try/except block that catches ``SystemExit``.
 
         """
         debug = self.debug
@@ -1133,7 +1132,7 @@ class Command:
         m = int(m)
         printer.hr(color="info")
         printer.info(
-            f"Elapsed time for {self.name} command: " f"{m:d}m {s:.3f}s",
+            f"Elapsed time for {self.name} command: {m:d}m {s:.3f}s",
             highlight=False,
         )
         printer.hr(color="info")
@@ -1304,9 +1303,9 @@ class Command:
             mutual_exclusion_group_name = arg.mutual_exclusion_group
             if mutual_exclusion_group_name:
                 if mutual_exclusion_group_name not in self.mutual_exclusion_groups:
-                    self.mutual_exclusion_groups[
-                        mutual_exclusion_group_name
-                    ] = parser.add_mutually_exclusive_group()
+                    self.mutual_exclusion_groups[mutual_exclusion_group_name] = (
+                        parser.add_mutually_exclusive_group()
+                    )
                 mutual_exclusion_group = self.mutual_exclusion_groups[
                     mutual_exclusion_group_name
                 ]

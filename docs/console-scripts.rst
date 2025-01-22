@@ -48,7 +48,7 @@ It's also possible to create console scripts with subcommands a la `git`:
 .. code-block:: python
 
     # project/package/scripts/base.py
-    from runcommands import arg, command, subcommand
+    from runcommands import arg, command
 
     @command
     def base(subcommand: arg(default=None), verbosity=1):
@@ -58,7 +58,7 @@ It's also possible to create console scripts with subcommands a la `git`:
         if subcommand is not None:
             print('Running subcommand:', subcommand)
 
-     @subcommand(base)
+     @base.subcommand
      def sub(flag=False, verbosity=1):
         print('Subcommand got flag', flag, 'and verbosity', verbosity)
 

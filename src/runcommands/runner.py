@@ -6,7 +6,6 @@ from .util import printer
 
 
 class CommandRunner:
-
     """A runner for a given collection of commands."""
 
     def __init__(self, collection, debug=False):
@@ -118,7 +117,6 @@ class CommandRunner:
 
 
 class CommandToRun:
-
     __slots__ = ("name", "command", "argv", "callbacks", "help_requested")
 
     def __init__(self, command, argv):

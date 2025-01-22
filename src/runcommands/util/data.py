@@ -1,5 +1,4 @@
 class Data:
-
     """A bucket for arbitrary data.
 
     Data can be added and retrieved as attributes (dot notation) or

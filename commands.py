@@ -16,8 +16,8 @@ if os.path.abspath(sys.argv[0]) == os.path.abspath(__file__):
     # - Ensure virtual env is activated
     # - Ensure virtual env site packages directory is at front of sys.path
     # - Ensure package src directory is first in sys.path
-    if shutil.which("poetry") is None:
-        sys.stderr.write("poetry not installed or not on $PATH\n")
+    if shutil.which("uv") is None:
+        sys.stderr.write("uv not installed or not on $PATH\n")
         sys.exit(1)
 
     if not os.getenv("VIRTUAL_ENV"):
@@ -40,16 +40,16 @@ if os.path.abspath(sys.argv[0]) == os.path.abspath(__file__):
                 os.environ["VIRTUAL_ENV"] = os.path.abspath(venv_root)
                 for path in glob.glob(venv_site_packages):
                     sys.path.insert(0, path)
-                sys.stderr.write(f"activated\n")
+                sys.stderr.write("activated\n")
                 return True
-            sys.stderr.write(f"FAILED\n")
+            sys.stderr.write("FAILED\n")
             return False
 
         if not activate_venv():
             sys.stderr.write("Creating virtual env and installing dependencies\n")
-            if os.path.exists("poetry.lock"):
-                os.remove("poetry.lock")
-            subprocess.run(["poetry", "install"])
+            if os.path.exists("uv.lock"):
+                os.remove("uv.lock")
+            subprocess.run(["uv", "sync"])
             activate_venv()
 
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
@@ -70,18 +70,18 @@ from runcommands.util import (
 )  # noqa: E402
 
 
-@command(creates=(".venv", "poetry.lock"), sources="pyproject.toml")
+@command(creates=(".venv", "uv.lock"), sources="pyproject.toml")
 def install():
-    """Create virtualenv & install dependencies by running `poetry install`."""
-    local("poetry install")
+    """Create virtualenv & install dependencies by running `uv sync`."""
+    local("uv sync")
     pathlib.Path(".venv").touch()
-    pathlib.Path("poetry.lock").touch()
+    pathlib.Path("uv.lock").touch()
 
 
 @command
 def update():
-    """Update dependencies by running `poetry update`."""
-    local("poetry update")
+    """Update dependencies by running `uv sync`."""
+    local("uv sync --update")
 
 
 @command
@@ -147,7 +147,7 @@ def install_completion(
         if overwrite:
             printer.info(f"Overwriting:\n    {destination}")
         else:
-            confirm(f"File exists. Overwrite?", abort_on_unconfirmed=True)
+            confirm("File exists. Overwrite?", abort_on_unconfirmed=True)
 
     _copy_file(source, destination, template=template_type, context=template_context)
     printer.info(f"Installed; remember to:\n    source {destination}")
@@ -159,7 +159,7 @@ def test(
     fail_fast=False,
     verbosity=1,
     with_coverage: arg(short_option="-c") = True,
-    with_lint: arg(short_option="-l") = True,
+    check: arg(short_option="-l") = True,
 ):
     top_level_dir = find_project_root()
     os.chdir(top_level_dir)
@@ -194,7 +194,7 @@ def test(
             if with_coverage:
                 coverage.stop()
                 coverage.report()
-            if with_lint:
+            if check:
                 # XXX: The test runner apparently changes CWD.
                 os.chdir(top_level_dir)
                 printer.hr("Checking code formatting")
@@ -222,14 +222,15 @@ def tox(
 
 @command
 def format_code(check=False, where="./"):
-    printer.header("Formatting code...")
     if check:
+        printer.header("Checking code formatting...")
         check_arg = "--check"
         raise_on_error = False
     else:
+        printer.header("Formatting code...")
         check_arg = None
         raise_on_error = True
-    result = local(("black", check_arg, where), raise_on_error=raise_on_error)
+    result = local(("ruff", "format", check_arg, where), raise_on_error=raise_on_error)
     return result
 
 
@@ -241,12 +242,13 @@ def lint(
 ):
     result = local(
         (
-            "flake8",
+            "ruff",
+            "check",
             ".",
             "--ignore=" if disable_ignore else None,
             "--disable-noqa" if disable_noqa else None,
         ),
-        stdout="capture",
+        stderr="capture",
         raise_on_error=False,
     )
     pieces_of_lint = len(result.stdout_lines)
@@ -279,7 +281,7 @@ def clean(verbose=False, more=False):
 
         - ./.venv/
         - ./runcommands.egg-info/
-        - ./poetry.lock
+        - ./uv.lock
 
     Skips hidden directories.
 
@@ -309,7 +311,7 @@ def clean(verbose=False, more=False):
     if more:
         rmdir(".venv", verbose)
         rmdir("runcommands.egg-info", verbose)
-        rmfile("poetry.lock", verbose)
+        rmfile("uv.lock", verbose)
 
 
 @command
@@ -359,7 +361,7 @@ def make_dist(
 
     printer.info("Making dists for", version)
     for format_ in formats:
-        local(("poetry", "build", "--format", format_), stdout=stdout)
+        local(("uv", "build", f"--{format_}"), stdout=stdout)
 
     if version != current_branch:
         printer.info("Switching back to", original_branch)

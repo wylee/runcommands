@@ -45,7 +45,14 @@ def flatten_args(args: list, join=False, *, empty=(None, [], (), "")) -> list:
         []
         >>> flatten_args([(), (), [(), ()]])
         []
-        >>> flatten_args(['executable', '--flag' if True else None, ('--option', 'value'), [None]])
+        >>> flatten_args(
+        ...     [
+        ...         'executable',
+        ...         '--flag' if True else None,
+        ...         ('--option', 'value'),
+        ...         [None],
+        ...     ]
+        ... )
         ['executable', '--flag', '--option', 'value']
         >>> flatten_args(['executable', '--option', 0])
         ['executable', '--option', '0']

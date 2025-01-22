@@ -1,5 +1,15 @@
 # RunCommands
 
+## 1.0a72 - 2025-01-21
+
+- When running the `remote` command with either `sudo` or `run_as` and
+  captured stdout, hide the remote sudo prompt and show a local prompt
+  so that the remote prompt doesn't get included in the captured stdout.
+- Drop support for Python 3.7 and 3.8 since these versions have been EOL
+  for a while.
+- Switch from poetry to uv.
+- Switch from black to ruff for formatting.
+
 ## 1.0a71 - 2022-12-02
 
 - Added support for Python 3.10 and 3.11. Initially, this just means

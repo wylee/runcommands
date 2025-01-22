@@ -1,5 +1,4 @@
 class RunCommandsError(Exception):
-
     pass
 
 
@@ -22,10 +21,8 @@ class RunAborted(RunCommandsError):
 
 
 class RunnerError(RunCommandsError):
-
     pass
 
 
 class CommandError(RunCommandsError):
-
     pass

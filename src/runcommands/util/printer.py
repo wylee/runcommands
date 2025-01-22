@@ -30,7 +30,6 @@ class ColorMap:
 
 
 class Printer:
-
     # Symbolic name => color
     color_map = {
         "none": Color.default,
