@@ -73,12 +73,21 @@ def remote(
 
     ssh_connection_str = f"{user}@{host}" if user else host
 
+    using_sudo = sudo or run_as
+    hide_sudo_prompt = using_sudo and stdout in (
+        StreamOptions.capture,
+        StreamOptions.capture.value,
+    )
+
     remote_cmd = []
 
     if sudo:
         remote_cmd.extend(("sudo", "-H"))
     elif run_as:
         remote_cmd.extend(("sudo", "-H", "-u", run_as))
+
+    if hide_sudo_prompt:
+        remote_cmd.append("--prompt=")
 
     remote_cmd.extend((shell, "-c"))
 
@@ -103,6 +112,10 @@ def remote(
     remote_cmd = " ".join(remote_cmd)
 
     args = ("ssh", ssh_options, ssh_connection_str, remote_cmd)
+
+    if hide_sudo_prompt:
+        print("[sudo] password: ")
+
     return local(
         args,
         stdout=stdout,
