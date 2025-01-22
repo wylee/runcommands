@@ -3,7 +3,6 @@ import subprocess
 
 
 class Color(enum.Enum):
-
     default = "default"
     black = "black"
     red = "bright_red"
@@ -19,7 +18,6 @@ class Color(enum.Enum):
 
 
 class StreamOptions(enum.Enum):
-
     """Choices for stream handling."""
 
     capture = "capture"

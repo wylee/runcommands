@@ -79,7 +79,6 @@ def create_without_sources():
 
 
 class SysExitMixin:
-
     """Make sys.exit() return its arg rather than actually exiting."""
 
     @classmethod

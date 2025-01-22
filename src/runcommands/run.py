@@ -22,7 +22,6 @@ from .util import (
 
 
 class Run(Command):
-
     name = "runcommands"
 
     allowed_config_file_args = (
@@ -63,8 +62,7 @@ class Run(Command):
         # Environment variables
         environ: arg(
             container=dict,
-            help="Additional environment variables; "
-            "added just before commands are run",
+            help="Additional environment variables; added just before commands are run",
         ) = None,
         # Meta
         info: arg(

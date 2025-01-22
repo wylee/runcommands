@@ -3,10 +3,11 @@ Installation
 
 |project| can be installed from PyPI in the usual ways:
 
-- `poetry add runcommands`
+- `uv add runcommands`
 - `pip install runcommands`
+- `poetry add runcommands`
 - Add `runcommands` to the project's `pyproject.toml`
-- Add `runcommands` to the project's Pip requirements file
+- Add `runcommands` to the project's pip requirements file
 - Add `runcommands` to `install_requires` in the project's `setup.py`
 
 The latest in-development version can be installed from GitHub::
@@ -20,9 +21,9 @@ To install the project for development::
 
     git clone https://github.com/wylee/runcommands
     cd runcommands
-    poetry install
+    uv sync
 
-.. note:: poetry_ must be installed first.
+.. note:: uv_ must be installed first.
 
 Console Scripts
 ===============
@@ -46,4 +47,4 @@ Alternatively, if you've cloned the |project| repo, you can `run
 install-completion` from the project directory.
 
 .. _completion script: https://github.com/wylee/runcommands/tree/dev/src/runcommands/completion
-.. _poetry: https://python-poetry.org/
+.. _uv: https://docs.astral.sh/uv/

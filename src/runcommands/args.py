@@ -20,12 +20,10 @@ VAR_POSITIONAL = BaseParameter.VAR_POSITIONAL
 
 
 class POSITIONAL_PLACEHOLDER:
-
     """Used as a placeholder for positionals."""
 
 
 class Parameter:
-
     """Wrapper for :class:`inspect.Parameter`.
 
     Adds convenience methods for our typical use cases.
@@ -82,7 +80,6 @@ class Parameter:
 
 
 class ArgConfig:
-
     """Configuration for an arg.
 
     This can be used as a function parameter annotation to explicitly
@@ -192,7 +189,6 @@ arg = ArgConfig
 
 
 class Arg:
-
     """Encapsulates an arg belonging to a command.
 
     Attributes:
@@ -513,7 +509,6 @@ class HelpArg(Arg):
 
 
 class bool_or:
-
     """Used to indicate that an arg can be a flag or an option.
 
     Use like this::
