@@ -1,12 +1,13 @@
 import shlex
 import sys
+from pathlib import Path
 
 import rich.markup
 
 from ..args import arg
 from ..command import command
 from ..result import Result
-from ..util import flatten_args, isatty, prompt, StreamOptions
+from ..util import flatten_args, isatty, printer, prompt, StreamOptions
 from .local import local
 
 
@@ -29,6 +30,7 @@ def remote(
     echo=False,
     raise_on_error=True,
     dry_run=False,
+    use_shared_connection=True,
 ) -> Result:
     """Run a remote command via SSH.
 
@@ -69,21 +71,20 @@ def remote(
         dry_run: See :obj:`runcommands.commands.local`.
 
     """
+    # Process Options --------------------------------------------------
+
     if not isinstance(cmd, str):
         cmd = flatten_args(cmd, join=True)
 
-    ssh_options = ["-q"]
-    if isatty(sys.stdin):
-        ssh_options.append("-t")
-    if port is not None:
-        ssh_options.extend(("-p", port))
-
+    tty_arg = "-t" if isatty(sys.stdin) else None
+    port_args = ("-p", port) if port else ()
     ssh_connection_str = f"{user}@{host}" if user else host
-
     using_sudo = sudo or run_as
 
     if stdout:
         stdout = StreamOptions[stdout] if isinstance(stdout, str) else stdout
+
+    # Build Remote Command ---------------------------------------------
 
     remote_cmd = []
 
@@ -117,13 +118,34 @@ def remote(
     remote_cmd.append(inner_cmd)
     remote_cmd = " ".join(remote_cmd)
 
-    args = ("ssh", ssh_options, ssh_connection_str, remote_cmd)
-
     if using_sudo and sudo_prompt:
         sudo_prompt_message = rich.markup.escape("[sudo] password")
         sudo_password = prompt(sudo_prompt_message, password=True)
     else:
         sudo_password = None
+
+    # Start Shared SSH Connection --------------------------------------
+    #
+    # TODO: Extract to utility function
+
+    if use_shared_connection:
+        try:
+            home = Path.home()
+        except RuntimeError:
+            printer.warning("Could not determine home directory.")
+        else:
+            socket_path = home / ".ssh" / "runcommands-control-%r-%h-%p"
+            port_args = ("-p", port) if port else ()
+            shared_connection_args = ("-S", socket_path, "-o", "ControlPersist=2m", tty_arg, port_args, ssh_connection_str)
+            check_result = local(("ssh", "-O", "check", shared_connection_args), stderr=StreamOptions.hide, raise_on_error=False)
+            if check_result.failed:
+                printer.info("Starting shared SSH connection...")
+                local(("ssh", "-MN", shared_connection_args))
+                # ssh -O exit -S {socket_path} {ssh_connection_str}
+
+    # Run Remote Command -----------------------------------------------
+
+    args = ("ssh", tty_arg, port_args, ssh_connection_str, remote_cmd)
 
     return local(
         args,
