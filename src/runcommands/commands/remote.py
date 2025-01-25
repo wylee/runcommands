@@ -132,18 +132,38 @@ def remote(
         try:
             home = Path.home()
         except RuntimeError:
-            printer.warning("Could not determine home directory.")
+            use_shared_connection = false
+            printer.warning(
+                "Could not create shared SSH connection: "
+                "could not determine HOME directory"
+            )
         else:
-            socket_path = home / ".ssh" / "runcommands-control-%r-%h-%p"
+            socket_path = home / ".ssh" / f"runcommands-control-{user}-{host}-{port}"
             port_args = ("-p", port) if port else ()
-            shared_connection_args = ("-S", socket_path, "-o", "ControlPersist=2m", tty_arg, port_args, ssh_connection_str)
-            check_result = local(("ssh", "-O", "check", shared_connection_args), stderr=StreamOptions.hide, raise_on_error=False)
+            shared_connection_args = (
+                "-S",
+                socket_path,
+                "-o",
+                "ControlPersist=2m",
+                tty_arg,
+                port_args,
+                ssh_connection_str,
+            )
+            check_result = local(
+                ("ssh", "-O", "check", shared_connection_args),
+                stderr=StreamOptions.hide,
+                raise_on_error=False,
+            )
             if check_result.failed:
-                printer.info("Starting shared SSH connection...")
+                printer.info(f"Starting shared SSH connection: {socket_path}")
                 local(("ssh", "-MN", shared_connection_args))
-                # ssh -O exit -S {socket_path} {ssh_connection_str}
+            else:
+                printer.info(f"Reusing shared SSH connection: {socket_path}")
 
     # Run Remote Command -----------------------------------------------
+
+    if use_shared_connection:
+        tty_arg = None
 
     args = ("ssh", tty_arg, port_args, ssh_connection_str, remote_cmd)
 
