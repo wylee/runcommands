@@ -30,7 +30,7 @@ def remote(
     echo=False,
     raise_on_error=True,
     dry_run=False,
-    use_shared_connection=True,
+    use_shared_connection=False,
 ) -> Result:
     """Run a remote command via SSH.
 
@@ -69,6 +69,9 @@ def remote(
         echo: See :obj:`runcommands.commands.local`.
         raise_on_error: See :obj:`runcommands.commands.local`.
         dry_run: See :obj:`runcommands.commands.local`.
+        use_shared_connection: Use a shared SSH connection instead of
+            creating a new connection for every command run over SSH.
+            NOTE: This should be considered experimental for now.
 
     """
     # Process Options --------------------------------------------------
@@ -132,7 +135,7 @@ def remote(
         try:
             home = Path.home()
         except RuntimeError:
-            use_shared_connection = false
+            use_shared_connection = False
             printer.warning(
                 "Could not create shared SSH connection: "
                 "could not determine HOME directory"
