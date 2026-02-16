@@ -159,7 +159,7 @@ def test(
     fail_fast=False,
     verbosity=1,
     with_coverage: arg(short_option="-c") = True,
-    check: arg(short_option="-l") = True,
+    check: arg(short_option="-l", help="Check formatting, lint, and types") = True,
 ):
     top_level_dir = find_project_root()
     os.chdir(top_level_dir)
@@ -174,6 +174,8 @@ def test(
 
     runner = unittest.TextTestRunner(failfast=fail_fast, verbosity=verbosity)
     loader = unittest.TestLoader()
+
+    coverage = None
 
     if with_coverage:
         from coverage import Coverage
@@ -191,7 +193,7 @@ def test(
         tests = loader.discover(tests_dir, top_level_dir=top_level_dir)
         result = runner.run(tests)
         if not result.errors:
-            if with_coverage:
+            if coverage is not None:
                 coverage.stop()
                 coverage.report()
             if check:
@@ -201,6 +203,8 @@ def test(
                 format_code(check=True)
                 printer.hr("Checking for lint")
                 lint()
+                printer.hr("Checking types")
+                mypy()
 
 
 @command
@@ -264,6 +268,11 @@ def lint(
         abort(1, message)
     else:
         printer.success("No lint found")
+
+
+@command
+def mypy():
+    local("mypy")
 
 
 @command

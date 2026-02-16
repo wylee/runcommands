@@ -89,7 +89,7 @@ def remote(
 
     # Build Remote Command ---------------------------------------------
 
-    remote_cmd = []
+    remote_cmd: list[str] = []
 
     if sudo:
         remote_cmd.extend(("sudo", "-H"))
@@ -114,12 +114,12 @@ def remote(
         inner_cmd.append(f'export PATH="{paths_str}:$PATH"')
 
     inner_cmd.append(cmd)
-    inner_cmd = " &&\n    ".join(inner_cmd)
-    inner_cmd = f"\n    {inner_cmd}\n"
-    inner_cmd = shlex.quote(inner_cmd)
+    inner_cmd_str = " &&\n    ".join(inner_cmd)
+    inner_cmd_str = f"\n    {inner_cmd_str}\n"
+    inner_cmd_str = shlex.quote(inner_cmd_str)
 
-    remote_cmd.append(inner_cmd)
-    remote_cmd = " ".join(remote_cmd)
+    remote_cmd.append(inner_cmd_str)
+    remote_cmd_str = " ".join(remote_cmd)
 
     if using_sudo and sudo_prompt:
         sudo_prompt_message = rich.markup.escape("[sudo] password")
@@ -168,7 +168,7 @@ def remote(
     if use_shared_connection:
         tty_arg = None
 
-    args = ("ssh", tty_arg, port_args, ssh_connection_str, remote_cmd)
+    args = ("ssh", tty_arg, port_args, ssh_connection_str, remote_cmd_str)
 
     return local(
         args,

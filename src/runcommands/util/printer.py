@@ -1,64 +1,17 @@
-import enum
-import os
 from functools import partial
-from typing import Mapping
 
 from rich.console import Console
 
-from .enums import Color
-from .misc import is_type
-
-
-class ColorMap:
-    def __init__(self, *color_maps):
-        for color_map in color_maps:
-            self.add_colors(color_map)
-
-    def __getitem__(self, name: str):
-        return getattr(self, name)
-
-    def __setitem__(self, name: str, color: str):
-        setattr(self, name, color)
-
-    def add_colors(self, color_map: Mapping[str, str]):
-        if is_type(color_map, enum.Enum):
-            items = ((color.name, color) for color in color_map)
-        else:
-            items = color_map.items()
-        for name, color in items:
-            setattr(self, name, color)
+from .enums import PrinterColor
 
 
 class Printer:
-    # Symbolic name => color
-    color_map = {
-        "none": Color.default,
-        "header": Color.white,
-        "info": Color.blue,
-        "success": Color.green,
-        "echo": Color.cyan,
-        "warning": Color.yellow,
-        "error": Color.red,
-        "danger": Color.red,
-        "debug": Color.cyan,
-    }
+    colors: type[PrinterColor]
+    stdout_console: Console
+    stderr_console: Console
 
-    def __init__(
-        self,
-        colors: enum.Enum = Color,
-        color_map: Mapping = None,
-        default_color=None,
-    ):
-        self.is_posix = os.name == "posix"
+    def __init__(self, colors: type[PrinterColor] = PrinterColor):
         self.colors = colors
-        self.color_map = ColorMap()
-        if colors:
-            self.color_map.add_colors(colors)
-        if self.__class__.color_map:
-            self.color_map.add_colors(self.__class__.color_map)
-        if color_map:
-            self.color_map.add_colors(color_map)
-        self.default_color = self.get_color(default_color)
         self.stdout_console = Console()
         self.stderr_console = Console(stderr=True)
 
@@ -67,32 +20,41 @@ class Printer:
 
     def __getattr__(self, color):
         # self.red("...")
-        return partial(self.stdout_console.print, style=str(color))
+        return partial(self.print, color=color)
 
-    def get_color(self, color):
+    def get_color(self, color: PrinterColor | str | None) -> PrinterColor | None:
         if color is None:
             return None
-        if isinstance(color, self.colors):
-            return color
-        try:
-            return self.color_map[color]
-        except KeyError:
-            raise ValueError(f"Unknown color: {color}") from None
+        if isinstance(color, str):
+            try:
+                return self.colors[color]
+            except KeyError:
+                raise ValueError(f"Unknown color: {color}") from None
+        return color
 
-    def colorize(self, *args, color=None, sep=" "):
+    def colorize(self, *args, color: PrinterColor | str | None = None, sep=" "):
         if not args:
             return ""
-        if color is not None:
-            color = self.get_color(color)
-            args = (color,) + args
+
+        color_entry = self.get_color(color)
         string = []
+
+        if color_entry is not None:
+            string.append(color_entry.open())
+
         for arg in args[:-1]:
-            string.append(str(arg))
-            if not isinstance(arg, self.colors):
+            if isinstance(arg, PrinterColor):
+                string.append(arg.open())
+            else:
+                string.append(str(arg))
                 string.append(sep)
+
         string.append(str(args[-1]))
-        string = "".join(string)
-        return string
+
+        if color_entry is not None:
+            string.append(color_entry.close())
+
+        return "".join(string)
 
     def print(
         self,
@@ -111,48 +73,48 @@ class Printer:
 
     def header(self, *args, color=None, style="bold", **kwargs):
         if color is None:
-            color = self.color_map.header
+            color = self.colors.header
         self.hr()
         self.print(*args, color=color, style=style, **kwargs)
         self.print()
 
     def info(self, *args, color=None, **kwargs):
         if color is None:
-            color = self.color_map.info
+            color = self.colors.info
         self.print(*args, color=color, **kwargs)
 
     def success(self, *args, color=None, **kwargs):
         if color is None:
-            color = self.color_map.success
+            color = self.colors.success
         self.print(*args, color=color, **kwargs)
 
     def echo(self, *args, color=None, **kwargs):
         if color is None:
-            color = self.color_map.echo
+            color = self.colors.echo
         self.print(*args, color=color, **kwargs)
 
     def warning(self, *args, color=None, stderr=True, **kwargs):
         if color is None:
-            color = self.color_map.warning
+            color = self.colors.warning
         self.print(*args, color=color, stderr=stderr, **kwargs)
 
     def error(self, *args, color=None, stderr=True, **kwargs):
         if color is None:
-            color = self.color_map.error
+            color = self.colors.error
         self.print(*args, color=color, stderr=stderr, **kwargs)
 
     def danger(self, *args, color=None, stderr=True, **kwargs):
         if color is None:
-            color = self.color_map.danger
+            color = self.colors.danger
         self.print(*args, color=color, stderr=stderr, **kwargs)
 
     def debug(self, *args, color=None, stderr=True, **kwargs):
         if color is None:
-            color = self.color_map.debug
+            color = self.colors.debug
         self.print(*args, color=color, stderr=stderr, **kwargs)
 
     def hr(self, *args, color=None, fill_char="─", align="center", **kwargs):
-        """Print a horizontal with optional title"""
+        """Print horizontal rule with optional title"""
         kwargs["characters"] = fill_char
         kwargs["align"] = align
         if "end" in kwargs:

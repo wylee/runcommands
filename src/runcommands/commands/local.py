@@ -126,14 +126,14 @@ def local(
         printer.echo("[DRY RUN]", display_str)
         result = Result(args, 0, None, None)
     elif background:
-        result = subprocess.Popen(args, **kwargs)
-        if input:
-            result.stdin.write(input)
-        return result
+        background_proc = subprocess.Popen(args, **kwargs)
+        if input and background_proc.stdin is not None:
+            background_proc.stdin.write(input)
+        return background_proc
     else:
         kwargs["input"] = input
-        result = subprocess.run(args, **kwargs)
-        result = Result.from_subprocess_result(result)
+        foreground_proc = subprocess.run(args, **kwargs)
+        result = Result.from_subprocess_result(foreground_proc)
 
     if result.return_code and raise_on_error:
         raise result

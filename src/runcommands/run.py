@@ -1,5 +1,7 @@
 import os
 import sys
+from typing import Any
+
 import toml
 from importlib import import_module
 from pathlib import Path
@@ -149,7 +151,7 @@ class Run(Command):
 
             base_default_args = merge_dicts(args["args"], env_default_args)
 
-            default_args = {name: {} for name in collection}
+            default_args: dict[str, dict[str, Any]] = {name: {} for name in collection}
             default_args = merge_dicts(default_args, base_default_args)
 
             for command_name, command_default_args in default_args.items():

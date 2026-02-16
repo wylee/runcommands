@@ -13,8 +13,35 @@ class Color(enum.Enum):
     cyan = "bright_cyan"
     white = "white"
 
-    def __str__(self):
+
+class PrinterColor(enum.Enum):
+    # Color
+    default = Color.default.value
+    black = Color.black.value
+    red = Color.red.value
+    green = Color.green.value
+    yellow = Color.yellow.value
+    blue = Color.blue.value
+    magenta = Color.magenta.value
+    cyan = Color.cyan.value
+    white = Color.white.value
+
+    # Colors by type
+    none = Color.default.value
+    header = Color.white.value
+    info = Color.blue.value
+    success = Color.green.value
+    echo = Color.cyan.value
+    warning = Color.yellow.value
+    error = Color.red.value
+    danger = Color.red.value
+    debug = Color.cyan.value
+
+    def open(self):
         return f"[{self.value}]"
+
+    def close(self):
+        return f"[/{self.value}]"
 
 
 class StreamOptions(enum.Enum):

@@ -1,4 +1,4 @@
-from rich.prompt import Confirm, Prompt, InvalidResponse
+from rich.prompt import Confirm as BaseConfirm, Prompt, InvalidResponse
 
 from .misc import abort
 from .printer import printer
@@ -92,7 +92,7 @@ def confirm(
     return confirmed
 
 
-class Confirm(Confirm):
+class Confirm(BaseConfirm):
     @property
     def validate_error_message(self):
         yes, no = self.choices
