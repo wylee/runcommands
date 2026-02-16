@@ -2,7 +2,9 @@
 
 ## 1.0a73 - unreleased
 
-In progress...
+- Improve approach to prompting for `sudo` password in `remote` command.
+- Add support for SSH connection sharing.uv
+
 
 ## 1.0a72 - 2025-01-21
 
