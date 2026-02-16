@@ -13,7 +13,7 @@ from cached_property import cached_property
 
 import toml
 
-from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg, Parameter
+from .args import PositionalPlaceholder, Arg, ArgConfig, HelpArg, Parameter
 from .exc import CommandError, RunAborted, RunCommandsError
 from .result import Result
 from .util import camel_to_underscore, is_type, printer, Data
@@ -561,8 +561,8 @@ class Command:
         # args.
         for arg in positionals.values():
             name = arg.parameter.name
-            value = kwargs.pop(name, POSITIONAL_PLACEHOLDER)
-            if value is POSITIONAL_PLACEHOLDER:
+            value = kwargs.pop(name, PositionalPlaceholder)
+            if value is PositionalPlaceholder:
                 if name in environ_args:
                     value = environ_args[name]
                     if debug:

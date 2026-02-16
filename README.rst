@@ -2,7 +2,7 @@ RunCommands
 +++++++++++
 
 A simple command runner that uses ``argparse`` from the Python standard
-library under the hood. Runs on Python 3 only (3.9 and up). Uses
+library under the hood. Runs on Python 3 only (3.10 and up). Uses
 annotations to configure options.
 
 There are two basic use cases:
@@ -57,8 +57,7 @@ Run it::
 
     OK
 
-Create a standalone console script using a standard setuptools entry
-point:
+Create a standalone console script using a standard script entry point:
 
 .. code-block:: toml
 

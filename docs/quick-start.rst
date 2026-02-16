@@ -12,12 +12,10 @@ Summary
 Details
 =======
 
-First, add `runcommands` to the project's requirements. If you're using
-setuptools, add it to `install_requires` in `setup.py`. Or you can add
-it to your pip requirements file.
+First, add `runcommands` to the project's requirements.
 
-Optionally, you can just run `pip install runcommands` or use one of the
-other :doc:`installation` methods.
+Optionally, you can just run `uv tool install runcommands` or use one of
+the other :doc:`installation` methods.
 
 Next, create a Python module named `commands.py` in the top level of the
 project. In that module, you can import the built-in commands like this:
