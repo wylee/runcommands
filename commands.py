@@ -389,15 +389,10 @@ def upload_dists(
     version: arg(help="Version/tag to release [latest tag]") = None,
     quiet: arg(help="Make dist quietly? [no]") = False,
 ):
-    """Upload distributions in ./dist using ``twine``.
+    """Upload distributions in ./dist using ``uv publish``.
 
-    This requires a project token on PyPI, which must be saved in the
-    runcommands section of ~/.pypirc::
-
-        [runcommands]
-        repository = https://upload.pypi.org/legacy/
-        username = __token__
-        password = <project token copied from PyPI>
+    This requires a project token on PyPI. You can set the environment
+    variable ``UV_PUBLISH_TOKEN``, or you'll be prompted for the token.
 
     """
     if make:
@@ -425,7 +420,9 @@ def upload_dists(
     if not confirm("Continue?"):
         abort()
 
-    token = prompt("PyPI upload token", password=True)
+    token = os.getenv("UV_PUBLISH_TOKEN")
+    if not token:
+        token = prompt("PyPI upload token", password=True)
 
     for dist in dists:
         if confirm(f"Upload dist?: {dist}"):
