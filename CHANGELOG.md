@@ -1,10 +1,13 @@
 # RunCommands
 
-## 1.0a73 - unreleased
+## 1.0a73 - 2026-02-16
 
+- Drop support for Python 3.9.
+- Add support for Python 3.14.
+- Check types with mypy.
+- Improve Printer with regard to how colors are handled.
 - Improve approach to prompting for `sudo` password in `remote` command.
-- Add support for SSH connection sharing.uv
-
+- Add experimental support for SSH connection sharing.
 
 ## 1.0a72 - 2025-01-21
 
