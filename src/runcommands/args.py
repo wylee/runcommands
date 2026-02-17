@@ -19,7 +19,7 @@ VAR_KEYWORD = BaseParameter.VAR_KEYWORD
 VAR_POSITIONAL = BaseParameter.VAR_POSITIONAL
 
 
-class POSITIONAL_PLACEHOLDER:
+class PositionalPlaceholder:
     """Used as a placeholder for positionals."""
 
 
@@ -404,7 +404,7 @@ class Arg:
         args = self.options
         if self.is_optional and not self.is_bool:
             if self.type not in _type_wrapper_cache:
-                type = lambda v: (None if v == "" else self.type(v))  # noqa: E731
+                type = lambda v: None if v == "" else self.type(v)  # noqa: E731
                 type = update_wrapper(type, self.type)
                 _type_wrapper_cache[self.type] = type
             type = _type_wrapper_cache[self.type]
@@ -421,7 +421,7 @@ class Arg:
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         if self.is_positional and self.is_optional:
-            kwargs["default"] = POSITIONAL_PLACEHOLDER
+            kwargs["default"] = PositionalPlaceholder
         return args, kwargs
 
     @cached_property

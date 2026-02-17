@@ -14,20 +14,13 @@ Console Scripts
         if optional_arg is not None:
             print(optional_arg)
 
-Then add an entry point:
+Then register the command as a script:
 
-.. code-block:: python
+.. code-block:: toml
 
-    # project/setup.py
-    setup(
-        name='package',
-        ...,
-        entry_points="""
-        [console_scripts]
-        do-stuff = package.commands:do_stuff.console_script
-
-        """
-    )
+    # pyproject.toml
+    [project.scripts]
+    do-stuff = "package.commands:do_stuff.console_script"
 
 After reinstalling the package, the console script will now be directly
 runnable:

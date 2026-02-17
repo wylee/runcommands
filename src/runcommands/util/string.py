@@ -53,6 +53,8 @@ def invert_string(string):
         'Yes'
         >>> invert_string("don't")
         'do'
+        >>> invert_string("don't do thing")
+        'do thing'
 
     """
     first_letter = string[0]
@@ -87,16 +89,29 @@ def invert_string(string):
         inverted = one_word_inversions[string]
     elif first_word in inversions:
         inverted_first_word = inversions[first_word]
-        if not inverted_first_word:
-            inverse_help = words[1]
-            if is_capitalized:
-                inverted = inverse_help.capitalize()
-        else:
+        if inverted_first_word:
             words[0] = inverted_first_word
             i = len(first_word) - len(string)
             inverted = f"{inverted_first_word}{string[i:]}"
+        else:
+            inverse_help = words[1]
+            inverted = inverse_help.capitalize() if is_capitalized else inverse_help
     else:
         inverted_first_word = "Don't" if is_capitalized else "don't"
         inverted = f"{inverted_first_word} {first_letter.lower()}{string[1:]}"
+
+    suffixes = {
+        "[y]": "[n]",
+        "(y)": "(n)",
+        "[yes]": "[no]",
+        "(yes)": "(no)",
+        "[true]": "[false]",
+        "(true)": "(false)",
+    }
+    for suffix, inverse_suffix in suffixes.items():
+        if inverted.endswith(suffix):
+            inverted = f"{inverted[: -len(suffix)]}{inverse_suffix}"
+        elif inverted.endswith(inverse_suffix):
+            inverted = f"{inverted[: -len(inverse_suffix)]}{suffix}"
 
     return inverted

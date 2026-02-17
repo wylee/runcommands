@@ -13,7 +13,7 @@ from cached_property import cached_property
 
 import toml
 
-from .args import POSITIONAL_PLACEHOLDER, Arg, ArgConfig, HelpArg, Parameter
+from .args import PositionalPlaceholder, Arg, ArgConfig, HelpArg, Parameter
 from .exc import CommandError, RunAborted, RunCommandsError
 from .result import Result
 from .util import camel_to_underscore, is_type, printer, Data
@@ -181,9 +181,7 @@ class Command:
         if is_subcommand:
             name = ":".join((base_command.name, name))
 
-        description = description or self.get_description_from_docstring(
-            self.implementation
-        )
+        description = description or self.get_description_from_docstring()
         short_description = description.splitlines()[0] if description else None
 
         if sources and not creates:
@@ -437,16 +435,16 @@ class Command:
                 self.first_arg.choices = []
             self.first_arg.choices.append(name)
 
-    def get_description_from_docstring(self, implementation):
-        description = implementation.__doc__
+    def get_description_from_docstring(self):
+        description = self.implementation.__doc__
         if description is not None:
-            description = description.strip() or None
+            description = description.rstrip() or None
         if description is not None:
             lines = description.splitlines()
             title = lines[0]
             if title.endswith("."):
                 title = title[:-1]
-            lines = [title] + [line[4:] for line in lines[1:]]
+            lines = [title] + [line for line in lines[1:]]
             description = "\n".join(lines)
         return description
 
@@ -561,8 +559,8 @@ class Command:
         # args.
         for arg in positionals.values():
             name = arg.parameter.name
-            value = kwargs.pop(name, POSITIONAL_PLACEHOLDER)
-            if value is POSITIONAL_PLACEHOLDER:
+            value = kwargs.pop(name, PositionalPlaceholder)
+            if value is PositionalPlaceholder:
                 if name in environ_args:
                     value = environ_args[name]
                     if debug:

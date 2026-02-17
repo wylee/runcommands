@@ -2,7 +2,7 @@ import builtins
 import functools
 import importlib
 import os
-from typing import Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 from ..exc import RunAborted
 
@@ -18,7 +18,12 @@ def abort(return_code=0, message="Aborted", color=True):
     raise RunAborted(return_code, message)
 
 
-def flatten_args(args: list, join=False, *, empty=(None, [], (), "")) -> list:
+def flatten_args(
+    args: list[Any] | tuple[Any],
+    join=False,
+    *,
+    empty=(None, [], (), ""),
+) -> list[str]:
     """Flatten args and remove empty items.
 
     Args:

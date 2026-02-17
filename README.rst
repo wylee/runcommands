@@ -2,8 +2,8 @@ RunCommands
 +++++++++++
 
 A simple command runner that uses ``argparse`` from the Python standard
-library under the hood. Runs on Python 3 only (3.9 and up). Uses annotations to
-configure options.
+library under the hood. Runs on Python 3 only (3.10 and up). Uses
+annotations to configure options.
 
 There are two basic use cases:
 
@@ -57,22 +57,15 @@ Run it::
 
     OK
 
-Create a standalone console script using a standard setuptools entry
-point:
+Create a standalone console script using a standard script entry point:
 
-.. code-block:: python
+.. code-block:: toml
 
-    # setup.py
-    setup(
-        ...
-        entry_points="""
-        [console_scripts]
-        my-test-script = package.module:test.console_script
+    # pyproject.toml
+    [project.scripts]
+    my-test-script = "package.module:test.console_script"
 
-        """
-    )
-
-Run it (after reinstalling the package)::
+Reinstall the package to install the script and then run it::
 
     > my-test-script
     ..........
@@ -113,7 +106,7 @@ TODO
 
 * Improve command line completion
 * Add more documentation and examples
-* Write tests
+* Add more tests (current coverage is 45%)
 
 .. _main documentation: http://runcommands.readthedocs.io/
 .. _Read the Docs: `main documentation`_

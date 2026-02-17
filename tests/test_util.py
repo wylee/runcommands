@@ -6,6 +6,7 @@ from unittest import TestCase
 import runcommands.util.misc
 import runcommands.util.path
 import runcommands.util.string
+from runcommands.util.enums import PrinterColor
 
 from runcommands.util.printer import printer
 
@@ -47,3 +48,30 @@ class TestPrinter(TestCase):
         with redirect_stdout(stdout):
             printer.print()
         self.assertEqual(stdout.getvalue(), "\n")
+
+    def test_print_info(self):
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            printer.info("info")
+        self.assertEqual(
+            "\x1b[94minfo\x1b[0m\n",
+            stdout.getvalue(),
+        )
+
+    def test_print_red(self):
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            printer.red("red")
+        self.assertEqual(
+            "\x1b[91mred\x1b[0m\n",
+            stdout.getvalue(),
+        )
+
+    def test_print_info_with_nested(self):
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            printer.info("info", "text", PrinterColor.green, "green text")
+        self.assertEqual(
+            "\x1b[94minfo text \x1b[0m\x1b[92mgreen text\x1b[0m\n",
+            stdout.getvalue(),
+        )

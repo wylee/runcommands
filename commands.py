@@ -67,6 +67,7 @@ from runcommands.util import (
     confirm,
     find_project_root,
     printer,
+    prompt,
 )  # noqa: E402
 
 
@@ -159,7 +160,7 @@ def test(
     fail_fast=False,
     verbosity=1,
     with_coverage: arg(short_option="-c") = True,
-    check: arg(short_option="-l") = True,
+    check: arg(short_option="-l", help="Check formatting, lint, and types") = True,
 ):
     top_level_dir = find_project_root()
     os.chdir(top_level_dir)
@@ -174,6 +175,8 @@ def test(
 
     runner = unittest.TextTestRunner(failfast=fail_fast, verbosity=verbosity)
     loader = unittest.TestLoader()
+
+    coverage = None
 
     if with_coverage:
         from coverage import Coverage
@@ -191,7 +194,7 @@ def test(
         tests = loader.discover(tests_dir, top_level_dir=top_level_dir)
         result = runner.run(tests)
         if not result.errors:
-            if with_coverage:
+            if coverage is not None:
                 coverage.stop()
                 coverage.report()
             if check:
@@ -201,6 +204,8 @@ def test(
                 format_code(check=True)
                 printer.hr("Checking for lint")
                 lint()
+                printer.hr("Checking types")
+                mypy()
 
 
 @command
@@ -264,6 +269,11 @@ def lint(
         abort(1, message)
     else:
         printer.success("No lint found")
+
+
+@command
+def mypy():
+    local("mypy")
 
 
 @command
@@ -396,24 +406,32 @@ def upload_dists(
     else:
         printer.header("Uploading distributions")
 
-    dists = os.listdir("dist")
+    cwd = pathlib.Path.cwd()
+    dist_dir = cwd / "dist"
+
+    if not dist_dir.is_dir():
+        abort(1, f"No dist dir found in current directory: {cwd}")
+
+    dists = (*dist_dir.glob("*.tar.gz"), *dist_dir.glob("*.whl"))
+    dists = tuple(d.relative_to(cwd) for d in dists)
+
     if not dists:
         abort(1, "No distributions found in dist directory")
 
-    paths = [os.path.join("dist", file) for file in dists]
-
     printer.info("Found distributions:")
-    for path in paths:
-        printer.info("  -", path)
+    for dist in dists:
+        printer.info("  -", dist)
 
     if not confirm("Continue?"):
         abort()
 
-    for path in paths:
-        if confirm(f"Upload dist?: {path}"):
-            local(("twine", "upload", "--repository", "runcommands", path))
+    token = prompt("PyPI upload token", password=True)
+
+    for dist in dists:
+        if confirm(f"Upload dist?: {dist}"):
+            local(("uv", "publish", "--token", token, dist))
         else:
-            printer.warning("Skipped dist:", path)
+            printer.warning("Skipped dist:", dist)
 
 
 # Utilities

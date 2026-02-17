@@ -1,7 +1,7 @@
 import os
 import shlex
 from subprocess import CompletedProcess
-from typing import Mapping
+from typing import Any, Mapping
 
 from cached_property import cached_property
 
@@ -9,9 +9,16 @@ from .exc import RunCommandsError
 
 
 class Result(RunCommandsError):
-    def __init__(self, args, return_code, stdout, stderr):
+    args: tuple[Any]
+    return_code: int
+    stdout: str
+    stderr: str
+    succeeded: bool
+    failed: bool
+
+    def __init__(self, args: str | list[Any] | tuple[Any], return_code, stdout, stderr):
         args = shlex.split(args) if isinstance(args, str) else args
-        self.args = args
+        self.args = tuple(args)
         self.return_code = return_code
         self.stdout = stdout
         self.stderr = stderr
@@ -19,7 +26,7 @@ class Result(RunCommandsError):
         self.failed = not self.succeeded
 
     @classmethod
-    def from_subprocess_result(cls, result: CompletedProcess):
+    def from_subprocess_result(cls, result: CompletedProcess[Any]):
         return cls(
             result.args,
             result.returncode,

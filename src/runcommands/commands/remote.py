@@ -1,10 +1,13 @@
 import shlex
 import sys
+from pathlib import Path
+
+import rich.markup
 
 from ..args import arg
 from ..command import command
 from ..result import Result
-from ..util import flatten_args, isatty, StreamOptions
+from ..util import flatten_args, isatty, printer, prompt, StreamOptions
 from .local import local
 
 
@@ -16,6 +19,7 @@ def remote(
     port=None,
     sudo=False,
     run_as=None,
+    sudo_prompt=False,
     shell="/bin/sh",
     cd=None,
     environ: arg(container=dict) = None,
@@ -26,6 +30,7 @@ def remote(
     echo=False,
     raise_on_error=True,
     dry_run=False,
+    use_shared_connection=False,
 ) -> Result:
     """Run a remote command via SSH.
 
@@ -48,6 +53,10 @@ def remote(
         sudo (bool): Run the remote command as root using ``sudo``.
         run_as (str): Run the remote command as a different user using
             ``sudo -u <run_as>``.
+        sudo_prompt (bool): When set, a prompt for the sudo password
+            will be shown on the *local* machine. The main use case for
+            this is when the ``user`` requires a password to use sudo on
+            the remote host. For passwordless sudo, this isn't needed.
         shell (str): The remote user's default shell will be used to run
             the remote command unless this is set to a different shell.
         cd (str): Where to run the command on the remote host.
@@ -60,34 +69,35 @@ def remote(
         echo: See :obj:`runcommands.commands.local`.
         raise_on_error: See :obj:`runcommands.commands.local`.
         dry_run: See :obj:`runcommands.commands.local`.
+        use_shared_connection: Use a shared SSH connection instead of
+            creating a new connection for every command run over SSH.
+            NOTE: This should be considered experimental for now.
 
     """
+    # Process Options --------------------------------------------------
+
     if not isinstance(cmd, str):
         cmd = flatten_args(cmd, join=True)
 
-    ssh_options = ["-q"]
-    if isatty(sys.stdin):
-        ssh_options.append("-t")
-    if port is not None:
-        ssh_options.extend(("-p", port))
-
+    tty_arg = "-t" if isatty(sys.stdin) else None
+    port_args = ("-p", port) if port else ()
     ssh_connection_str = f"{user}@{host}" if user else host
-
     using_sudo = sudo or run_as
-    hide_sudo_prompt = using_sudo and stdout in (
-        StreamOptions.capture,
-        StreamOptions.capture.value,
-    )
 
-    remote_cmd = []
+    if stdout:
+        stdout = StreamOptions[stdout] if isinstance(stdout, str) else stdout
+
+    # Build Remote Command ---------------------------------------------
+
+    remote_cmd: list[str] = []
 
     if sudo:
         remote_cmd.extend(("sudo", "-H"))
     elif run_as:
         remote_cmd.extend(("sudo", "-H", "-u", run_as))
 
-    if hide_sudo_prompt:
-        remote_cmd.append("--prompt=")
+    if using_sudo and sudo_prompt:
+        remote_cmd.extend(("--prompt=", "--stdin"))
 
     remote_cmd.extend((shell, "-c"))
 
@@ -104,20 +114,65 @@ def remote(
         inner_cmd.append(f'export PATH="{paths_str}:$PATH"')
 
     inner_cmd.append(cmd)
-    inner_cmd = " &&\n    ".join(inner_cmd)
-    inner_cmd = f"\n    {inner_cmd}\n"
-    inner_cmd = shlex.quote(inner_cmd)
+    inner_cmd_str = " &&\n    ".join(inner_cmd)
+    inner_cmd_str = f"\n    {inner_cmd_str}\n"
+    inner_cmd_str = shlex.quote(inner_cmd_str)
 
-    remote_cmd.append(inner_cmd)
-    remote_cmd = " ".join(remote_cmd)
+    remote_cmd.append(inner_cmd_str)
+    remote_cmd_str = " ".join(remote_cmd)
 
-    args = ("ssh", ssh_options, ssh_connection_str, remote_cmd)
+    if using_sudo and sudo_prompt:
+        sudo_prompt_message = rich.markup.escape("[sudo] password")
+        sudo_password = prompt(sudo_prompt_message, password=True)
+    else:
+        sudo_password = None
 
-    if hide_sudo_prompt:
-        print("[sudo] password: ")
+    # Start Shared SSH Connection --------------------------------------
+    #
+    # TODO: Extract to utility function
+
+    if use_shared_connection:
+        try:
+            home = Path.home()
+        except RuntimeError:
+            use_shared_connection = False
+            printer.warning(
+                "Could not create shared SSH connection: "
+                "could not determine HOME directory"
+            )
+        else:
+            socket_path = home / ".ssh" / f"runcommands-control-{user}-{host}-{port}"
+            port_args = ("-p", port) if port else ()
+            shared_connection_args = (
+                "-S",
+                socket_path,
+                "-o",
+                "ControlPersist=2m",
+                tty_arg,
+                port_args,
+                ssh_connection_str,
+            )
+            check_result = local(
+                ("ssh", "-O", "check", shared_connection_args),
+                stderr=StreamOptions.hide,
+                raise_on_error=False,
+            )
+            if check_result.failed:
+                printer.info(f"Starting shared SSH connection: {socket_path}")
+                local(("ssh", "-MN", shared_connection_args))
+            else:
+                printer.info(f"Reusing shared SSH connection: {socket_path}")
+
+    # Run Remote Command -----------------------------------------------
+
+    if use_shared_connection:
+        tty_arg = None
+
+    args = ("ssh", tty_arg, port_args, ssh_connection_str, remote_cmd_str)
 
     return local(
         args,
+        input=sudo_password,
         stdout=stdout,
         stderr=stderr,
         echo=echo,

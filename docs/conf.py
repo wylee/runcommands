@@ -18,7 +18,7 @@ github_url = "https://github.com/wylee/runcommands"
 version = __version__
 release = version
 
-language = None
+language = "en"
 
 master_doc = "index"
 
@@ -66,7 +66,7 @@ autodoc_default_flags = ["members"]
 # Options for intersphinx extension ---------------------------------------
 
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3.9", None),
+    "python": ("https://docs.python.org/3.10", None),
 }
 
 # -- Options for HTML output ----------------------------------------------
