@@ -67,6 +67,7 @@ from runcommands.util import (
     confirm,
     find_project_root,
     printer,
+    prompt,
 )  # noqa: E402
 
 
@@ -405,24 +406,32 @@ def upload_dists(
     else:
         printer.header("Uploading distributions")
 
-    dists = os.listdir("dist")
+    cwd = pathlib.Path.cwd()
+    dist_dir = cwd / "dist"
+
+    if not dist_dir.is_dir():
+        abort(1, f"No dist dir found in current directory: {cwd}")
+
+    dists = (*dist_dir.glob("*.tar.gz"), *dist_dir.glob("*.whl"))
+    dists = tuple(d.relative_to(cwd) for d in dists)
+
     if not dists:
         abort(1, "No distributions found in dist directory")
 
-    paths = [os.path.join("dist", file) for file in dists]
-
     printer.info("Found distributions:")
-    for path in paths:
-        printer.info("  -", path)
+    for dist in dists:
+        printer.info("  -", dist)
 
     if not confirm("Continue?"):
         abort()
 
-    for path in paths:
-        if confirm(f"Upload dist?: {path}"):
-            local(("twine", "upload", "--repository", "runcommands", path))
+    token = prompt("PyPI upload token", password=True)
+
+    for dist in dists:
+        if confirm(f"Upload dist?: {dist}"):
+            local(("uv", "publish", "--token", token, dist))
         else:
-            printer.warning("Skipped dist:", path)
+            printer.warning("Skipped dist:", dist)
 
 
 # Utilities
