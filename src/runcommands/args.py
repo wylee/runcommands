@@ -5,6 +5,7 @@ import re
 from enum import Enum
 from functools import update_wrapper
 from inspect import Parameter as BaseParameter
+from typing import Any, Sequence
 
 from cached_property import cached_property
 
@@ -232,17 +233,49 @@ class Arg:
 
     """
 
+    command: type
+    parameter: Parameter
+    name: str
+    container: type | None
+    type: builtins.type
+    positional: bool
+    default: Any
+    choices: Sequence[Any] | Enum
+    help: str | None
+    inverse_help: str | None
+    short_option: str | None
+    long_option: str | None
+    no_inverse: bool
+    inverse_short_option: str | None
+    inverse_long_option: str | None
+    action: argparse.Action
+    nargs: int | str
+    mutual_exclusion_group: str | None
+    envvar: str | None
+
+    is_positional: bool
+    is_var_positional: bool
+    is_optional: bool
+    is_bool: bool
+    is_bool_or: bool
+    takes_value: bool
+    dest: str
+    metavar: str | None
+    options: tuple[str]
+    inverse_options: tuple[str]
+    all_options: tuple[str]
+
     def __init__(
         self,
         *,
-        command,
-        parameter,
-        name,
-        container,
-        type,
-        positional,
+        command: builtins.type,
+        parameter: Parameter,
+        name: str,
+        container: builtins.type | None,
+        type: builtins.type | None,
+        positional: bool,
         default,
-        choices,
+        choices: Sequence[Any] | Enum,
         help,
         inverse_help,
         short_option,

@@ -7,7 +7,7 @@ import time
 from collections import OrderedDict
 from configparser import ConfigParser, ExtendedInterpolation
 from pathlib import Path
-from typing import Mapping
+from typing import Callable, Mapping, Self, Sequence
 
 from cached_property import cached_property
 
@@ -144,18 +144,18 @@ class Command:
     def __init__(
         self,
         implementation=None,
-        name=None,
-        description=None,
-        base_command=None,
-        timed=False,
-        data=None,
-        read_config=False,
-        creates=None,
-        sources=None,
-        callbacks=None,
-        arg_config=None,
-        default_args=None,
-        debug=False,
+        name: str | None = None,
+        description: str | None = None,
+        base_command: Self | None = None,
+        timed: bool = False,
+        data: dict | None = None,
+        read_config: bool = False,
+        creates: str | Path | Sequence[str | Path] | None = None,
+        sources: str | Path | Sequence[str | Path] | None = None,
+        callbacks: Sequence[Callable] | None = None,
+        arg_config: dict | None = None,
+        default_args: dict | None = None,
+        debug: bool = False,
     ):
         if implementation is None:
             if not hasattr(self, "implementation"):
@@ -176,9 +176,7 @@ class Command:
         name = name or getattr(self.__class__, "name", None) or default_name
         base_name = name
 
-        is_subcommand = base_command is not None
-
-        if is_subcommand:
+        if base_command is not None:
             name = ":".join((base_command.name, name))
 
         description = description or self.get_description_from_docstring()
@@ -197,7 +195,7 @@ class Command:
         self.timed = timed
         self.__data = Data(**(data or {}))
         self.read_config = read_config
-        self.callbacks = callbacks or []
+        self.callbacks = list(callbacks) if callbacks else []
         self.arg_config = arg_config or {}
         self.creates = creates
         self.sources = sources
@@ -209,14 +207,14 @@ class Command:
         first_arg = next(iter(self.args.values()), None)
         self.base_command = base_command
         self.base_name = base_name
-        self.is_subcommand = is_subcommand
+        self.is_subcommand = base_command is not None
         self.subcommands = []
         self.first_arg = first_arg
         self.first_arg_has_choices = (
             False if first_arg is None else bool(first_arg.choices)
         )
 
-        if is_subcommand:
+        if base_command is not None:
             base_command.add_subcommand(self)
 
     def subcommand(
@@ -409,14 +407,20 @@ class Command:
 
     @property
     def source_paths(self):
-        source_patterns = self.sources
-        if source_patterns:
-            source_paths = []
-            cwd = Path.cwd()
-            if isinstance(source_patterns, (str, Path)):
-                source_patterns = (source_patterns,)
-            for pattern in source_patterns:
-                pattern_sources = tuple(path.resolve() for path in cwd.glob(pattern))
+        if not self.sources:
+            return None
+        sources = (
+            (self.sources,)
+            if isinstance(self.sources, (str, Path))
+            else tuple(self.sources)
+        )
+        cwd = Path.cwd()
+        source_paths = []
+        for pattern in sources:
+            if isinstance(pattern, Path):
+                source_paths.append(pattern.resolve())
+            elif isinstance(pattern, str):
+                pattern_sources = tuple(p.resolve() for p in cwd.glob(pattern))
                 if pattern_sources:
                     source_paths.extend(pattern_sources)
                 else:
@@ -424,18 +428,17 @@ class Command:
                         f"No paths found matching source pattern for "
                         f"{self.name} command: {pattern}"
                     )
-            return source_paths
-        return None
+        return source_paths
 
     def add_subcommand(self, subcommand):
         name = subcommand.base_name
         self.subcommands.append(subcommand)
-        if not self.first_arg_has_choices:
+        if self.first_arg and not self.first_arg_has_choices:
             if self.first_arg.choices is None:
                 self.first_arg.choices = []
             self.first_arg.choices.append(name)
 
-    def get_description_from_docstring(self):
+    def get_description_from_docstring(self) -> str | None:
         description = self.implementation.__doc__
         if description is not None:
             description = description.rstrip() or None
@@ -481,19 +484,14 @@ class Command:
             # there are no source paths to compare against).
             return False
 
-        # XXX: Cache stat calls
-        source_mtimes = [None] * len(source_paths)
-        output_mtimes = [None] * len(output_paths)
+        source_mtimes = [p.stat().st_mtime_ns for p in source_paths]
+        output_mtimes = [p.stat().st_mtime_ns for p in output_paths]
 
         # For each output path, see if any source path was modified more
         # recently.
         for i, output_path in enumerate(output_paths):
-            if output_mtimes[i] is None:
-                output_mtimes[i] = output_path.stat().st_mtime_ns
             output_mtime = output_mtimes[i]
             for j, source_path in enumerate(source_paths):
-                if source_mtimes[j] is None:
-                    source_mtimes[j] = source_path.stat().st_mtime_ns
                 source_mtime = source_mtimes[j]
                 if source_mtime > output_mtime:
                     return True
@@ -636,8 +634,9 @@ class Command:
         argv = sys.argv[1:] if argv is None else argv
         is_base_command = self.is_base_command
 
-        if hasattr(self, "sigint_handler"):
-            signal.signal(signal.SIGINT, self.sigint_handler)
+        sigint_handler = getattr(self, "sigint_handler", None)
+        if sigint_handler is not None:
+            signal.signal(signal.SIGINT, sigint_handler)
 
         if is_base_command:
             commands = self.partition_subcommands(argv)
@@ -657,7 +656,7 @@ class Command:
                 # run on abort (i.e., not for any other error). On
                 # abort, callbacks for the command that was aborted
                 # should *not* be run.
-                return_code = exc.return_code if hasattr(exc, "return_code") else 1
+                return_code = getattr(exc, "return_code", 1)
                 result_str = str(exc)
                 if result_str:
                     if return_code:
@@ -745,7 +744,7 @@ class Command:
                         )
                     else:
                         subcmd_args = subcmd.parse_args(remaining_argv)
-                        commands.append([subcmd, subcmd_args])
+                        commands.append((subcmd, subcmd_args))
 
                     break
         else:
@@ -1078,6 +1077,14 @@ class Command:
 
     def get_arg_config(self, param):
         annotation = param.annotation
+
+        if hasattr(annotation, "__metadata__"):
+            metadata = annotation.__metadata__
+            if len(metadata) == 0:
+                annotation = param.empty
+            else:
+                annotation = metadata[0]
+
         if annotation is param.empty:
             annotation = self.arg_config.get(param.name) or ArgConfig()
         elif isinstance(annotation, type):
@@ -1086,6 +1093,7 @@ class Command:
             annotation = ArgConfig(help=annotation)
         elif isinstance(annotation, Mapping):
             annotation = ArgConfig(**annotation)
+
         return annotation
 
     def get_short_option_for_arg(self, name, used):
