@@ -5,11 +5,11 @@ import re
 from enum import Enum
 from functools import update_wrapper
 from inspect import Parameter as BaseParameter
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 
 from cached_property import cached_property
 
-from .exc import CommandError
+from .exc import ArgError
 from .util import invert_string, is_mapping, is_sequence, is_type
 
 EMPTY = BaseParameter.empty
@@ -38,7 +38,7 @@ class Parameter:
     VAR_KEYWORD = VAR_KEYWORD
     VAR_POSITIONAL = VAR_POSITIONAL
 
-    def __init__(self, parameter):
+    def __init__(self, parameter: BaseParameter):
         self.parameter = parameter
 
     @cached_property
@@ -125,35 +125,51 @@ class ArgConfig:
     short_option_regex = re.compile(r"-\w")
     long_option_regex = re.compile(r"--\w+(-\w+)*")
 
+    container: builtins.type | None
+    type: builtins.type | None
+    choices: Any
+    help: str | None
+    inverse_help: str | None
+    short_option: str | None
+    long_option: str | None
+    no_inverse: bool
+    inverse_short_option: str | None
+    inverse_long_option: str | None
+    action: Callable
+    nargs: int | None
+    mutual_exclusion_group: str | None
+    envvar: str | None
+    default: Any
+
     def __init__(
         self,
         *,
-        container=None,
-        type=None,
+        container: builtins.type | None = None,
+        type: builtins.type | None = None,
         choices=None,
-        help=None,
-        inverse_help=None,
-        short_option=None,
-        long_option=None,
+        help: str | None = None,
+        inverse_help: str | None = None,
+        short_option: str | None = None,
+        long_option: str | None = None,
         no_inverse=False,
         inverse_short_option=None,
         inverse_long_option=None,
         inverse_option=None,  # XXX: Temporary alias for inverse_long_option
         action=None,
-        nargs=None,
+        nargs: int | None = None,
         mutual_exclusion_group=None,
         envvar=None,
         default=EMPTY,
     ):
         if short_option is not None:
             if not self.short_option_regex.fullmatch(short_option):
-                raise CommandError(
+                raise ArgError(
                     f'Expected short option with form -x, not "{short_option}"'
                 )
 
         if long_option is not None:
             if not self.long_option_regex.fullmatch(long_option):
-                raise CommandError(
+                raise ArgError(
                     f'Expected long option with form --option, not "{long_option}"'
                 )
 
@@ -261,18 +277,18 @@ class Arg:
     takes_value: bool
     dest: str
     metavar: str | None
-    options: tuple[str]
-    inverse_options: tuple[str]
-    all_options: tuple[str]
+    options: tuple[str, ...]
+    inverse_options: tuple[str, ...]
+    all_options: tuple[str, ...]
 
     def __init__(
         self,
         *,
-        command: builtins.type,
+        command: Any,
         parameter: Parameter,
         name: str,
         container: builtins.type | None,
-        type: builtins.type | None,
+        type: builtins.type | Sequence[Any] | Enum | None,
         positional: bool,
         default,
         choices: Sequence[Any] | Enum,
@@ -301,8 +317,8 @@ class Arg:
         if positional is not None:
             is_positional = positional
 
-        metavar = name.upper().replace("-", "_")
-        if container and len(name) > 1 and name.endswith("s"):
+        metavar: str | None = name.upper().replace("-", "_")
+        if container and metavar and len(metavar) > 1 and metavar.endswith("S"):
             metavar = metavar[:-1]
 
         if container is None:
@@ -351,9 +367,9 @@ class Arg:
             options = (short_option, long_option, inverse_long_option)
             options = tuple(option for option in options if option is not None)
             if options:
-                raise CommandError(
-                    f"Positional args cannot be specified with "
-                    f"options: {', '.join(options)}"
+                raise ArgError(
+                    "Positional args cannot be specified with options: "
+                    f"{', '.join(options)}"
                 )
 
         if action is None:
@@ -483,7 +499,7 @@ class Arg:
 
         return args, kwargs
 
-    def convert_value(self, value: str):
+    def convert_value(self, value: str) -> Any:
         """Convert string value to this arg's type."""
         if not isinstance(value, str):
             return value
@@ -495,8 +511,8 @@ class Arg:
             if self.is_bool:
                 raise ValueError("Bool value must be one of 1, true, 0, or false")
         converter = self.add_argument_args[1]["type"]
-        value = converter(value)
-        return value
+        converted_value = converter(value)
+        return converted_value
 
     def __str__(self):
         kind = "Positional" if self.is_positional else "Optional"
@@ -613,9 +629,9 @@ def add_items_to_container(
             try:
                 name, value = value.split(":", 1)
             except ValueError:
-                raise CommandError(
-                    f"Bad format for {option_string}; "
-                    f"expected `name:<value>` but got `{value}`"
+                raise ArgError(
+                    f"Bad format for {option_string}; expected `name:<value>` "
+                    f"but got `{value}`"
                 )
             value = item_type(value)
             items.append((name, value))
@@ -625,7 +641,7 @@ def add_items_to_container(
             items.extend(existing_items)
         items.extend(item_type(value) for value in new_items)
     else:
-        raise ValueError(f"Not a mapping or sequence: {existing_items!r}")
+        raise ArgError(f"Not a mapping or sequence: {existing_items!r}")
     return container_type(items)
 
 

@@ -2,7 +2,7 @@ RunCommands
 +++++++++++
 
 A simple command runner that uses ``argparse`` from the Python standard
-library under the hood. Runs on Python 3 only (3.10 and up). Uses
+library under the hood. Runs on Python 3 only (3.11 and up). Uses
 annotations to configure options.
 
 There are two basic use cases:
@@ -31,7 +31,11 @@ Define a command:
     from runcommands.commands import local
 
     @command
-    def test(*tests: arg(help='Specific tests to run (instead of using discovery)')):
+    def test(*tests: Annotated[
+            str,
+            arg(help='Specific tests to run (instead of using discovery)'),
+        ]
+    ):
         if tests:
             local(('python', '-m', 'unittest', tests))
         else:

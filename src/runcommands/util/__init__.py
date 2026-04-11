@@ -1,5 +1,4 @@
 import inspect
-from collections import OrderedDict
 
 from .data import Data
 from .enums import Color, StreamOptions
@@ -65,7 +64,7 @@ def get_commands_in_namespace(namespace=None, level=1):
             appropriately to account for the call stack.
 
     Returns:
-        OrderedDict: The commands found in the namespace, ordered by
+        dict: The commands found in the namespace, ordered by
             name.
 
     Can be used to create ``__all__`` lists::
@@ -85,4 +84,4 @@ def get_commands_in_namespace(namespace=None, level=1):
         obj = namespace[name]
         if isinstance(obj, Command):
             commands[name] = obj
-    return OrderedDict((name, commands[name]) for name in sorted(commands))
+    return dict((name, commands[name]) for name in sorted(commands))

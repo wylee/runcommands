@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import unittest
+from typing import Annotated
 
 
 if os.path.abspath(sys.argv[0]) == os.path.abspath(__file__):
@@ -52,7 +53,7 @@ if os.path.abspath(sys.argv[0]) == os.path.abspath(__file__):
             subprocess.run(["uv", "sync"])
             activate_venv()
 
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+        sys.path.insert(0, os.path.join(str(os.path.dirname(__file__)), "src"))
 
 
 from make_release.util import get_current_branch, get_latest_tag  # noqa: E402
@@ -87,23 +88,32 @@ def update():
 
 @command
 def install_completion(
-    shell: arg(
-        choices=("bash", "fish"),
-        help="Shell to install completion for",
-    ),
-    to: arg(
-        help="~/.bashrc.d/runcommands.rc or ~/.config/fish/runcommands.fish",
-    ) = None,
-    base_command: arg(
-        help="Dotted path to base command",
-    ) = None,
-    base_command_name: arg(
-        short_option="-B",
-        help="Name of base command (if different from implementation name)",
-    ) = None,
-    overwrite: arg(
-        help="Overwrite if exists",
-    ) = False,
+    shell: Annotated[
+        str,
+        arg(
+            choices=("bash", "fish"),
+            help="Shell to install completion for",
+        ),
+    ],
+    to: Annotated[
+        str | None,
+        arg(help="~/.bashrc.d/runcommands.rc or ~/.config/fish/runcommands.fish"),
+    ] = None,
+    base_command: Annotated[
+        str | None,
+        arg(help="Dotted path to base command"),
+    ] = None,
+    base_command_name: Annotated[
+        str | None,
+        arg(
+            short_option="-B",
+            help="Name of base command (if different from implementation name)",
+        ),
+    ] = None,
+    overwrite: Annotated[
+        bool,
+        arg(help="Overwrite if exists"),
+    ] = False,
 ):
     """Install command line completion script.
 
@@ -128,19 +138,21 @@ def install_completion(
 
     if shell == "bash":
         ext = "rc"
-        to = to or "~/.bashrc.d"
+        dest = to or "~/.bashrc.d"
     elif shell == "fish":
         ext = "fish"
-        to = to or "~/.config/fish"
+        dest = to or "~/.config/fish"
+    else:
+        abort(1, f"Shell not supported: {shell}")
 
     if base_command:
-        to = f"{to}/{base_command_name}.{ext}"
+        dest = os.path.join(dest, f"{base_command_name}.{ext}")
 
     source = asset_path(f"runcommands:completion/{shell}/{source_base_name}.{ext}")
-    destination = os.path.expanduser(to)
+    destination = os.path.expanduser(dest)
 
     if os.path.isdir(destination):
-        destination = os.path.join(destination, os.path.basename(source))
+        destination = os.path.join(destination, str(os.path.basename(source)))
 
     printer.info("Installing", shell, "completion script to:\n    ", destination)
 
@@ -156,11 +168,23 @@ def install_completion(
 
 @command
 def test(
-    *tests,
+    *tests: Annotated[
+        str,
+        arg(help="Specific tests to run"),
+    ],
     fail_fast=False,
     verbosity=1,
-    with_coverage: arg(short_option="-c") = True,
-    check: arg(short_option="-l", help="Check formatting, lint, and types") = True,
+    with_coverage: Annotated[
+        bool,
+        arg(short_option="-c"),
+    ] = True,
+    check: Annotated[
+        bool,
+        arg(
+            short_option="-l",
+            help="Check formatting, lint, and types",
+        ),
+    ] = True,
 ):
     top_level_dir = find_project_root()
     os.chdir(top_level_dir)
@@ -191,8 +215,8 @@ def test(
     else:
         tests_dir = str(top_level_dir / "tests")
         top_level_dir = str(top_level_dir)
-        tests = loader.discover(tests_dir, top_level_dir=top_level_dir)
-        result = runner.run(tests)
+        discovered_tests = loader.discover(tests_dir, top_level_dir=top_level_dir)
+        result = runner.run(discovered_tests)
         if not result.errors:
             if coverage is not None:
                 coverage.stop()
@@ -210,11 +234,20 @@ def test(
 
 @command
 def tox(
-    envs: "Pass -e option to tox with the specified environments" = (),
-    recreate: "Pass --recreate flag to tox" = False,
-    clean: "Remove tox directory first" = False,
+    envs: Annotated[
+        tuple[str, ...],
+        arg(help="Pass -e option to tox with the specified environments"),
+    ] = (),
+    recreate: Annotated[
+        bool,
+        arg(help="Pass --recreate flag to tox"),
+    ] = False,
+    clean_: Annotated[
+        bool,
+        arg(help="Remove tox directory first"),
+    ] = False,
 ):
-    if clean:
+    if clean_:
         local("rm -rf .tox", echo=True)
     local(
         (
@@ -241,9 +274,24 @@ def format_code(check=False, where="./"):
 
 @command
 def lint(
-    show_errors: arg(help="Show errors") = True,
-    disable_ignore: arg(no_inverse=True, help="Don't ignore any errors") = False,
-    disable_noqa: arg(no_inverse=True, help="Ignore noqa directives") = False,
+    show_errors: Annotated[
+        bool,
+        arg(help="Show errors"),
+    ] = True,
+    disable_ignore: Annotated[
+        bool,
+        arg(
+            no_inverse=True,
+            help="Don't ignore any errors",
+        ),
+    ] = False,
+    disable_noqa: Annotated[
+        bool,
+        arg(
+            no_inverse=True,
+            help="Ignore noqa directives",
+        ),
+    ] = False,
 ):
     result = local(
         (
@@ -334,7 +382,10 @@ def build_docs(source="docs", destination="docs/_build", builder="html", clean=F
 
 @command
 def make_dist(
-    version: arg(help="Tag/version to release [latest tag]") = None,
+    version: Annotated[
+        str | None,
+        arg(help="Tag/version to release [latest tag]"),
+    ] = None,
     formats=("sdist", "wheel"),
     quiet=False,
 ):
@@ -385,9 +436,18 @@ def make_dist(
 
 @command
 def upload_dists(
-    make: arg(help="Make dist first? [yes]") = True,
-    version: arg(help="Version/tag to release [latest tag]") = None,
-    quiet: arg(help="Make dist quietly? [no]") = False,
+    make: Annotated[
+        bool,
+        arg(help="Make dist first? [yes]"),
+    ] = True,
+    version: Annotated[
+        str | None,
+        arg(help="Version/tag to release [latest tag]"),
+    ] = None,
+    quiet: Annotated[
+        bool,
+        arg(help="Make dist quietly? [no]"),
+    ] = False,
 ):
     """Upload distributions in ./dist using ``uv publish``.
 

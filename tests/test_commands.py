@@ -3,11 +3,12 @@ import os
 import sys
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from typing import Annotated
 from unittest import TestCase
 
 from runcommands import arg, command, subcommand
 from runcommands.commands import local
-from runcommands.exc import RunAborted
+from runcommands.exc import CommandError, RunAborted
 from runcommands.result import Result
 from runcommands.run import run
 
@@ -35,12 +36,12 @@ class Callback:
 
 
 @command
-def base(subcommand: arg(default=None)):
+def base(subcommand: Annotated[str | None, arg(default=None)]):
     return MockResult(f"base {subcommand}")
 
 
 @subcommand(base)
-def sub(subcommand: arg(default=None), optional=None):
+def sub(subcommand: Annotated[str | None, arg(default=None)], optional=None):
     return MockResult(f"sub {subcommand} {optional}")
 
 
@@ -56,9 +57,9 @@ def sub_abort():
 
 @command
 def container_args(
-    positional: arg(container=tuple, type=int),
-    optional: arg(type=int) = (),
-    another_optional: arg(container=list, type=float) = None,
+    positional: Annotated[tuple[int, ...], arg(container=tuple, type=int)],
+    optional: Annotated[type[int, ...], arg(type=int)] = (),
+    another_optional: Annotated[list[float], arg(container=list, type=float)] = None,
     third_optional=(42,),
 ):
     return MockResult((positional, optional, another_optional, third_optional))
@@ -213,7 +214,7 @@ class TestSubcommand(SysExitMixin, TestCase):
             return MockResult(f"base1({cmd}, {a})")
 
         @subcommand(base1)
-        def sub1(cmd: arg(default=None), a=None, flag=True):
+        def sub1(cmd: Annotated[str | None, arg(default=None)], a=None, flag=True):
             return MockResult(f"sub1({cmd}, {a}, {flag})")
 
         @sub1.subcommand
@@ -307,7 +308,7 @@ class TestSourcesAndCreates(SysExitMixin, TestCase):
             def sources_without_creates():
                 raise NotImplementedError("This should never run")
 
-        self.assertRaises(ValueError, make_command)
+        self.assertRaises(CommandError, make_command)
 
     def test_create_without_sources(self):
         result = create_without_sources.run([])

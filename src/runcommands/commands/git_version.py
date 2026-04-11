@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from .. import arg, bool_or
 from ..command import command
 from .local import local
@@ -5,11 +7,17 @@ from .local import local
 
 @command
 def git_version(
-    short: arg(
-        type=bool_or(int),
-        help="Get short hash; optionally specify minimum length of hash",
-    ) = True,
-    show: "Print version to stdout" = False,
+    short: Annotated[
+        bool | int,
+        arg(
+            type=bool_or(int),
+            help="Get short hash; optionally specify minimum length of hash",
+        ),
+    ] = True,
+    show: Annotated[
+        bool,
+        arg(help="Print version to stdout"),
+    ] = False,
 ):
     """Get tag associated with HEAD; fall back to SHA1.
 

@@ -4,10 +4,9 @@ import os
 import signal
 import sys
 import time
-from collections import OrderedDict
 from configparser import ConfigParser, ExtendedInterpolation
 from pathlib import Path
-from typing import Callable, Mapping, Self, Sequence
+from typing import get_type_hints, Any, Callable, Mapping, Self, Sequence
 
 from cached_property import cached_property
 
@@ -32,8 +31,8 @@ class Command:
         name (str): Name of command as it will be called from the
             command line. Defaults to ``implementation.__name__`` (with
             underscores replaced with dashes).
-        description (str): Description of command shown in command
-            help. Defaults to ``implementation.__doc__``.
+        description (str): Description of command shown in command help.
+            Defaults to ``implementation.__doc__``.
         timed (bool): Whether the command should be timed. Will print an
             info message showing how long the command took to complete
             when ``True``. Defaults to ``False``.
@@ -141,6 +140,27 @@ class Command:
 
     """
 
+    implementation: Callable
+    type_hints: dict[str, Any]
+    name: str
+    description: str | None
+    short_description: str | None
+    timed: bool
+    read_config: bool
+    callbacks: list[Callable]
+    arg_config: dict
+    creates: str | Path | Sequence[str | Path] | None
+    sources: str | Path | Sequence[str | Path] | None
+    debug: bool
+    default_args: dict
+    mutual_exclusion_groups: dict
+    base_command: Self | None
+    base_name: str
+    is_subcommand: bool
+    subcommands: list[Self]
+    first_arg: Arg | None
+    first_arg_has_choices: bool
+
     def __init__(
         self,
         implementation=None,
@@ -173,23 +193,24 @@ class Command:
             self.qualname = implementation.__qualname__
             default_name = self.normalize_name(implementation.__name__)
 
-        name = name or getattr(self.__class__, "name", None) or default_name
-        base_name = name
+        command_name = name or getattr(self.__class__, "name", None) or default_name
+        base_name = command_name
 
         if base_command is not None:
-            name = ":".join((base_command.name, name))
+            command_name = f"{base_command.name}:{command_name}"
 
         description = description or self.get_description_from_docstring()
         short_description = description.splitlines()[0] if description else None
 
         if sources and not creates:
-            raise ValueError(
-                f"{name} command has source pattern but no output "
-                f"paths (this is an error because it's not clear "
-                f"what the intent is)"
+            raise CommandError(
+                f"{command_name} command has source pattern but no "
+                "output paths (this is an error because it's not clear "
+                "what the intent is)"
             )
 
-        self.name = name
+        self.type_hints = get_type_hints(self.implementation, include_extras=True)
+        self.name = command_name
         self.description = description
         self.short_description = short_description
         self.timed = timed
@@ -254,19 +275,20 @@ class Command:
     @property
     def subcommand_depth(self):
         depth = 0
-        base_command = self.base_command
-        while base_command:
-            depth += 1
-            base_command = base_command.base_command
+        if self.base_command:
+            base_command = self.base_command
+            while base_command is not None:
+                depth += 1
+                base_command = base_command.base_command
         return depth
 
     @property
-    def data(self):
+    def data(self) -> Data:
         # XXX: Read-only property
         return self.__data
 
     @property
-    def prog_name(self):
+    def prog_name(self) -> str:
         if self.is_subcommand:
             return " ".join(self.name.split(":", self.subcommand_depth))
         return self.base_name
@@ -297,7 +319,11 @@ class Command:
         return environ_args
 
     @cached_property
-    def config_file_args(self, *, _cache={}):
+    def config_file_args(
+        self,
+        *,
+        _cache={},  # noqa
+    ):
         """Get default args from config file.
 
         This looks in pyproject.toml and setup.cfg for default args for
@@ -371,7 +397,11 @@ class Command:
 
         return {}
 
-    def convert_config_file_args(self, config_file, args):
+    def convert_config_file_args(
+        self,
+        config_file,
+        args: dict[str, Any] | None,
+    ) -> dict[str, Any]:
         if not args:
             return {}
 
@@ -397,18 +427,18 @@ class Command:
         return processed_args
 
     @property
-    def output_paths(self):
+    def output_paths(self) -> tuple[Path, ...]:
         output_paths = self.creates
         if output_paths:
             if isinstance(output_paths, (str, Path)):
                 output_paths = (output_paths,)
             return tuple(Path(path).resolve() for path in output_paths)
-        return None
+        return ()
 
     @property
-    def source_paths(self):
+    def source_paths(self) -> tuple[Path, ...]:
         if not self.sources:
-            return None
+            return ()
         sources = (
             (self.sources,)
             if isinstance(self.sources, (str, Path))
@@ -428,11 +458,11 @@ class Command:
                         f"No paths found matching source pattern for "
                         f"{self.name} command: {pattern}"
                     )
-        return source_paths
+        return tuple(source_paths)
 
-    def add_subcommand(self, subcommand):
-        name = subcommand.base_name
-        self.subcommands.append(subcommand)
+    def add_subcommand(self, subcommand_: Self):
+        name = subcommand_.base_name
+        self.subcommands.append(subcommand_)
         if self.first_arg and not self.first_arg_has_choices:
             if self.first_arg.choices is None:
                 self.first_arg.choices = []
@@ -499,8 +529,7 @@ class Command:
         return False
 
     def run(self, argv, _expand_short_options=True, **overrides):
-        if self.timed:
-            start_time = time.monotonic()
+        start_time = time.monotonic() if self.timed else 0
 
         creates = self.output_paths
         if creates:
@@ -510,6 +539,8 @@ class Command:
                 if self.timed:
                     self.print_elapsed_time(time.monotonic() - start_time)
                 return None
+        else:
+            should_create = False
 
         empty = Parameter.empty
         debug = self.debug
@@ -536,19 +567,19 @@ class Command:
         kwargs.update(parsed_args)
         kwargs.update(overrides)
 
-        if debug:
-            # Names of all positional args.
-            arg_names = []
-            # Positional args passed via command line (name, value pairs).
-            args_passed = []
-            # Name of the var args arg.
-            var_args_name = None
-            # Positional args added from command's environ args.
-            from_environ = {}
-            # Positional args added from command's default args.
-            from_default_args = {}
-            # Positional args added from arg defaults.
-            from_arg_defaults = {}
+        # Debug info (only populated when debug mode is enabled)
+        # Names of all positional args.
+        arg_names = []
+        # Positional args passed via command line (name, value pairs).
+        args_passed = []
+        # Name of the var args arg.
+        var_args_name = None
+        # Positional args added from command's environ args.
+        from_environ = {}
+        # Positional args added from command's default args.
+        from_default_args = {}
+        # Positional args added from arg defaults.
+        from_arg_defaults = {}
 
         # Map command line args to the command's parameters. Extract
         # positional args from the parsed args dict so they can be
@@ -708,12 +739,17 @@ class Command:
             return_code = 0
         return result, return_code
 
-    def partition_subcommands(self, argv, base=True):
+    def partition_subcommands(
+        self,
+        argv,
+        base=True,
+    ) -> tuple[tuple[Self, dict[str, Any]], ...]:
+
         debug = self.debug
         base_argv = []
-        base_args = {}
-        subcmd_args = {}
-        commands = [(self, base_args)]
+        base_args: dict[str, Any] = {}
+        subcmd_args: dict[str, Any] = {}
+        commands: list[tuple[Self, dict[str, Any]]] = [(self, base_args)]
         subcommand_map = {sub.name: sub for sub in self.subcommands}
 
         if debug:
@@ -784,7 +820,7 @@ class Command:
                             #      in this case so subcommand's default
                             #      will be used.
                             value = base_args[name]
-                        elif sub_param.is_required_keyword_only:
+                        elif sub_param and sub_param.is_required_keyword_only:
                             # Arg was *not* passed to base command.
                             #
                             # XXX: Use base arg's default value in this
@@ -792,7 +828,10 @@ class Command:
                             #      default.
                             value = base_arg.default
                         else:
+                            value = None
                             pass_down = False
+                    else:
+                        value = None
                     if pass_down:
                         subcmd_args[name] = value
                 base_cmd = subcmd
@@ -802,7 +841,7 @@ class Command:
                 for cmd, cmd_argv in commands:
                     printer.debug("   ", cmd.name, cmd_argv)
 
-        return commands
+        return tuple(commands)
 
     def __call__(self, *passed_args, **passed_kwargs):
         empty = Parameter.empty
@@ -818,17 +857,17 @@ class Command:
         var_args = ()
         kwargs = passed_kwargs.copy()
 
-        if debug:
-            # Positional args passed (name, value pairs).
-            args_passed = []
-            # Name of the var args arg.
-            var_args_name = None
-            # Args added from environ.
-            from_environ = {}
-            # Args added from command's default args.
-            from_default_args = {}
-            # Args added from arg defaults.
-            from_arg_defaults = {}
+        # Debug info (only populated when debug mode is enabled)
+        # Positional args passed (name, value pairs).
+        args_passed = []
+        # Name of the var args arg.
+        var_args_name = None
+        # Args added from environ.
+        from_environ = {}
+        # Args added from command's default args.
+        from_default_args = {}
+        # Args added from arg defaults.
+        from_arg_defaults = {}
 
         # The N passed positional args are mapped to the first N
         # positional parameters.
@@ -1001,7 +1040,7 @@ class Command:
             printer.debug("No multi short options found")
         return new_argv if has_multi_short_options else argv
 
-    def parse_multi_short_option(self, arg):
+    def parse_multi_short_option(self, arg) -> tuple[tuple[str, ...], Any]:
         """Parse args like '-xyz' into ['-x', '-y', '-z'].
 
         Examples::
@@ -1024,7 +1063,7 @@ class Command:
         """
         if len(arg) < 3 or arg[0] != "-" or arg[1] == "-" or arg[2] == "=":
             # Not a multi short option like '-abc'.
-            return None, None
+            return (), None
         # Appears to be a multi short option.
         option_map = self.option_map
         short_options = []
@@ -1040,7 +1079,7 @@ class Command:
                 break
         if self.debug and short_options:
             printer.debug("Parsed multi short option:", arg, "=>", short_options)
-        return short_options, value
+        return tuple(short_options), value
 
     @staticmethod
     def normalize_name(name):
@@ -1065,7 +1104,7 @@ class Command:
         name = self.normalize_name(name)
         return self.args.get(name)
 
-    def find_parameter(self, name):
+    def find_parameter(self, name) -> Parameter | None:
         """Find parameter by name or normalized arg name."""
         param = self.parameters.get(name)
         if param is None:
@@ -1075,24 +1114,26 @@ class Command:
                 param = arg.parameter
         return param
 
-    def get_arg_config(self, param):
-        annotation = param.annotation
+    def get_arg_config(self, param: Parameter) -> ArgConfig:
+        annotation = self.type_hints.get(param.name, None)
 
-        if hasattr(annotation, "__metadata__"):
-            metadata = annotation.__metadata__
-            if len(metadata) == 0:
-                annotation = param.empty
-            else:
-                annotation = metadata[0]
-
-        if annotation is param.empty:
-            annotation = self.arg_config.get(param.name) or ArgConfig()
+        if annotation is None:
+            return self.arg_config.get(param.name) or ArgConfig()
         elif isinstance(annotation, type):
-            annotation = ArgConfig(type=annotation)
-        elif isinstance(annotation, str):
-            annotation = ArgConfig(help=annotation)
-        elif isinstance(annotation, Mapping):
-            annotation = ArgConfig(**annotation)
+            return ArgConfig(type=annotation)
+
+        # Check for Annotated[T, arg(...)]
+        if annotation and hasattr(annotation, "__metadata__"):
+            # XXX: A TypeError will be thrown if Annotated is used
+            #      without providing any metadata, so no checking is
+            #      required here.
+            annotation = annotation.__metadata__[0]
+
+        if not isinstance(annotation, ArgConfig):
+            raise CommandError(
+                "The annotation for an arg must be either a bare type or an "
+                "annotated type of the form Annotated[type, arg(...)]."
+            )
 
         return annotation
 
@@ -1144,23 +1185,23 @@ class Command:
         printer.hr(color="info")
 
     @cached_property
-    def parameters(self):
+    def parameters(self) -> dict[str, Parameter]:
         implementation = self.implementation
         signature = inspect.signature(implementation)
-        parameters = OrderedDict()
+        parameters = {}
         for name, param in signature.parameters.items():
             parameters[name] = Parameter(param)
         return parameters
 
     @cached_property
-    def has_kwargs(self):
+    def has_kwargs(self) -> bool:
         return any(p.kind is p.VAR_KEYWORD for p in self.parameters.values())
 
     @cached_property
-    def args(self):
+    def args(self) -> dict[str, Arg]:
         """Create args from function parameters."""
         params = self.parameters
-        args = OrderedDict()
+        args = {}
 
         empty = Parameter.empty
 
@@ -1171,7 +1212,7 @@ class Command:
         get_inverse_short_option = self.get_inverse_short_option_for_arg
         get_inverse_long_option = self.get_inverse_long_option_for_arg
 
-        params = OrderedDict(
+        params = dict(
             (
                 (normalize_name(n), p)
                 for n, p in params.items()
@@ -1262,7 +1303,7 @@ class Command:
         if "help" not in args:
             args["help"] = HelpArg(command=self)
 
-        option_map = OrderedDict()
+        option_map: dict[str, Any] = {}
         for arg in args.values():
             for option in arg.options:
                 option_map.setdefault(option, [])
@@ -1327,12 +1368,12 @@ class Command:
         return parser
 
     @cached_property
-    def positionals(self):
+    def positionals(self) -> dict[str, Arg]:
         args = self.args.items()
-        return OrderedDict((name, arg) for (name, arg) in args if arg.is_positional)
+        return dict((name, arg) for (name, arg) in args if arg.is_positional)
 
     @cached_property
-    def var_positional(self):
+    def var_positional(self) -> Arg | None:
         args = self.args.items()
         for name, arg in args:
             if arg.is_var_positional:
@@ -1340,45 +1381,45 @@ class Command:
         return None
 
     @cached_property
-    def optionals(self):
+    def optionals(self) -> dict[str, Arg]:
         args = self.args.items()
-        return OrderedDict((name, arg) for (name, arg) in args if arg.is_optional)
+        return dict((name, arg) for (name, arg) in args if arg.is_optional)
 
     @cached_property
-    def option_map(self):
+    def option_map(self) -> dict[str, Arg]:
         """Map command-line options to args."""
-        option_map = OrderedDict()
+        option_map = {}
         for arg in self.args.values():
             for option in arg.options:
                 option_map[option] = arg
         return option_map
 
     @property
-    def help(self):
+    def help(self) -> str:
         help_ = self.arg_parser.format_help()
         help_ = help_.split(": ", 1)[1]
         help_ = help_.strip()
         return help_
 
     @property
-    def usage(self):
+    def usage(self) -> str:
         usage = self.arg_parser.format_usage()
         usage = usage.split(": ", 1)[1]
         usage = usage.strip()
         return usage
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.name)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.usage
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Command(name={self.name})"
 
 
 def command(
-    name=None,
+    name: type[Command] | Callable | str | None = None,
     description=None,
     base_command=None,
     timed=False,
@@ -1387,8 +1428,8 @@ def command(
     creates=None,
     sources=None,
     callbacks=None,
-    cls=Command,
-):
+    cls: type[Command] = Command,
+) -> Any:
     args = dict(
         description=description,
         base_command=base_command,
@@ -1400,26 +1441,29 @@ def command(
         callbacks=callbacks,
     )
 
-    if isinstance(name, type):
-        # Bare class decorator
+    # Bare class decorator: create instance of class.
+    if isinstance(name, type) and issubclass(name, Command):
         name.implementation.__name__ = camel_to_underscore(name.__name__)
         return name(**args)
 
+    # Bare function decorator: create command with implementation
     if callable(name):
-        # Bare function decorator
         return cls(implementation=name, **args)
 
-    def wrapper(wrapped):
-        if isinstance(wrapped, type):
-            wrapped.implementation.__name__ = camel_to_underscore(wrapped.__name__)
+    # Decorator with options.
+    def wrapper(wrapped: Command | Callable):
+        if isinstance(wrapped, Command):
+            impl_name = camel_to_underscore(wrapped.__class__.__name__)
+            wrapped.implementation.__name__ = impl_name
             return wrapped(name=name, **args)
-        return cls(implementation=wrapped, name=name, **args)
+        wrapped_name = str(name) if name is not None else None
+        return cls(implementation=wrapped, name=wrapped_name, **args)
 
     return wrapper
 
 
 def subcommand(
-    base_command,
+    base_command: Command,
     name=None,
     description=None,
     timed=False,
@@ -1428,9 +1472,9 @@ def subcommand(
     creates=None,
     sources=None,
     callbacks=None,
-    cls=None,
+    cls: type[Command] | None = None,
 ):
-    cls = cls or base_command.__class__
+    subcommand_cls = cls or base_command.__class__
     if read_config is None:
         read_config = base_command.read_config
     return command(
@@ -1443,5 +1487,5 @@ def subcommand(
         creates,
         sources,
         callbacks,
-        cls,
+        subcommand_cls,
     )

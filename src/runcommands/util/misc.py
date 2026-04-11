@@ -2,12 +2,12 @@ import builtins
 import functools
 import importlib
 import os
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Sequence, NoReturn
 
 from ..exc import RunAborted
 
 
-def abort(return_code=0, message="Aborted", color=True):
+def abort(return_code=0, message="Aborted", color=True) -> NoReturn:
     from .printer import printer
 
     if message:
