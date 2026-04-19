@@ -195,14 +195,18 @@ def is_project_root(path):
     """Is the path a project root?
 
     A project root is a directory that contains a source control
-    subdirectory (git, hg, and svn).
+    subdirectory (git, hg, and svn) or a pyproject.toml file.
 
     todo:: Be more inclusive.
 
     """
-    candidates = (".git", ".hg", ".svn")
-    for candidate in candidates:
+    dir_candidates = (".git", ".hg", ".svn")
+    file_candidates = ("pyproject.toml",)
+    for candidate in dir_candidates:
         if (path / candidate).is_dir():
+            return True
+    for candidate in file_candidates:
+        if (path / candidate).is_file():
             return True
     return False
 
