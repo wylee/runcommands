@@ -7,11 +7,12 @@ from typing import Any
 import toml
 
 from . import __version__
-from .args import arg, json_value
+from .args import arg
 from .collection import Collection
 from .command import Command
 from .exc import RunAborted, RunnerError
 from .runner import CommandRunner
+from .types import json_value
 from .util import (
     abs_path,
     is_mapping,

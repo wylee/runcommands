@@ -1,5 +1,6 @@
-from .args import arg, bool_or, json_value
+from .args import arg
 from .command import command, subcommand
+from .types import bool_or, json_value
 from .util import abort, confirm, printer
 
 __version__ = "1.0a74.dev0"

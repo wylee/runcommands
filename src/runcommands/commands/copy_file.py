@@ -3,8 +3,9 @@ import shutil
 import string
 import tempfile
 
-from ..args import arg, bool_or
+from ..args import arg
 from ..command import command
+from ..types import bool_or
 
 
 @command
