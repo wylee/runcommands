@@ -7,7 +7,6 @@ import runcommands.util.misc
 import runcommands.util.path
 import runcommands.util.string
 from runcommands.util.enums import PrinterColor
-
 from runcommands.util.printer import printer
 
 

@@ -2,7 +2,7 @@ import builtins
 import functools
 import importlib
 import os
-from typing import Any, Mapping, Sequence, NoReturn
+from typing import Any, Mapping, NoReturn, Sequence
 
 from ..exc import RunAborted
 

@@ -2,10 +2,11 @@ import argparse
 import builtins
 import json
 import re
+from collections.abc import Callable, Sequence
 from enum import Enum
 from functools import update_wrapper
 from inspect import Parameter as BaseParameter
-from typing import Any, Callable, Sequence
+from typing import Any
 
 from cached_property import cached_property
 

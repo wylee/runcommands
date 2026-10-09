@@ -5,7 +5,7 @@ import subprocess
 from ..args import arg
 from ..command import command
 from ..result import Result
-from ..util import abs_path, flatten_args, printer, StreamOptions
+from ..util import StreamOptions, abs_path, flatten_args, printer
 
 
 @command

@@ -10,8 +10,11 @@ from make_release.util import get_current_branch, get_latest_tag  # noqa: E402
 
 from runcommands import command  # noqa: E402
 from runcommands.args import arg  # noqa: E402
-from runcommands.commands import copy_file as _copy_file, local  # noqa: E402
-from runcommands.commands import git_version  # noqa: E402,F401
+from runcommands.commands import copy_file as _copy_file  # noqa: E402
+from runcommands.commands import (
+    git_version,  # noqa: E402,F401
+    local,
+)
 from runcommands.util import (
     abort,
     asset_path,

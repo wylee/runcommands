@@ -7,7 +7,7 @@ import rich.markup
 from ..args import arg
 from ..command import command
 from ..result import Result
-from ..util import flatten_args, isatty, printer, prompt, StreamOptions
+from ..util import StreamOptions, flatten_args, isatty, printer, prompt
 from .local import local
 
 

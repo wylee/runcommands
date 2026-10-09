@@ -1,4 +1,5 @@
-from rich.prompt import Confirm as BaseConfirm, Prompt, InvalidResponse
+from rich.prompt import Confirm as BaseConfirm
+from rich.prompt import InvalidResponse, Prompt
 
 from .misc import abort
 from .printer import printer

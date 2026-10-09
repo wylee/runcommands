@@ -1,7 +1,7 @@
 from ..args import arg
 from ..command import command
 from ..result import Result
-from ..util import abs_path, StreamOptions
+from ..util import StreamOptions, abs_path
 from .local import local
 
 

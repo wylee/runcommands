@@ -25,7 +25,6 @@ from .printer import printer
 from .prompt import confirm, prompt
 from .string import camel_to_underscore, invert_string
 
-
 __all__ = [
     "get_commands_in_namespace",
     "Data",

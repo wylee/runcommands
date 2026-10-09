@@ -1,4 +1,4 @@
-from typing import MutableMapping
+from collections.abc import MutableMapping
 
 from .command import Command
 

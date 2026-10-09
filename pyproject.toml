@@ -44,6 +44,7 @@ runcommands-complete-base-command = "runcommands.completion:complete_base_comman
 test-command = "run test"
 
 [tool.ruff.lint]
+select = ["E", "F", "I"]
 ignore = ["F722", "F821"]
 
 [tool.ruff.lint.per-file-ignores]

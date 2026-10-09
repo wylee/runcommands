@@ -1,15 +1,15 @@
 import os
 import sys
+from importlib import import_module
+from pathlib import Path
 from typing import Any
 
 import toml
-from importlib import import_module
-from pathlib import Path
 
 from . import __version__
 from .args import arg, json_value
-from .command import Command
 from .collection import Collection
+from .command import Command
 from .exc import RunAborted, RunnerError
 from .runner import CommandRunner
 from .util import (
