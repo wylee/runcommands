@@ -9,8 +9,6 @@ class RunCommandsError(Exception):
 
     """
 
-    pass
-
 
 class RunAborted(RunCommandsError):
     """Used to explicitly signal that the run should be aborted."""

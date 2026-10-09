@@ -22,11 +22,13 @@ class TestPrinter(TestCase):
         stdout = StringIO()
         stderr = StringIO()
         for attr in ("print", "header", "info", "success", "echo"):
-            with self.subTest(printer=attr):
-                with redirect_stdout(stdout):
-                    with redirect_stderr(stderr):
-                        attr = getattr(printer, attr)
-                        attr("stdout")
+            with (
+                self.subTest(printer=attr),
+                redirect_stdout(stdout),
+                redirect_stderr(stderr),
+            ):
+                attr = getattr(printer, attr)
+                attr("stdout")
             self.assertIn("stdout", stdout.getvalue())
             self.assertEqual(stderr.getvalue(), "")
 
@@ -34,11 +36,13 @@ class TestPrinter(TestCase):
         stdout = StringIO()
         stderr = StringIO()
         for attr in ("warning", "error", "danger", "debug"):
-            with self.subTest(printer=attr):
-                with redirect_stdout(stdout):
-                    with redirect_stderr(stderr):
-                        attr = getattr(printer, attr)
-                        attr("stderr")
+            with (
+                self.subTest(printer=attr),
+                redirect_stdout(stdout),
+                redirect_stderr(stderr),
+            ):
+                attr = getattr(printer, attr)
+                attr("stderr")
             self.assertEqual(stdout.getvalue(), "")
             self.assertIn("stderr", stderr.getvalue())
 

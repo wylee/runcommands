@@ -32,7 +32,7 @@ class Collection(MutableMapping):
         on the command line or in a direct call.
 
         """
-        for name, args in default_args.items():
+        for name in default_args:
             command = self[name]
             command.default_args = default_args.get(command.name) or {}
 

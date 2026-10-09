@@ -647,10 +647,10 @@ def add_items_to_container(
 
 
 class BoolOrAction(argparse.Action):
-    def __call__(self, parser, namespace, value, option_string=None):
-        if value is None:
-            value = True
-        setattr(namespace, self.dest, value)
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values is None:
+            values = True
+        setattr(namespace, self.dest, values)
 
 
 class BoolOrContainerAction(argparse.Action):
@@ -665,8 +665,8 @@ class BoolOrContainerAction(argparse.Action):
             },
         )
 
-    def __call__(self, parser, namespace, value, option_string=None):
-        if value == []:
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values == []:
             setattr(namespace, self.dest, True)
         else:
             existing_items = getattr(namespace, self.dest)
@@ -677,7 +677,7 @@ class BoolOrContainerAction(argparse.Action):
                 self.container_type,
                 self.item_type,
                 existing_items,
-                value,
+                values,
                 option_string,
             )
             setattr(namespace, self.dest, items)

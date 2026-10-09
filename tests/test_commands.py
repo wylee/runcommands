@@ -139,9 +139,8 @@ class TestRun(SysExitMixin, TestCase):
     def _run(self, argv=None):
         if argv is None:
             argv = []
-        with redirect_stderr(self.stderr):
-            with redirect_stdout(self.stdout):
-                return_code = run.console_script(argv)
+        with redirect_stderr(self.stderr), redirect_stdout(self.stdout):
+            return_code = run.console_script(argv)
         return return_code
 
     def test_run_with_no_args(self):
