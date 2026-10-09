@@ -33,7 +33,7 @@ def install():
 @command
 def update():
     """Update dependencies by running `uv sync`."""
-    local("uv sync --update")
+    local("uv sync --upgrade")
 
 
 @command
