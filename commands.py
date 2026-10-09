@@ -1,60 +1,10 @@
 #!/usr/bin/env python3
-import glob
 import os
 import pathlib
 import shutil
-import subprocess
 import sys
 import unittest
 from typing import Annotated
-
-
-if os.path.abspath(sys.argv[0]) == os.path.abspath(__file__):
-    # When running this module directly via `./commands.py` or
-    # `python commands.py`:
-    #
-    # - Ensure virtual env is created and dependencies are installed
-    # - Ensure virtual env is activated
-    # - Ensure virtual env site packages directory is at front of sys.path
-    # - Ensure package src directory is first in sys.path
-    if shutil.which("uv") is None:
-        sys.stderr.write("uv not installed or not on $PATH\n")
-        sys.exit(1)
-
-    if not os.getenv("VIRTUAL_ENV"):
-
-        def activate_venv(root="./.venv"):
-            sys.stderr.write(f"Attempting to activate virtual env at {root} -> ")
-            venv_root = os.path.abspath(root)
-            venv_bin = os.path.join(venv_root, "bin")
-            venv_python = os.path.join(venv_bin, "python")
-            venv_site_packages = os.path.join(venv_root, "lib/python*/site-packages")
-            if os.path.isfile(venv_python):
-                paths = os.environ["PATH"].split(os.pathsep)
-                for path in paths:
-                    if os.path.normpath(os.path.abspath(path)) == venv_bin:
-                        # Virtual env bin directory IS in $PATH
-                        break
-                else:
-                    # Virtual env bin directory is NOT in $PATH; prepend it
-                    os.environ["PATH"] = os.pathsep.join([venv_bin] + paths)
-                os.environ["VIRTUAL_ENV"] = os.path.abspath(venv_root)
-                for path in glob.glob(venv_site_packages):
-                    sys.path.insert(0, path)
-                sys.stderr.write("activated\n")
-                return True
-            sys.stderr.write("FAILED\n")
-            return False
-
-        if not activate_venv():
-            sys.stderr.write("Creating virtual env and installing dependencies\n")
-            if os.path.exists("uv.lock"):
-                os.remove("uv.lock")
-            subprocess.run(["uv", "sync"])
-            activate_venv()
-
-        sys.path.insert(0, os.path.join(str(os.path.dirname(__file__)), "src"))
-
 
 from make_release.util import get_current_branch, get_latest_tag  # noqa: E402
 
