@@ -1,9 +1,9 @@
 import io
 import os
 import sys
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 from unittest import TestCase
 
 from runcommands import arg, command, subcommand
@@ -11,9 +11,12 @@ from runcommands.commands import local
 from runcommands.exc import CommandError, RunAborted
 from runcommands.result import Result
 from runcommands.run import run
+from runcommands.types import bool_or
 
 
 class MockResult:
+    return_code: Any
+
     def __init__(self, return_code):
         self.return_code = return_code
 
@@ -79,17 +82,39 @@ def create_without_sources():
     return MockResult(f"Created {path}")
 
 
-class SysExitMixin:
+class SysExitTestCase(TestCase):
     """Make sys.exit() return its arg rather than actually exiting."""
+
+    original_sys_exit = sys.exit
 
     @classmethod
     def setUpClass(cls):
-        cls.original_sys_exit = sys.exit
-        sys.exit = lambda arg=0: arg
+        sys.exit = lambda status=0: status
 
     @classmethod
     def tearDownClass(cls):
         sys.exit = cls.original_sys_exit
+
+    @contextmanager
+    def has_stderr(self):
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            yield
+        self.assertNotEqual("", stderr.getvalue())
+
+    @contextmanager
+    def no_stderr(self):
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            yield
+        self.assertEqual("", stderr.getvalue())
+
+    @contextmanager
+    def check_stderr(self, expected):
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            yield
+        self.assertIn(expected, stderr.getvalue())
 
 
 class TestLocalCommand(TestCase):
@@ -99,18 +124,59 @@ class TestLocalCommand(TestCase):
         self.assertTrue(result)
 
 
-class TestCommandWithContainerArgs(SysExitMixin, TestCase):
+class TestBoolCommands(SysExitTestCase):
+    def test_flag(self):
+        @command
+        def cmd(flag: Annotated[bool, arg(type=bool)] = True):
+            return MockResult(flag)
+
+        with self.check_stderr("error: unrecognized arguments: --unknown"):
+            cmd.console_script(argv=["--unknown"])
+
+        with self.no_stderr():
+            result = cmd.console_script(argv=["--flag"])
+            self.assertIs(result, True)
+
+        with self.no_stderr():
+            result = cmd.console_script(argv=["--no-flag"])
+            self.assertIs(result, False)
+
+    def test_bool_or(self):
+        @command
+        def cmd(flag_or: Annotated[bool, arg(type=bool_or(str))] = True):
+            return MockResult(flag_or)
+
+        with self.check_stderr("error: unrecognized arguments: --unknown"):
+            cmd.console_script(argv=["--unknown"])
+
+        with self.no_stderr():
+            result = cmd.console_script(argv=["--flag-or"])
+        self.assertIs(result, True)
+
+        with self.no_stderr():
+            result = cmd.console_script(argv=["--flag-or", "value"])
+        self.assertIs(result, "value")
+
+        with self.no_stderr():
+            result = cmd.console_script(argv=["--no-flag-or"])
+        self.assertIs(result, False)
+
+
+class TestCommandWithContainerArgs(SysExitTestCase):
     def test_positional(self):
-        result = container_args.console_script(argv=["1"])
+        with self.no_stderr():
+            result = container_args.console_script(argv=["1"])
         self.assertEqual(result, ((1,), (), None, (42,)))
 
     def test_positional_and_optional(self):
-        result = container_args.console_script(argv=["1", "--optional", "2"])
+        with self.no_stderr():
+            result = container_args.console_script(argv=["1", "--optional", "2"])
         self.assertEqual(result, ((1,), (2,), None, (42,)))
 
     def test_positional_and_optional_and_optional(self):
         argv = ["1", "--optional", "2", "--another-optional", "3.15"]
-        result = container_args.console_script(argv=argv)
+        with self.no_stderr():
+            result = container_args.console_script(argv=argv)
         self.assertEqual(result, ((1,), (2,), [3.15], (42,)))
 
     def test_positional_and_optional_and_optional_and_optional(self):
@@ -123,11 +189,12 @@ class TestCommandWithContainerArgs(SysExitMixin, TestCase):
             "--third-optional",
             "13",
         ]
-        result = container_args.console_script(argv=argv)
+        with self.no_stderr():
+            result = container_args.console_script(argv=argv)
         self.assertEqual(result, ((1,), (2,), [3.15], (13,)))
 
 
-class TestRun(SysExitMixin, TestCase):
+class TestRun(SysExitTestCase):
     def setUp(self):
         self.stderr = io.StringIO()
         self.stdout = io.StringIO()
@@ -181,30 +248,35 @@ class TestRun(SysExitMixin, TestCase):
         local.callbacks = []
 
 
-class TestSubcommand(SysExitMixin, TestCase):
+class TestSubcommand(SysExitTestCase):
     def test_base_command_subcommand_choices(self):
         arg = base.args["subcommand"]
         self.assertIsNotNone(arg.choices)
         self.assertEqual(arg.choices, ["sub", "sub-abort"])
 
     def test_call_base_command(self):
-        result = base.console_script(argv=[])
+        with self.no_stderr():
+            result = base.console_script(argv=[])
         self.assertEqual(result, "base None")
 
     def test_call_subcommand(self):
-        result = base.console_script(argv=["sub"])
+        with self.no_stderr():
+            result = base.console_script(argv=["sub"])
         self.assertEqual(result, "sub None None")
 
     def test_call_subcommand_with_optional(self):
-        result = base.console_script(argv=["sub", "--optional", "b"])
+        with self.no_stderr():
+            result = base.console_script(argv=["sub", "--optional", "b"])
         self.assertEqual(result, "sub None b")
 
     def test_call_subsubcommand(self):
-        result = base.console_script(argv=["sub", "subsub", "a"])
+        with self.no_stderr():
+            result = base.console_script(argv=["sub", "subsub", "a"])
         self.assertEqual(result, "subsub a None")
 
     def test_call_subsubcommand_with_optional(self):
-        result = base.console_script(argv=["sub", "subsub", "a", "--optional", "b"])
+        with self.no_stderr():
+            result = base.console_script(argv=["sub", "subsub", "a", "--optional", "b"])
         self.assertEqual(result, "subsub a b")
 
     def test_call_subsubcommand_with_shared_args(self):
@@ -220,14 +292,18 @@ class TestSubcommand(SysExitMixin, TestCase):
         def subsub1(a=None, flag=True):
             return MockResult(f"subsub1({a}, {flag})")
 
-        result = base1.console_script(argv=["-a", "A", "sub1", "--no-flag"])
+        with self.no_stderr():
+            result = base1.console_script(argv=["-a", "A", "sub1", "--no-flag"])
         self.assertEqual(result, "sub1(None, A, False)")
 
-        result = base1.console_script(argv=["-a", "A", "sub1", "--no-flag", "subsub1"])
+        with self.no_stderr():
+            result = base1.console_script(
+                argv=["-a", "A", "sub1", "--no-flag", "subsub1"]
+            )
         self.assertEqual(result, "subsub1(A, False)")
 
 
-class TestSubcommandCallbacks(SysExitMixin, TestCase):
+class TestSubcommandCallbacks(SysExitTestCase):
     def tearDown(self):
         base.callbacks = []
         sub.callbacks = []
@@ -275,7 +351,7 @@ class TestSubcommandCallbacks(SysExitMixin, TestCase):
         self._check(sub_abort, sub_callback, called=False, aborted=True)
 
 
-class TestSourcesAndCreates(SysExitMixin, TestCase):
+class TestSourcesAndCreates(SysExitTestCase):
     def setUp(self):
         self.stderr = io.StringIO()
         self.stdout = io.StringIO()
