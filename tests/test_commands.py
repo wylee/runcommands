@@ -109,9 +109,9 @@ class TestCommandWithContainerArgs(SysExitMixin, TestCase):
         self.assertEqual(result, ((1,), (2,), None, (42,)))
 
     def test_positional_and_optional_and_optional(self):
-        argv = ["1", "--optional", "2", "--another-optional", "3.14"]
+        argv = ["1", "--optional", "2", "--another-optional", "3.15"]
         result = container_args.console_script(argv=argv)
-        self.assertEqual(result, ((1,), (2,), [3.14], (42,)))
+        self.assertEqual(result, ((1,), (2,), [3.15], (42,)))
 
     def test_positional_and_optional_and_optional_and_optional(self):
         argv = [
@@ -119,12 +119,12 @@ class TestCommandWithContainerArgs(SysExitMixin, TestCase):
             "--optional",
             "2",
             "--another-optional",
-            "3.14",
+            "3.15",
             "--third-optional",
             "13",
         ]
         result = container_args.console_script(argv=argv)
-        self.assertEqual(result, ((1,), (2,), [3.14], (13,)))
+        self.assertEqual(result, ((1,), (2,), [3.15], (13,)))
 
 
 class TestRun(SysExitMixin, TestCase):
