@@ -3,11 +3,9 @@ import builtins
 import re
 from collections.abc import Callable, Sequence
 from enum import Enum
-from functools import update_wrapper
+from functools import cached_property, update_wrapper
 from inspect import Parameter as BaseParameter
 from typing import Any
-
-from cached_property import cached_property
 
 from .actions import BoolOrAction, BoolOrContainerAction, ContainerAction
 from .exc import ArgError

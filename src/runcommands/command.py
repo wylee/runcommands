@@ -5,11 +5,11 @@ import signal
 import sys
 import time
 from configparser import ConfigParser, ExtendedInterpolation
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Callable, Mapping, Self, Sequence, get_type_hints
 
 import toml
-from cached_property import cached_property
 
 from .args import Arg, ArgConfig, HelpArg, Parameter, PositionalPlaceholder
 from .exc import CommandError, RunAborted, RunCommandsError

@@ -1,9 +1,8 @@
 import os
 import shlex
+from functools import cached_property
 from subprocess import CompletedProcess
 from typing import Any, Mapping
-
-from cached_property import cached_property
 
 from .exc import RunCommandsError
 
