@@ -102,7 +102,7 @@ def is_sequence(obj):
     return isinstance(obj, Sequence) and not isinstance(obj, str)
 
 
-def is_type(obj, type):
+def is_type(obj, *types: Any):
     """Is the object a subclass of the specified type?
 
     This is similar to the builtin ``issubclass`` but also ensures the
@@ -111,7 +111,7 @@ def is_type(obj, type):
     """
     if not isinstance(obj, builtins.type):
         return False
-    return issubclass(obj, type)
+    return issubclass(obj, types)
 
 
 def isatty(stream):
