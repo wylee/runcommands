@@ -156,8 +156,6 @@ class Command:
     base_name: str
     is_subcommand: bool
     subcommands: list[Self]
-    first_arg: Arg | None
-    first_arg_has_choices: bool
 
     def __init__(
         self,
@@ -223,15 +221,10 @@ class Command:
         self.mutual_exclusion_groups = {}
 
         # Subcommand-related attributes
-        first_arg = next(iter(self.args.values()), None)
         self.base_command = base_command
         self.base_name = base_name
         self.is_subcommand = base_command is not None
         self.subcommands = []
-        self.first_arg = first_arg
-        self.first_arg_has_choices = (
-            False if first_arg is None else bool(first_arg.choices)
-        )
 
         if base_command is not None:
             base_command.add_subcommand(self)
@@ -459,12 +452,14 @@ class Command:
         return tuple(source_paths)
 
     def add_subcommand(self, subcommand_: Self):
-        name = subcommand_.base_name
+        first_arg = next(iter(self.args.values()), None)
+
+        if first_arg:
+            if first_arg.choices is None:
+                first_arg.choices = []
+            first_arg.choices.append(subcommand_.base_name)
+
         self.subcommands.append(subcommand_)
-        if self.first_arg and not self.first_arg_has_choices:
-            if self.first_arg.choices is None:
-                self.first_arg.choices = []
-            self.first_arg.choices.append(name)
 
     def get_description_from_docstring(self) -> str | None:
         description = self.implementation.__doc__
