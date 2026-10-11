@@ -10,7 +10,7 @@ class bool_or:
     Use like this::
 
         @command
-        def local(config, cmd, hide: {'type': bool_or} = False):
+        def local(config, cmd, hide: arg(type=bool_or) = False):
             "Run the specified command, possibly hiding its output.
 
             If ``hide=True``, *all* output will be hidden. It can also
@@ -32,7 +32,7 @@ class bool_or:
     This can also be combined with the ``container`` option like so::
 
         @command
-        def fetch(fields: {'container': dict, type: bool_or(int)}):
+        def fetch(fields: arg=(container dict, type=bool_or(int)):
             "Get data from somewhere and show the specified fields.
 
             If ``fields=True``, all fields will be shown with their
